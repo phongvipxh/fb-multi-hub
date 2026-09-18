@@ -5,7 +5,7 @@
 [![Database](https://img.shields.io/badge/Database-SQLite%20(Local)%20%7C%20Supabase%20Ready-orange.svg)](https://sqlite.org)
 [![Cloudflare Tunnel](https://img.shields.io/badge/Cloudflare-TryCloudflare%20(No%20Login)-yellow.svg)](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-20%2F20%20PASS%20(100%25)-brightgreen.svg)](test/system.test.js)
+[![Tests](https://img.shields.io/badge/Tests-21%2F21%20PASS%20(100%25)-brightgreen.svg)](test/system.test.js)
 
 **FB Multi-Hub v2.0** là giải pháp phần mềm quản lý tập trung tin nhắn đa Fanpage Facebook chuyên nghiệp dành cho chủ shop, nhân viên trực ca và đội ngũ bán hàng 24/7. Được thiết kế theo mô hình **Tự Host Độc Lập (100% Self-Hosted)**, toàn bộ cơ sở dữ liệu được lưu an toàn tại máy chủ cá nhân của bạn, không lo rò rỉ dữ liệu khách hàng và **hoàn toàn miễn phí trọn đời** (không mất phí thuê bao hàng tháng như Pancake hay Fchat).
 
@@ -19,9 +19,12 @@
 - **Hỗ trợ Đa Tài Khoản Facebook song song:** Quản lý cùng lúc nhiều tài khoản Facebook cá nhân hoặc nick chạy quảng cáo trong cùng một hệ thống; tự động gắn nhãn phân loại tài khoản sở hữu cho từng Fanpage.
 - **Kho Nguồn Token (Token Vault):** Lưu trữ, quản lý, đổi token mới (`Renew`) và kiểm tra chi tiết quyền hạn token (`🔍 Soi Token`) thông qua Meta Graph API Debugger.
 
-### 2. 💬 Hộp Thư Hội Thoại 2 Cột Đa Phương Tiện (Split-View Workspace)
-- **Chuẩn Meta Business Suite:** Thiết kế chia 2 cột công thái học (Dark Mode bảo vệ mắt ban đêm), danh sách hội thoại lọc theo Fanpage, trạng thái Chưa Xem, Chưa Trả Lời.
-- **Tìm kiếm thông minh:** Tìm nhanh theo tên khách, từ khóa nội dung và **tự động nhận dạng Số Điện Thoại khách hàng (09xx, 03xx, 08xx...)** hiển thị nổi bật dưới dạng Badge xanh kèm nút copy 1-click.
+### 2. 💬 Hộp Thư Hội Thoại 3 Cột Đa Phương Tiện & Mini CRM Bán Hàng (Pancake.vn Style)
+- **Chuẩn Desktop App 3 cột:** Hộp thư tin nhắn (340px) | Khung Chat Trực Tiếp (Flex) | Mini CRM Sidebar (320px).
+- **Thẻ phân loại khách hàng (Customer Tags):** Có sẵn 6 thẻ tiêu chuẩn (`Khách VIP`, `Đã Chốt Đơn`, `Cần Tư Vấn`, `Đã Cọc`, `Khách Bom Hàng`, `Đang Phân Vân`) hiển thị huy hiệu màu ngay trên danh sách hội thoại; hỗ trợ tạo nhãn tùy biến không giới hạn.
+- **Ghi chú nội bộ nhân viên (Internal Notes):** Lưu lịch sử lưu ý của nhân viên theo dòng thời gian, bảo mật 100% (chỉ nhân viên nhìn thấy, ẩn hoàn toàn với khách hàng Facebook).
+- **Tự động bắt số điện thoại (Auto-Phone Detection):** Tự động phát hiện số điện thoại trong tin nhắn khách gửi và cung cấp nút lưu 1-click vào hồ sơ CRM kèm nút gọi điện nhanh `📞`.
+- **Tìm kiếm thông minh đa trường:** Tìm nhanh theo tên khách, từ khóa tin nhắn, số điện thoại (`09xx`), địa chỉ giao hàng và tên thẻ nhãn phân loại.
 - **Đa phương tiện cao cấp:** Hỗ trợ gửi/nhận tin nhắn văn bản, hình ảnh, Video clip, tin nhắn âm thanh (**Voice Notes**), kéo thả tệp trực tiếp và thanh mẫu câu trả lời nhanh (**Quick Replies**).
 - **Đồng bộ hai chiều trạng thái Seen/Unseen:** Tự động gửi `mark_seen` về Meta Graph API khi nhân viên mở xem hội thoại, đồng bộ thời gian thực watermark khi khách đọc tin nhắn.
 
@@ -66,7 +69,7 @@
 
 ```bash
 # 1. Clone mã nguồn về máy
-git clone https://github.com/your-username/fb-multi-hub.git
+git clone https://github.com/phongvipxh/fb-multi-hub.git
 cd fb-multi-hub
 
 # 2. Tạo tệp cấu hình môi trường
@@ -111,7 +114,7 @@ Hệ thống tự động kích hoạt **Cloudflare Tunnel** mỗi khi khởi đ
 
 ## 🧪 Kiểm Thử Cơ Học Tự Động (Mechanical Gate)
 
-Dự án tuân thủ kỷ luật kỹ thuật khắt khe, tích hợp bộ kiểm thử toàn diện **20 bài test hệ thống** bao phủ từ CSDL SQLite, Đa tài khoản OAuth 2.0, Webhook Echo, Đa phương tiện, Báo thức SIM VoIP, Đồng bộ giờ Meta đến Khả năng thích ứng VPN:
+Dự án tuân thủ kỷ luật kỹ thuật khắt khe, tích hợp bộ kiểm thử toàn diện **21 bài test hệ thống** bao phủ từ CSDL SQLite, Đa tài khoản OAuth 2.0, Webhook Echo, Đa phương tiện, Báo thức SIM VoIP, Đồng bộ giờ Meta, Khả năng thích ứng VPN đến Mini CRM & Thẻ phân loại khách hàng:
 
 ```bash
 npm test
@@ -119,7 +122,7 @@ npm test
 **Kết quả đầu ra tiêu chuẩn (Exit Code 0):**
 ```text
 =============================================================
-🎉 TẤT CẢ 20 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH & KHẢ NĂNG THÍCH ỨNG VPN ĐA QUỐC GIA ĐỀU ĐẠT (EXIT 0)!
+🎉 TẤT CẢ 21 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, VPN ĐA QUỐC GIA & MINI CRM ĐỀU ĐẠT (EXIT 0)!
 =============================================================
 ```
 
