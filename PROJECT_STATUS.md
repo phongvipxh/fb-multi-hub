@@ -67,14 +67,25 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Checks system PATH for `cloudflared` before downloading `bin/cloudflared.exe`.
   - Automatic ABI compatibility check for `better-sqlite3` (`node -e "require('better-sqlite3')"`), auto-rebuilding native bindings if transferred between different Node versions.
 
-## 4. Repository & Deployment
-- GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub` (Private)
-- Current Branch: `main`
-- Verification: 22/22 Test Suites Passed (Exit Code 0)
+- Custom Alarm Audio & YouTube Alarm Support:
+  - Tùy chỉnh tệp âm thanh chuông báo thức trực tiếp từ Web (.mp3, .wav, .ogg, .aac, .m4a, .flac, .webm) kèm trình nghe thử (Audio Player) trực quan.
+  - Hỗ trợ dán đường dẫn video/nhạc từ YouTube (ví dụ: `https://www.youtube.com/watch?v=...`) tự động nhúng iframe player phát âm thanh chuông báo khi có tin nhắn hoặc quá hạn phản hồi.
+- Facebook OAuth 2.0 Diagnostics & Instant Fallback:
+  - Nút lưu độc lập App ID & App Secret tại Bước 1 (không cần bấm Đăng nhập mới lưu cấu hình).
+  - Khối hướng dẫn cấu hình chi tiết từ tạo App đến xem App Secret được thiết kế collapsible (thu gọn mặc định) giúp giao diện gọn gàng.
+  - Bộ chẩn đoán lỗi OAuth 5 nhóm (Invalid Redirect URI, Unverified/Development App, Scopes Permissions, User Cancelled, Unknown) tự động hiển thị nguyên nhân trực quan và nút chuyển đổi tức thì sang Cách B (Dán Token trực tiếp).
+- Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
+  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (~48 MB).
+  - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh. Người dùng tải về chỉ cần click đúp là chạy ngay lập tức, không cần cài đặt Node.js hay bất kỳ phần mềm hỗ trợ nào.
 
-- Latest Commit: `3955f41` (Up to date with origin/main)
+## 4. Repository & Deployment
+- GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub`
+- Current Branch: `main`
+- Verification: 23/23 Test Suites Passed (Exit Code 0)
+- Latest Commit: `67b7d07` (Up to date with origin/main)
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
-- 21 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, and Mini CRM & Customer Tags.
+- 23 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, and Custom Web Alarm Audio / YouTube Links.
 - Last Status: 100% Pass — Mechanical Exit Code 0.
+
