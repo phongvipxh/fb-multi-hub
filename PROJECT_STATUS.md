@@ -70,10 +70,13 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
 - Custom Alarm Audio & YouTube Alarm Support:
   - Tùy chỉnh tệp âm thanh chuông báo thức trực tiếp từ Web (.mp3, .wav, .ogg, .aac, .m4a, .flac, .webm) kèm trình nghe thử (Audio Player) trực quan.
   - Hỗ trợ dán đường dẫn video/nhạc từ YouTube (ví dụ: `https://www.youtube.com/watch?v=...`) tự động nhúng iframe player phát âm thanh chuông báo khi có tin nhắn hoặc quá hạn phản hồi.
-- Facebook OAuth 2.0 Diagnostics & Instant Fallback:
+- Facebook OAuth 2.0 Multi-Account & Smart Gateway Auto-Discovery:
   - Nút lưu độc lập App ID & App Secret tại Bước 1 (không cần bấm Đăng nhập mới lưu cấu hình).
   - Khối hướng dẫn cấu hình chi tiết từ tạo App đến xem App Secret được thiết kế collapsible (thu gọn mặc định) giúp giao diện gọn gàng.
   - Bộ chẩn đoán lỗi OAuth 5 nhóm (Invalid Redirect URI, Unverified/Development App, Scopes Permissions, User Cancelled, Unknown) tự động hiển thị nguyên nhân trực quan và nút chuyển đổi tức thì sang Cách B (Dán Token trực tiếp).
+  - Giao diện Multi-Account trực quan tại View 2: Bảng hiển thị toàn bộ các tài khoản Facebook đang kết nối kèm Avatar, User ID, số lượng Fanpage, trạng thái Token và Cổng App riêng. Nút "➕ Thêm Tài Khoản Mới" mở modal đăng nhập tuần tự.
+  - Tối ưu luồng Đăng Nhập 1-Click: Khi hệ thống chưa có App ID, hiển thị trực diện ô nhập App ID làm Cổng chung ngay trong Cách 1 kèm nút hướng dẫn nhanh và lối tắt chuyển sang Cách 2. Khi đã có App ID, tự động chuyển sang 1-Click thực thụ.
+  - Token Auto-Discovery: Khi dán User Token ở Cách 2, backend tự động truy vấn `GET /app?access_token={token}` để trích xuất App ID và tự động lưu làm Cổng App chung cho hệ thống mà người dùng không cần nhập thủ công.
 - Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
   - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (~48 MB).
   - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh. Người dùng tải về chỉ cần click đúp là chạy ngay lập tức, không cần cài đặt Node.js hay bất kỳ phần mềm hỗ trợ nào.
@@ -82,7 +85,7 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
 - GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub`
 - Current Branch: `main`
 - Verification: 23/23 Test Suites Passed (Exit Code 0)
-- Latest Commit: `67b7d07` (Up to date with origin/main)
+- Latest Commit: `e88bb02` (Up to date with origin/main)
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
