@@ -1,0 +1,35 @@
+{
+  "name": "fb-multi-hub",
+  "version": "2.0.0",
+  "description": "FB Multi-Hub - Hệ thống Quản trị Đa Fanpage Facebook & Báo Thức Xuyên Đêm Tự Host (Self-Hosted)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node test/system.test.js"
+  },
+  "keywords": [
+    "facebook",
+    "fanpage",
+    "meta-graph-api",
+    "self-hosted",
+    "alarm",
+    "shift-scheduler",
+    "cloudflared",
+    "inbox",
+    "sqlite"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "localtunnel": "^2.0.2"
+  }
+}

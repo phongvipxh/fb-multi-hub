@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FB Multi-Hub | Quản Trị Fanpage & Báo Thức Tự Host</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body class="app-body">
+
+  <!-- ======================================================== -->
+  <!-- FLOATING EMERGENCY ALARM BANNER                          -->
+  <!-- ======================================================== -->
+  <div id="emergencyAlarmBar" class="emergency-alarm-bar" style="display: none;">
+    <div class="alarm-bar-content">
+      <span class="alarm-pulsing-icon">🚨</span>
+      <div class="alarm-bar-text">
+        <strong id="emergencyAlarmTitle">BÁO THỨC: CÓ TIN NHẮN MỚI TỪ KHÁCH HÀNG!</strong>
+        <span id="emergencyAlarmSubtitle">Loa máy tính và điện thoại của bạn đang đổ chuông để đánh thức.</span>
+      </div>
+    </div>
+    <div class="alarm-bar-actions">
+      <button id="dismissAlarmBtn" class="btn btn-sm btn-dismiss">🔕 Tắt Chuông Ngay</button>
+      <button id="snoozeAlarmBtn" class="btn btn-sm btn-snooze">⏰ Báo Lại Sau 5 Phút</button>
+    </div>
+  </div>
+
+  <div class="app-layout">
+
+    <!-- ======================================================== -->
+    <!-- LEFT SIDEBAR NAVIGATION RAIL                             -->
+    <!-- ======================================================== -->
+    <aside class="app-sidebar">
+      <!-- Brand Header -->
+      <div class="sidebar-brand">
+        <div class="brand-logo">⚡</div>
+        <div class="brand-info">
+          <div class="brand-title">FB Multi-Hub <span class="badge-pro">v2.0</span></div>
+          <div class="brand-subtitle">Tự Host Độc Lập (Self-Hosted)</div>
+        </div>
+      </div>
+
+      <!-- Host Admin Card -->
+      <div class="sidebar-user-card">
+        <div class="user-avatar" id="sidebarHostAvatar">👑</div>
+        <div class="user-info">
+          <div class="user-select-label">Tài Khoản Chủ Host:</div>
+          <strong id="sidebarHostName" style="font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">Chủ Host</strong>
+          <span class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-size: 10px; margin-top: 2px;">Admin Độc Lập</span>
+        </div>
+      </div>
+
+      <!-- Navigation Menu Rail (Clear Distinct Views) -->
+      <nav class="sidebar-nav" id="sidebarNav">
+        <button class="nav-item active" data-view="view-inbox">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">Hộp Thư Tin Nhắn</span>
+          <span id="unrepliedCountBadge" class="nav-badge count-badge-danger" style="display: none;" title="Tin nhắn mới chưa xem">0</span>
+        </button>
+
+        <button class="nav-item" data-view="view-pages">
+          <span class="nav-icon">📄</span>
+          <span class="nav-label">Quản Lý Fanpage</span>
+          <span id="pageCountBadge" class="nav-badge count-badge-neutral">0</span>
+        </button>
+
+        <button class="nav-item" data-view="view-shifts">
+          <span class="nav-icon">⏰</span>
+          <span class="nav-label">Lịch Trực Ca Của Tôi</span>
+        </button>
+
+        <button class="nav-item" data-view="view-alarms">
+          <span class="nav-icon">🚨</span>
+          <span class="nav-label">Cài Đặt Báo Thức</span>
+        </button>
+
+        <button class="nav-item" data-view="view-templates">
+          <span class="nav-icon">⚡</span>
+          <span class="nav-label">Mẫu Trả Lời Nhanh</span>
+        </button>
+
+        <button class="nav-item" data-view="view-webhook">
+          <span class="nav-icon">🌐</span>
+          <span class="nav-label">Meta Webhook & Cloud</span>
+        </button>
+
+        <button class="nav-item" data-view="view-guide">
+          <span class="nav-icon">📖</span>
+          <span class="nav-label">Hướng Dẫn Vận Hành</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Bottom Action Dock -->
+      <div class="sidebar-dock">
+        <button id="quickSleepBtn" class="dock-btn dock-btn-sleep" title="Bật/tắt chế độ đi ngủ để sẵn sàng nhận cuộc gọi đánh thức">
+          <span class="btn-icon">🌙</span>
+          <span id="quickSleepText">Đi Ngủ: TẮT</span>
+        </button>
+
+        <div class="dock-row">
+          <button id="quickWebSoundBtn" class="dock-btn dock-btn-secondary" title="Bật/Tắt chuông Web Audio trên loa máy tính">
+            <span id="webSoundIcon">🔊</span>
+            <span>Loa Web</span>
+          </button>
+
+          <button id="triggerTestMessageBtn" class="dock-btn dock-btn-secondary" title="Bắn giả lập 1 tin nhắn test vào Fanpage để kiểm tra">
+            <span class="btn-icon">⚡</span>
+            <span>Test Tin</span>
+          </button>
+        </div>
+
+        <div id="alarmStatusBadge" class="server-status-pill">
+          <span class="status-dot"></span>
+          <span id="alarmStatusText">Đang tải...</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ======================================================== -->
+    <!-- MAIN APPLICATION VIEWPORT                                -->
+    <!-- ======================================================== -->
+    <div class="app-main">
+
+      <!-- Slim App Header -->
+      <header class="main-header">
+        <div class="header-left">
+          <h2 class="view-title" id="currentViewTitle">Hộp Thư Tin Nhắn</h2>
+          <span class="view-breadcrumb" id="currentViewBreadcrumb">Hội thoại trực tiếp & Lịch sử trao đổi đa Fanpage</span>
+        </div>
+        <div class="header-right">
+          <div id="headerTunnelBadge" class="header-tunnel-badge" style="display: none;">
+            <span class="tunnel-pulse-dot"></span>
+            <span class="tunnel-title">Cloudflare:</span>
+            <span id="headerTunnelUrlText" class="tunnel-url-text" title="">Đang kết nối...</span>
+            <button id="copyHeaderWebhookBtn" class="btn btn-xs btn-copy-tunnel" title="Sao chép URL Webhook Meta cho Cloudflare">📋 Copy Webhook</button>
+            <button id="reconnectHeaderTunnelBtn" class="btn btn-xs" style="padding: 2px 8px; font-size: 11px; margin-left: 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25); background: rgba(0,0,0,0.2); color: #fff; cursor: pointer;" title="Làm mới kết nối Tunnel ngay lập tức (khi bạn vừa đổi VPN hoặc mạng trên máy tính)">🔄 Làm Mới</button>
+          </div>
+          <span class="header-clock" id="headerLiveClock"></span>
+        </div>
+      </header>
+
+      <!-- Views Container -->
+      <main class="views-viewport">
+
+        <!-- ==================================================== -->
+        <!-- VIEW 1: INBOX (2-COLUMN CHAT WORKSPACE)              -->
+        <!-- ==================================================== -->
+        <section id="view-inbox" class="app-view active">
+          <div class="chat-split-container">
+            <!-- Left Column: Conversations List -->
+            <div class="chat-sidebar">
+              <div class="sidebar-header">
+                <div class="search-box-wrapper">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" id="conversationSearchInput" class="form-control search-input" placeholder="Tìm tên khách, SĐT (09xx), tin nhắn...">
+                </div>
+
+                <div class="filter-pills">
+                  <button class="filter-pill active" data-filter="all">Tất cả</button>
+                  <button class="filter-pill" data-filter="unreplied">🔴 Chưa trả lời</button>
+                  <button class="filter-pill" data-filter="unseen" title="Lọc tin nhắn mới chưa mở xem">👁️ Chưa xem</button>
+                  <select id="sidebarPageFilter" class="form-select filter-select">
+                    <option value="">Tất cả Page</option>
+                  </select>
+                  <button id="manualSyncInboxBtn" class="btn btn-sm btn-secondary" title="Đồng bộ tin nhắn mới từ Facebook" style="padding: 4px 8px; font-size: 0.8rem; margin-left: auto;">🔄 Đồng bộ</button>
+                </div>
+              </div>
+
+              <div id="conversationsList" class="conversations-list">
+                <div class="empty-state-sidebar" id="emptyConvState">
+                  <p>Đang tải danh sách cuộc trò chuyện...</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Chat Transcript & Direct Send -->
+            <div class="chat-detail-pane" id="chatDetailPane">
+              <!-- Drag and Drop Overlay for Files/Images/Videos/Audios -->
+              <div id="chatDropZoneOverlay" class="chat-drop-zone-overlay" style="display: none;">
+                <div class="drop-zone-card">
+                  <div class="drop-zone-icon">📥</div>
+                  <div class="drop-zone-title">Kéo thả tệp vào đây</div>
+                  <div class="drop-zone-desc">Hỗ trợ Ảnh, Video, Ghi âm Voice, Tài liệu PDF, DOCX, XLSX (tối đa 25MB)</div>
+                </div>
+              </div>
+              <!-- Safety Alarm Urgent Banner -->
+              <div id="safetyAlarmBanner" class="safety-alarm-banner" style="display: none;">
+                <div class="safety-alarm-content">
+                  <span class="safety-alarm-icon">🚨</span>
+                  <div class="safety-alarm-text">
+                    <strong id="safetyAlarmTitle">BÁO ĐỘNG AN TOÀN: Tin nhắn chưa có ai trả lời!</strong>
+                    <span id="safetyAlarmDesc">Có tin nhắn từ khách hàng đã quá thời gian chờ quy định. Vui lòng phản hồi ngay!</span>
+                  </div>
+                  <div class="safety-alarm-actions">
+                    <button type="button" id="silenceSafetyAlarmBtn" class="btn btn-sm btn-danger">🔕 Tắt Chuông Báo</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="chatDetailHeader" class="chat-detail-header" style="display: none;">
+                <div class="chat-header-user">
+                  <div class="customer-avatar" id="activeChatAvatar">👤</div>
+                  <div>
+                    <h3 id="activeChatName">Chọn khách hàng</h3>
+                    <div class="active-chat-meta">
+                      <span id="activeChatPageBadge" class="page-badge">Fanpage</span>
+                      <span id="activeChatStatusBadge" class="status-indicator">🔴 Chưa trả lời</span>
+                      <span id="activeChatSeenBadge" class="seen-indicator">👁️ Đã xem</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="chat-header-actions">
+                  <button id="markUnseenBtn" class="btn btn-sm btn-secondary" title="Đánh dấu cuộc hội thoại này là chưa xem để xử lý sau">
+                    👁️ Đánh dấu chưa xem
+                  </button>
+                  <button id="markRepliedBtn" class="btn btn-sm btn-secondary">
+                    ✅ Đánh dấu đã trả lời
+                  </button>
+                  <a id="openMetaInboxBtn" href="#" target="_blank" class="btn btn-sm btn-primary">
+                    Mở Meta Suite ↗
+                  </a>
+                </div>
+              </div>
+
+              <div id="chatMessagesTimeline" class="chat-messages-timeline">
+                <div class="empty-state-timeline" id="noChatSelectedState">
+                  <div class="empty-icon">💬</div>
+                  <h3>Chọn một cuộc trò chuyện từ danh sách bên trái</h3>
+                  <p>Xem toàn bộ tin nhắn khách hàng gửi và trả lời trực tiếp tại đây.</p>
+                </div>
+              </div>
+
+              <div id="quickRepliesBar" class="quick-replies-bar" style="display: none;">
+                <div class="quick-replies-header">
+                  <span class="qr-label">⚡ Mẫu câu nhanh:</span>
+                  <div id="quickRepliesPills" class="quick-replies-pills">
+                    <!-- Dynamically populated -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Multi-Agent Presence & Typing Indicator -->
+              <div id="agentTypingIndicator" class="agent-typing-indicator" style="display: none;">
+                <span class="typing-pulse-dot"></span>
+                <span id="agentTypingText">✍️ Nhân viên khác đang soạn tin nhắn...</span>
+              </div>
+
+              <!-- Multi-Agent Collision Warning Banner -->
+              <div id="agentCollisionBanner" class="agent-collision-banner" style="display: none;">
+                <span id="agentCollisionText">⚠️ Khách hàng này vừa được trả lời! Vui lòng kiểm tra lại trước khi gửi.</span>
+                <button type="button" id="dismissCollisionBannerBtn" style="background:transparent; border:none; color:inherit; cursor:pointer; font-weight:bold; font-size:13px; margin-left:10px;">✕</button>
+              </div>
+
+              <!-- Scientific Meta Business Suite Texting Apparatus -->
+              <div id="chatInputBar" class="chat-input-bar" style="display: none;">
+                <!-- Floating Emoji Picker Popover -->
+                <div id="emojiPickerPopover" class="emoji-picker-popover">
+                  <div class="emoji-popover-header">
+                    <span>😀 Biểu tượng & Bán hàng nhanh</span>
+                    <button type="button" id="closeEmojiPopoverBtn" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:12px;">✕</button>
+                  </div>
+                  <div class="emoji-grid" id="emojiGrid">
+                    <!-- Populated by JS -->
+                  </div>
+                </div>
+
+                <!-- Hidden file inputs for image and document upload -->
+                <input type="file" id="chatImageFileInput" accept="image/*" style="display: none;">
+                <input type="file" id="chatDocFileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt" style="display: none;">
+
+                <div class="meta-texting-container">
+                  <!-- Staged Attachment Tray (Preview before sending) -->
+                  <div id="attachmentStagingTray" class="attachment-staging-tray" style="display: none;">
+                    <div class="staged-preview-wrap" id="stagedPreviewWrap">
+                      <!-- Rendered by JS: Image thumb or file badge -->
+                    </div>
+                    <button type="button" id="removeStagedAttachmentBtn" class="staged-remove-btn" title="Hủy đính kèm">✕</button>
+                  </div>
+
+                  <!-- Texting Action Toolbar -->
+                  <div class="texting-toolbar">
+                    <div class="texting-tools-left">
+                      <button type="button" id="toggleQrBarBtn" class="texting-tool-btn" title="Bật / Ẩn danh sách mẫu câu nhanh">
+                        <span>⚡ Mẫu nhanh</span>
+                      </button>
+                      <button type="button" id="triggerImageUploadBtn" class="texting-tool-btn" title="Đính kèm ảnh gửi khách">
+                        <span>🖼️ Gửi ảnh</span>
+                      </button>
+                      <button type="button" id="triggerFileUploadBtn" class="texting-tool-btn" title="Đính kèm tài liệu, bảng giá, file PDF">
+                        <span>📎 Đính kèm tệp</span>
+                      </button>
+                      <button type="button" id="toggleEmojiPickerBtn" class="texting-tool-btn" title="Chèn biểu tượng cảm xúc">
+                        <span>😀 Icon</span>
+                      </button>
+                    </div>
+
+                    <div class="texting-tools-right">
+                      <button type="button" id="quickLikeBtn" class="texting-tool-btn" title="Gửi nhanh biểu tượng Thích (👍) cho khách">
+                        <span>👍 Like nhanh</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Auto-expanding Textarea Wrapper -->
+                  <div class="chat-textarea-wrapper">
+                    <textarea 
+                      id="chatReplyInput" 
+                      class="chat-reply-textarea" 
+                      rows="1" 
+                      placeholder="Nhập tin nhắn trả lời khách hàng trực tiếp... (Enter để gửi, Shift+Enter để xuống dòng)"
+                      autocomplete="off"
+                    ></textarea>
+                  </div>
+
+                  <!-- Bottom Status & Actions Row -->
+                  <div class="texting-bottom-row">
+                    <div class="texting-meta-left">
+                      <span id="replyingAsPageIndicator" class="page-responding-indicator">
+                        🏢 Đang trả lời qua: <strong id="replyingPageNameText">Fanpage</strong>
+                      </span>
+                      <span id="charCounter" class="char-counter">0 ký tự</span>
+                    </div>
+
+                    <div class="texting-meta-right">
+                      <span class="keyboard-hint"><kbd>Enter</kbd> gửi • <kbd>Shift+Enter</kbd> xuống dòng</span>
+                      <button type="button" id="chatReplySubmitBtn" class="chat-send-btn">
+                        <span id="chatSendBtnText">Gửi</span> <span>📤</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- VIEW 2: FANPAGE MANAGEMENT                           -->
+        <!-- ==================================================== -->
+        <section id="view-pages" class="app-view">
+          <div class="view-header-bar">
+            <div>
+              <h3>Danh Sách Fanpage Của Bạn</h3>
+              <p class="view-desc">Quản lý các Fanpage kết nối, theo dõi tình trạng Token sống/chết và quét thêm Page từ Facebook Token.</p>
+            </div>
+            <div class="view-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button id="btnFacebookOAuthLogin" class="btn" style="background: #1877f2; color: #fff; font-weight: 700; box-shadow: 0 4px 14px rgba(24, 119, 242, 0.4); gap: 6px;">
+                <span style="font-size: 15px;">🔵</span> Đăng Nhập Facebook &amp; Kết Nối (1-Click)
+              </button>
+              <button id="openFbAppConfigBtn" class="btn btn-secondary" title="Cài đặt App ID, App Secret và xem Redirect URIs">
+                <span>⚙️</span> Cài Đặt Facebook App
+              </button>
+              <button id="runHealthCheckBtn" class="btn btn-secondary">
+                <span>🔍</span> Kiểm Tra Sức Khỏe Token
+              </button>
+              <button id="openAddPageModalBtn" class="btn btn-secondary">
+                <span>➕</span> Thêm Thủ Công (Token)
+              </button>
+            </div>
+          </div>
+
+          <!-- Kho Nguồn Token Đã Lưu (Multi-Source Token Repository) -->
+          <div class="card-section" style="margin-bottom: 20px;">
+            <div class="card-section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h4 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                  <span>📂</span> Kho Nguồn Mã Token Đã Lưu (Đa Tài Khoản Facebook)
+                </h4>
+                <p class="card-desc" style="margin-top: 4px;">
+                  1 Tool quản lý đồng thời nhiều Page từ nhiều nick FB khác nhau. Các mã Token đã thêm được bảo lưu an toàn tại đây để tái sử dụng.
+                </p>
+              </div>
+              <button id="btnOpenTokenGuideFromPages" class="btn btn-sm btn-secondary" style="gap: 6px;">
+                <span>📖</span> Hướng Dẫn Lấy App ID & Token
+              </button>
+            </div>
+            <div id="tokenSourcesContainer" style="margin-top: 14px;">
+              <div id="tokenSourcesList" class="token-sources-grid">
+                <!-- Dynamically populated token sources -->
+              </div>
+            </div>
+          </div>
+
+          <div class="card-section-header" style="margin-bottom: 12px;">
+            <h4 style="margin: 0; font-size: 15px; color: var(--text-primary);">📄 Các Fanpage Đang Hoạt Động Trên Tool:</h4>
+          </div>
+
+          <div class="pages-grid" id="pagesGrid">
+            <!-- Page cards dynamically populated -->
+          </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- VIEW 3: MY SHIFTS SCHEDULE (LỊCH TRỰC CA CỦA TÔI)    -->
+        <!-- ==================================================== -->
+        <section id="view-shifts" class="app-view">
+          <div class="view-header-bar">
+            <div>
+              <h3>Lịch Trực Ca Của Tôi (My Shifts)</h3>
+              <p class="view-desc">Tự thiết lập khung giờ trực ca của chính bạn cho từng Fanpage. Khi có khách nhắn tin ngoài ca trực, hệ thống sẽ lưu vào hộp thư nhưng không đổ chuông báo thức làm phiền bạn.</p>
+            </div>
+          </div>
+
+          <!-- Shift Creation Card -->
+          <div class="card-section">
+            <div class="card-section-header">
+              <h4>➕ Thêm Khung Giờ Trực Mới Cho Fanpage Của Bạn:</h4>
+              <p class="card-desc">Chọn Fanpage và khung giờ bạn đảm nhận trực ca.</p>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Chọn Fanpage áp dụng (*):</label>
+                <select id="shiftPageSelect" class="form-select"></select>
+              </div>
+              <div class="form-group">
+                <label>Tên ca làm việc:</label>
+                <input type="text" id="shiftNameInput" class="form-control" placeholder="Ví dụ: Ca đêm, Ca sáng..." value="Ca Đêm">
+              </div>
+            </div>
+
+            <!-- Quick Shift Presets -->
+            <div class="form-group">
+              <label>Chọn nhanh khung giờ mẫu:</label>
+              <div class="shift-presets-row">
+                <button type="button" class="btn btn-sm btn-secondary shift-preset-btn" data-start="23:00" data-end="07:00" data-name="Ca Đêm">🌙 Ca Đêm (23:00 - 07:00)</button>
+                <button type="button" class="btn btn-sm btn-secondary shift-preset-btn" data-start="07:00" data-end="15:00" data-name="Ca Sáng">☀️ Ca Sáng (07:00 - 15:00)</button>
+                <button type="button" class="btn btn-sm btn-secondary shift-preset-btn" data-start="15:00" data-end="23:00" data-name="Ca Chiều">⛅ Ca Chiều (15:00 - 23:00)</button>
+                <button type="button" class="btn btn-sm btn-secondary shift-preset-btn" data-start="00:00" data-end="23:59" data-name="Cả Ngày (24/7)">🔄 Cả Ngày (24/7)</button>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Giờ bắt đầu trực:</label>
+                <input type="time" id="shiftStartTimeInput" class="form-control" value="23:00">
+              </div>
+              <div class="form-group">
+                <label>Giờ kết thúc trực:</label>
+                <input type="time" id="shiftEndTimeInput" class="form-control" value="07:00">
+              </div>
+            </div>
+
+            <button type="button" id="btnAddShiftBtn" class="btn btn-primary" style="margin-top: 4px;">
+              💾 Lưu Khung Giờ Trực Này
+            </button>
+          </div>
+
+          <!-- Active Shifts Schedule Table -->
+          <div class="card-section" style="margin-top: 24px;">
+            <div class="card-section-header">
+              <h4>⏰ Danh Sách Ca Trực Đang Kích Hoạt Của Bạn</h4>
+              <p class="card-desc">Hệ thống sẽ chỉ đổ chuông và gọi điện đánh thức bạn khi tin nhắn đến trong các khung giờ này.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Fanpage</th>
+                    <th>Tên ca trực</th>
+                    <th>Khung giờ trực</th>
+                    <th>Trạng thái</th>
+                    <th style="width: 100px;">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="myShiftsTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- VIEW 4: ALARM SETTINGS (CÀI ĐẶT BÁO THỨC CỦA TÔI)    -->
+        <!-- ==================================================== -->
+        <section id="view-alarms" class="app-view">
+          <div class="view-header-bar">
+            <div>
+              <h3>Cài Đặt Báo Thức & Kênh Đổ Chuông Cá Nhân</h3>
+              <p class="view-desc">Cấu hình chuông loa máy tính Web Audio và kênh gọi điện đánh thức (CallMeBot Telegram, Twilio, Pushover) của riêng bạn.</p>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Card 1: Web Audio & Sleep Mode -->
+            <div class="settings-card highlight-card">
+              <div class="card-header-with-tag">
+                <h4>🔊 Chuông Loa Trình Duyệt (Web Audio)</h4>
+                <span class="user-color-badge">Chủ Host</span>
+              </div>
+
+              <!-- Host Identity Profile Box -->
+              <div class="mini-profile-box">
+                <div class="form-row">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label>Họ và Tên Chủ Host:</label>
+                    <input type="text" id="hostProfileName" class="form-control" placeholder="Tên hiển thị">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label>Mã PIN bảo mật (4-6 số):</label>
+                    <input type="password" id="hostProfilePin" class="form-control" maxlength="6" placeholder="1234">
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group toggle-group" style="margin-top: 14px;">
+                <label class="switch-label">
+                  <input type="checkbox" id="hostWebSoundToggle">
+                  <span class="slider round"></span>
+                  <span class="label-title">Bật chuông âm thanh Web Audio</span>
+                </label>
+                <span class="form-hint">Tự động phát chuông to qua loa máy tính khi có tin nhắn khách hàng gửi tới Page trong ca trực.</span>
+              </div>
+
+              <div class="form-group">
+                <label>Kiểu chuông báo loa Web:</label>
+                <select id="hostWebSoundType" class="form-control" style="font-weight: 500;">
+                  <option value="loud_chime">🔔 Chuông Đôi Ngân Vang Đanh To (Khuyên dùng - Rất to, vang xa)</option>
+                  <option value="phone_ring">📱 Chuông Điện Thoại Réo Rắt (Chuông cuộc gọi đến dồn dập)</option>
+                  <option value="digital_alarm">⏰ Đồng Hồ Điện Tử Bíp Dồn Dập (Chói tai, dễ tỉnh giấc)</option>
+                  <option value="siren">🚨 Còi Hú Khẩn Cấp Cứu Hỏa (Cực đại, không thể bỏ lỡ)</option>
+                </select>
+                <span class="form-hint">Chọn kiểu âm thanh phù hợp với môi trường làm việc hoặc trực ca đêm.</span>
+              </div>
+
+              <div class="form-group">
+                <label>Âm lượng chuông loa (%):</label>
+                <div class="range-with-val">
+                  <input type="range" id="hostWebSoundVolume" min="10" max="150" value="100" class="form-range">
+                  <span id="webSoundVolumeVal">100%</span>
+                </div>
+                <span class="form-hint">Kéo trên 100% để kích hoạt bộ khuếch đại nén âm (Audio Compressor Booster) siêu to.</span>
+              </div>
+
+              <div class="btn-group">
+                <button id="testWebAudioChimeBtn" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
+                  <span>🔊</span> Thử Nghe Chuông Loa Ngay
+                </button>
+              </div>
+
+              <hr class="divider">
+
+              <h4>🌙 Chế Độ Báo Thức Khi Đi Ngủ (Sleep Mode)</h4>
+              <div class="form-group toggle-group">
+                <label class="switch-label">
+                  <input type="checkbox" id="hostAlarmEnabledToggle">
+                  <span class="slider round"></span>
+                  <span class="label-title">Bật chế độ Đi Ngủ (Thủ công)</span>
+                </label>
+                <span class="form-hint">Khi bật, nếu có tin nhắn mới trong ca trực hệ thống sẽ kích hoạt cuộc gọi thoại hoặc hú còi điện thoại để đánh thức bạn.</span>
+              </div>
+
+              <div class="form-group toggle-group">
+                <label class="switch-label">
+                  <input type="checkbox" id="hostAlarmScheduleToggle">
+                  <span class="slider round"></span>
+                  <span class="label-title">Tự động kích hoạt theo khung giờ cố định</span>
+                </label>
+              </div>
+
+              <div class="schedule-inputs">
+                <div class="form-group">
+                  <label>Giờ bắt đầu:</label>
+                  <input type="time" id="hostAlarmStartTime" class="form-control" value="23:00">
+                </div>
+                <div class="form-group">
+                  <label>Giờ kết thúc:</label>
+                  <input type="time" id="hostAlarmEndTime" class="form-control" value="07:00">
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Phone Calling & Telegram Channels -->
+            <div class="settings-card">
+              <h4>📞 Cuộc Gọi Thoại & Telegram Riêng Biệt</h4>
+              <p class="card-desc">Cấu hình số điện thoại và tài khoản Telegram của bạn để nhận thông báo và cuộc gọi đánh thức ban đêm.</p>
+
+              <div class="form-group toggle-group">
+                <label class="switch-label">
+                  <input type="checkbox" id="hostTelegramEnabledToggle">
+                  <span class="slider round"></span>
+                  <span class="label-title">Bật thông báo qua Telegram cá nhân</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label>Telegram Chat ID của bạn:</label>
+                <input type="text" id="hostTelegramChatId" class="form-control" placeholder="Ví dụ: 123456789">
+                <span class="form-hint">Nhắn tin cho bot @userinfobot trên Telegram để lấy Chat ID của bạn.</span>
+              </div>
+
+              <div class="form-group">
+                <label>Bot Token riêng (Để trống nếu dùng bot chung hệ thống):</label>
+                <input type="text" id="hostTelegramBotToken" class="form-control" placeholder="Ví dụ: 8997132950:AAE77KYP27PsXFGIrCLPPUi3RSHIAvK2FUI">
+              </div>
+
+              <div class="form-group">
+                <label>Telegram API Root / Proxy (Tùy chọn nếu bị chặn mạng):</label>
+                <input type="text" id="hostTelegramApiRoot" class="form-control" placeholder="Mặc định: https://api.telegram.org (hoặc URL Cloudflare Worker)">
+              </div>
+
+              <div class="info-callout" style="font-size: 0.82rem; margin-bottom: 12px; background: rgba(234, 179, 8, 0.08); border-left: 3px solid #eab308; padding: 8px 12px; border-radius: 4px;">
+                <p style="margin: 0 0 4px 0;"><strong>💡 Lưu ý quan trọng cho mạng Việt Nam:</strong></p>
+                <ul style="margin: 0; padding-left: 18px; line-height: 1.5;">
+                  <li><strong>Mở bot và bấm START:</strong> Bạn bắt buộc phải vào Telegram tìm bot và bấm <code>/start</code> thì bot mới được phép gửi tin cho bạn.</li>
+                  <li><strong>Bị chặn kết nối:</strong> Nếu test báo lỗi kết nối mạng, hãy bật ứng dụng <strong>1.1.1.1 (Cloudflare WARP)</strong> hoặc VPN trên máy tính để vượt chặn <code>api.telegram.org</code>.</li>
+                </ul>
+              </div>
+
+              <div class="btn-group" style="margin-bottom: 20px;">
+                <button id="testHostTelegramBtn" class="btn btn-sm btn-secondary">📨 Gửi Thử Tin Telegram</button>
+              </div>
+
+              <hr class="divider">
+
+              <h4>📱 Phương Thức Báo Động Điện Thoại Khi Đi Ngủ:</h4>
+              <p class="card-desc" style="margin-bottom: 14px; font-size: 0.85rem; color: var(--text-secondary);">
+                Chọn phương thức đổ chuông / gọi điện thoại đánh thức bạn dậy khi có khách nhắn tin vào ban đêm:
+              </p>
+
+              <!-- Radio Switcher for Alarm Methods -->
+              <div class="alarm-method-selector" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px;">
+                <label class="method-card-label" style="border: 1.5px solid #10b981; padding: 10px 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; background: rgba(16, 185, 129, 0.08);">
+                  <input type="radio" name="hostAlarmMethod" value="ntfy" checked style="margin-top: 3px;">
+                  <div>
+                    <strong style="color: #10b981; font-size: 0.9rem;">🔔 App ntfy.sh (100% Miễn Phí)</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Ringtone báo thức réo liên tục • 0đ • Không cần đăng ký</div>
+                  </div>
+                </label>
+
+                <label class="method-card-label" style="border: 1.5px solid var(--border-color); padding: 10px 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; background: rgba(59, 130, 246, 0.05);">
+                  <input type="radio" name="hostAlarmMethod" value="callmebot" style="margin-top: 3px;">
+                  <div>
+                    <strong style="color: #60a5fa; font-size: 0.9rem;">📞 CallMeBot (100% Miễn Phí)</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Gọi thoại qua Telegram • Đổ chuông toàn màn hình</div>
+                  </div>
+                </label>
+
+                <label class="method-card-label" style="border: 1.5px solid var(--border-color); padding: 10px 14px; border-radius: 8px; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; background: rgba(139, 92, 246, 0.05);">
+                  <input type="radio" name="hostAlarmMethod" value="twilio" style="margin-top: 3px;">
+                  <div>
+                    <strong style="color: #c084fc; font-size: 0.9rem;">📱 Twilio (Có Phí Viễn Thông)</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Gọi thẳng vào sóng SIM di động • Tính cước theo phút</div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Pane 1: ntfy.sh -->
+              <div id="hostNtfyPane" class="method-config-pane" style="display: block;">
+                <div class="form-group">
+                  <label>Tên Topic ntfy bí mật của bạn:</label>
+                  <input type="text" id="hostNtfyTopic" class="form-control" placeholder="fb-alarm-0976014480" value="fb-alarm-0976014480" style="font-family: monospace;">
+                  <span class="form-hint">Bạn có thể đặt bất kỳ chữ gì không dấu (ví dụ: <code>fb-alarm-0976014480</code>).</span>
+                </div>
+
+                <div class="info-callout" style="font-size: 0.82rem; margin-bottom: 14px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 10px 12px; border-radius: 4px;">
+                  <p style="margin: 0 0 4px 0; color: #34d399;"><strong>🚀 Hướng dẫn kích hoạt Ringtone Báo thức ntfy trong 20 giây:</strong></p>
+                  <ol style="margin: 0; padding-left: 18px; line-height: 1.6; color: var(--text-secondary);">
+                    <li>Cài app <strong>ntfy</strong> miễn phí trên điện thoại: <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener noreferrer" style="color: #34d399;">Android (CH Play) ↗</a> hoặc <a href="https://apps.apple.com/us/app/ntfy/id1625396347" target="_blank" rel="noopener noreferrer" style="color: #34d399;">iOS (App Store) ↗</a>.</li>
+                    <li>Mở app ntfy &rarr; bấm dấu <strong>+</strong> góc dưới &rarr; gõ đúng tên topic trên (ví dụ <code>fb-alarm-0976014480</code>) &rarr; bấm <strong>Subscribe</strong>.</li>
+                    <li><em>(Khuyên dùng trên Android)</em>: Bấm vào topic &rarr; Cài đặt bánh răng &rarr; bật <strong>"Keep alerting until dismissed"</strong> và chọn nhạc chuông to. Khi có tin nhắn, điện thoại sẽ réo chuông liên tục như đồng hồ báo thức cho đến khi bạn bấm tắt!</li>
+                  </ol>
+                </div>
+              </div>
+
+              <!-- Pane 2: CallMeBot Telegram Voice Call -->
+              <div id="hostCallmebotPane" class="method-config-pane" style="display: none;">
+                <div class="form-group">
+                  <label>Telegram @username của bạn (nhận cuộc gọi thoại):</label>
+                  <input type="text" id="hostCallmebotUsername" class="form-control" placeholder="@username" style="font-family: monospace;">
+                  <span class="form-hint">Username của bạn trên ứng dụng Telegram (bắt đầu bằng dấu @).</span>
+                </div>
+
+                <div class="info-callout" style="font-size: 0.82rem; margin-bottom: 14px; background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; padding: 10px 12px; border-radius: 4px;">
+                  <p style="margin: 0 0 4px 0; color: #60a5fa;"><strong>🚀 Cách kích hoạt cuộc gọi Telegram 100% miễn phí:</strong></p>
+                  <ol style="margin: 0; padding-left: 18px; line-height: 1.6; color: var(--text-secondary);">
+                    <li>Mở Telegram trên điện thoại &rarr; tìm bot <strong>@CallMeBot_txtbot</strong> &rarr; bấm <strong>Start</strong>.</li>
+                    <li>Điền username Telegram của bạn vào ô trên rồi bấm <em>Lưu Cấu Hình</em>.</li>
+                    <li>Khi có tin nhắn mới, Telegram sẽ gọi điện thoại đổ chuông toàn màn hình và phát giọng đọc tiếng Việt thông báo.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <!-- Pane 3: Twilio VoIP -->
+              <div id="hostTwilioPane" class="method-config-pane" style="display: none;">
+                <div class="form-group">
+                  <label>Số di động nhận cuộc gọi (SIM của bạn):</label>
+                  <input type="tel" id="hostTwilioToNumber" class="form-control" placeholder="0976014480" value="0976014480">
+                  <span class="form-hint">Hệ thống tự động chuẩn hóa đầu số Việt Nam (+84) khi quay số.</span>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Twilio Account SID (bắt đầu bằng AC):</label>
+                    <input type="text" id="hostTwilioAccountSid" class="form-control" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="font-family: monospace; font-size: 12px;">
+                  </div>
+                  <div class="form-group">
+                    <label>Twilio Auth Token:</label>
+                    <input type="password" id="hostTwilioAuthToken" class="form-control" placeholder="Auth Token bí mật" style="font-family: monospace; font-size: 12px;">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Số điện thoại Twilio gọi đi (From Number):</label>
+                  <input type="text" id="hostTwilioFromNumber" class="form-control" placeholder="+1234567890" style="font-family: monospace; font-size: 12px;">
+                </div>
+
+                <div class="info-callout" style="font-size: 0.82rem; margin-bottom: 14px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 8px 12px; border-radius: 4px;">
+                  <p style="margin: 0; color: #f87171;"><strong>⚠️ Lưu ý về cước phí:</strong> Twilio tính phí kết nối mạng viễn thông SIM thật theo phút ($0.05 - $0.15/phút). Nếu muốn miễn phí 100%, hãy chọn phương thức <strong>App ntfy.sh</strong> hoặc <strong>CallMeBot</strong> ở trên.</p>
+                </div>
+              </div>
+
+              <div class="btn-group" style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="saveHostConfigBtn" class="btn btn-primary">💾 Lưu Cấu Hình Báo Thức</button>
+                <button id="testHostAlarmCallBtn" class="btn btn-danger">⚡ Test Đổ Chuông / Gọi Điện Ngay</button>
+              </div>
+            </div>
+
+            <!-- Card 3: Discord Webhook Notification (Global & Full Image Support) -->
+            <div class="settings-card" style="border: 1px solid rgba(88, 101, 242, 0.4); background: linear-gradient(180deg, rgba(88, 101, 242, 0.06) 0%, var(--bg-card) 100%);">
+              <div class="card-header-with-tag">
+                <h4>🌐 Thông Báo Discord Webhook (Khuyến Nghị Toàn Cầu)</h4>
+                <span class="page-badge" style="background: rgba(88, 101, 242, 0.2); color: #818cf8; font-weight: 700;">Không chặn ISP • Tải ảnh 100%</span>
+              </div>
+              <p class="card-desc">Giải pháp thông báo tin nhắn và ảnh sản phẩm khách gửi tối ưu nhất hiện nay: Không bao giờ bị chặn mạng, tải ảnh HD sắc nét, thông báo tức thì trên iOS, Android và PC.</p>
+
+              <div class="form-group toggle-group">
+                <label class="switch-label">
+                  <input type="checkbox" id="hostDiscordEnabledToggle" checked>
+                  <span class="slider round"></span>
+                  <span class="label-title">Bật thông báo qua Discord Webhook</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label>Discord Webhook URL của bạn:</label>
+                <input type="url" id="hostDiscordWebhookUrl" class="form-control" placeholder="https://discord.com/api/webhooks/..." style="font-family: monospace; font-size: 12px;">
+                <span class="form-hint">Dán URL Webhook từ kênh Discord bạn muốn nhận thông báo.</span>
+              </div>
+
+              <div class="info-callout" style="font-size: 0.82rem; margin-bottom: 16px; background: rgba(88, 101, 242, 0.08); border-left: 3px solid #5865f2; padding: 10px 12px; border-radius: 4px;">
+                <p style="margin: 0 0 6px 0; color: #a5b4fc;"><strong>🚀 Cách tạo Discord Webhook trong 10 giây:</strong></p>
+                <ol style="margin: 0; padding-left: 18px; line-height: 1.6; color: var(--text-secondary);">
+                  <li>Mở <strong>Discord</strong> trên điện thoại hoặc máy tính -> Vào Server của bạn (hoặc bấm dấu + tạo server riêng 1 giây).</li>
+                  <li>Nhấp bánh răng ⚙️ cạnh tên kênh text (ví dụ <code>#thong-bao-fb</code>) -> Chọn <strong>Integrations (Tích hợp)</strong>.</li>
+                  <li>Bấm <strong>Webhooks</strong> -> <strong>New Webhook (Tạo Webhook mới)</strong>.</li>
+                  <li>Bấm <strong>Copy Webhook URL</strong> và dán vào ô trên, sau đó bấm <em>Lưu Cấu Hình</em>!</li>
+                </ol>
+              </div>
+
+              <div class="btn-group" style="margin-top: auto; padding-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" id="saveHostDiscordBtn" class="btn btn-sm btn-primary" style="background-color: #5865f2; border-color: #5865f2;">
+                  <span>💾</span> Lưu Cấu Hình Discord
+                </button>
+                <button type="button" id="testHostDiscordBtn" class="btn btn-sm btn-secondary">
+                  <span>📨</span> Gửi Thử Tin Discord & Ảnh Mẫu
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 4: Tự Động Kích Hoạt Chế Độ Đi Ngủ (Auto-Sleep / Inactivity) -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <div class="card-icon" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd;">💤</div>
+                <div>
+                  <h4>Tự Động Đi Ngủ Khi Treo Máy</h4>
+                  <p>Thuật toán tự phát hiện không thao tác để kích hoạt chuông báo thức</p>
+                </div>
+              </div>
+
+              <div class="form-group toggle-group">
+                <label class="switch-label">
+                  <input type="checkbox" id="hostAutoSleepEnabledToggle" checked>
+                  <span class="slider round"></span>
+                  <span class="label-title">Bật tự động Đi Ngủ khi treo máy</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label>Thời gian chờ không hoạt động:</label>
+                <select id="hostAutoSleepIdleMinutes" class="form-control">
+                  <option value="3">3 phút không thao tác</option>
+                  <option value="5">5 phút không thao tác</option>
+                  <option value="10" selected>10 phút không thao tác (Khuyên dùng)</option>
+                  <option value="15">15 phút không thao tác</option>
+                  <option value="30">30 phút không thao tác</option>
+                  <option value="60">60 phút không thao tác</option>
+                </select>
+                <span class="form-hint">Hệ thống theo dõi chuột, phím và trạng thái tab. Khi treo máy quá số phút trên, Tool sẽ tự bật Chế Độ Đi Ngủ. Khi bạn quay lại chạm chuột/gõ phím, Tool sẽ tự động thức dậy.</span>
+              </div>
+
+              <div class="btn-group" style="margin-top: auto; padding-top: 14px;">
+                <button type="button" id="saveAutoSleepBtn" class="btn btn-sm btn-primary">
+                  <span>💾</span> Lưu Cấu Hình Tự Động Đi Ngủ
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 5: Báo Động An Toàn Khi Quên Trả Lời (Safety Alarm) -->
+            <div class="settings-card">
+              <div class="settings-card-header">
+                <div class="card-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">🚨</div>
+                <div>
+                  <h4>Báo Động An Toàn Khi Quên Trả Lời</h4>
+                  <p>Kích hoạt chuông Ringtone báo thức nếu tin nhắn bị bỏ quên quá lâu</p>
+                </div>
+              </div>
+
+              <div class="form-group toggle-group">
+                <label class="switch-label">
+                  <input type="checkbox" id="hostSafetyAlarmEnabledToggle" checked>
+                  <span class="slider round"></span>
+                  <span class="label-title">Bật Báo Động An Toàn khi quên rep tin</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label>Thời gian chờ trước khi báo động:</label>
+                <select id="hostSafetyAlarmDelayMinutes" class="form-control">
+                  <option value="3">Sau 3 phút chưa ai trả lời</option>
+                  <option value="5">Sau 5 phút chưa ai trả lời</option>
+                  <option value="10" selected>Sau 10 phút chưa ai trả lời (Khuyên dùng)</option>
+                  <option value="15">Sau 15 phút chưa ai trả lời</option>
+                  <option value="20">Sau 20 phút chưa ai trả lời</option>
+                  <option value="30">Sau 30 phút chưa ai trả lời</option>
+                </select>
+                <span class="form-hint">Nếu có khách gửi tin nhắn mà sau số phút trên vẫn chưa được trả lời, Tool sẽ phát Ringtone báo thức dồn dập và bắn tin khẩn cấp Discord / Telegram / Cuộc gọi đánh thức.</span>
+              </div>
+
+              <div class="btn-group" style="margin-top: auto; padding-top: 14px;">
+                <button type="button" id="saveSafetyAlarmBtn" class="btn btn-sm btn-primary" style="background-color: #ef4444; border-color: #ef4444;">
+                  <span>💾</span> Lưu Cấu Hình Báo Động An Toàn
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section C: Alarm Audit Log Table -->
+          <div class="card-section" style="margin-top: 24px;">
+            <div class="card-section-header">
+              <h4>📜 Nhật Ký Báo Thức & Lịch Sử Đổ Chuông</h4>
+              <p class="card-desc">Lịch sử các lần hệ thống đã kích hoạt chuông và cuộc gọi đánh thức bạn.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Fanpage</th>
+                    <th>Phương thức</th>
+                    <th>Trạng thái</th>
+                    <th>Chi tiết</th>
+                  </tr>
+                </thead>
+                <tbody id="alarmLogsTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- VIEW 5: QUICK REPLIES TEMPLATES                      -->
+        <!-- ==================================================== -->
+        <section id="view-templates" class="app-view">
+          <div class="view-header-bar">
+            <div>
+              <h3>Mẫu Trả Lời Nhanh (Quick Replies)</h3>
+              <p class="view-desc">Tạo các mẫu câu phản hồi có sẵn để bạn bấm chọn nhanh trong khung chat chỉ với 1 click.</p>
+            </div>
+            <div class="view-header-actions">
+              <button id="openAddQrModalBtn" class="btn btn-primary">
+                <span>➕</span> Thêm Mẫu Câu Mới
+              </button>
+            </div>
+          </div>
+
+          <div class="card-section">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 25%;">Tiêu đề mẫu câu</th>
+                    <th>Nội dung phản hồi</th>
+                    <th style="width: 140px;">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="quickRepliesTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- VIEW 6: META WEBHOOK & CLOUD                         -->
+        <!-- ==================================================== -->
+        <section id="view-webhook" class="app-view">
+          <div class="view-header-bar">
+            <div>
+              <h3>Kết Nối Meta Webhook & Điện Toán Đám Mây</h3>
+              <p class="view-desc">Thông số kết nối chính thức với Meta Developer Portal cho instance độc lập của bạn.</p>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="settings-card">
+              <h4>🌐 Cấu Hình Meta Webhook Callback</h4>
+              <p class="card-desc">Sử dụng URL và mã bảo mật này để điền vào phần Webhooks trong Ứng dụng Meta Developer của bạn.</p>
+
+              <div class="form-group">
+                <label>Verify Token (Mã bảo mật xác thực Webhook):</label>
+                <div class="input-with-button">
+                  <input type="text" id="verifyTokenInput" class="form-control" readonly>
+                  <button id="copyVerifyTokenBtn" class="btn btn-secondary btn-sm">Sao chép</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>URL Webhook Công Khai (Public Callback URL):</label>
+                <div class="input-with-button">
+                  <input type="text" id="publicWebhookUrlInput" class="form-control" placeholder="Chưa kích hoạt tunnel..." readonly>
+                  <button id="copyWebhookUrlBtn" class="btn btn-secondary btn-sm">Sao chép</button>
+                </div>
+              </div>
+
+              <div class="btn-group" style="gap: 8px; flex-wrap: wrap;">
+                <button id="startTunnelBtn" class="btn btn-primary">🚀 Kích Hoạt Public Tunnel (Cloudflare)</button>
+                <button id="stopTunnelBtn" class="btn btn-secondary" style="display:none;">Dừng Tunnel</button>
+                <button id="reconnectTunnelBtn" class="btn btn-secondary" title="Làm mới kết nối Cloudflare Tunnel (chỉ cần dùng nếu bạn vừa đổi vị trí trên phần mềm VPN máy tính và muốn đồng bộ tức thì)">🔄 Làm Mới Kết Nối Tunnel</button>
+              </div>
+
+              <div class="info-callout" style="margin-top: 14px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 12px 14px; border-radius: 6px;">
+                <div style="font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                  <div>
+                    <strong>🛡️ Tự Động Thích Ứng Với Phần Mềm VPN Trên Máy:</strong> Bạn chỉ cần bật/tắt hoặc đổi quốc gia trực tiếp trên ứng dụng VPN của máy tính (như ExpressVPN, NordVPN, WARP, v2ray...). Tool sẽ <strong>tự động đi theo mạng máy tính</strong> mà bạn <em>không cần phải cấu hình hay đổi bất cứ thứ gì trên tool</em>. Hệ thống luôn khóa cố định giờ trực ca và báo thức theo <strong>Việt Nam (GMT+7)</strong> bất kể phần mềm VPN đang chọn quốc gia nào.
+                  </div>
+                  <span class="badge-tag" style="background: rgba(16,185,129,0.2); color: #34d399; font-size: 11px; padding: 3px 8px; white-space: nowrap;">🟢 Tự động nhận diện mạng PC</span>
+                </div>
+              </div>
+
+              <div class="info-callout" style="margin-top: 18px; background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; padding: 12px 14px; border-radius: 6px;">
+                <h5 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--primary);">📋 Hướng Dẫn Cài Đặt Meta Developer (Để nhận tin nhắn trực tiếp):</h5>
+                <ol style="margin: 0; padding-left: 20px; font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary);">
+                  <li>Bấm nút <strong>🚀 Kích Hoạt Public Tunnel</strong> để tạo URL công khai (hoặc hệ thống đã tự động kích hoạt khi mở app).</li>
+                  <li>Bấm <strong>Sao chép</strong> tại <em>URL Webhook Công Khai</em> và <em>Verify Token</em>.</li>
+                  <li>Truy cập <a href="https://developers.facebook.com/apps/2361682801028889/webhooks/" target="_blank" style="color: var(--primary); text-decoration: underline; font-weight: 500;">Meta App Dashboard (App check tn)</a> &rarr; Mục <strong>Webhooks</strong> &rarr; Chọn đối tượng <strong>Page</strong>.</li>
+                  <li>Nhấn <strong>Edit Subscription</strong> (Chỉnh sửa đăng ký) &rarr; Dán <strong>URL Webhook</strong> và <strong>Verify Token</strong> &rarr; Bấm <strong>Verify and Save</strong>.</li>
+                  <li>Tại bảng sự kiện bên dưới, tìm và bấm <strong>Subscribe</strong> cho <code>messages</code> và <code>messaging_postbacks</code>.</li>
+                  <li><strong>⚠️ Chú ý về chế độ Development:</strong> Nếu App Facebook đang ở chế độ <em>In development</em> (Đang phát triển), chỉ có Facebook của Admin / Tester của App nhắn tin thì Meta mới chuyển Webhook về máy. Hãy đổi App sang chế độ <strong>Live</strong> (Công khai) để khách hàng bất kỳ nhắn tin app cũng nhận được ngay!</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="settings-card cloud-db-card">
+              <div class="card-header-with-tag">
+                <h4>☁️ Cơ Sở Dữ Liệu Độc Lập (Self-Hosted SQLite)</h4>
+                <span class="status-badge badge-active"><span class="status-dot"></span> Độc Lập 100%</span>
+              </div>
+              <p class="card-desc">Dữ liệu được lưu trữ an toàn trong tệp cơ sở dữ liệu SQLite cục bộ trên máy chủ của bạn (<code>data/fb_tool.db</code>). Nhiều người có thể host riêng mà không sợ va chạm hay ghi đè dữ liệu.</p>
+
+              <div class="info-callout">
+                <p><strong>💡 Tùy chọn triển khai Cloud:</strong> Nếu muốn chuyển cơ sở dữ liệu lên Supabase PostgreSQL trên Cloud, hệ thống đã chuẩn bị sẵn kịch bản DDL tại <code>data/supabase_schema.sql</code>.</p>
+              </div>
+
+              <div class="btn-group">
+                <button id="viewSupabaseSchemaBtn" class="btn btn-secondary btn-sm">📋 Xem & Sao Chép Supabase Schema SQL</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================================================== -->
+        <!-- VIEW 7: STEP-BY-STEP USER GUIDE                      -->
+        <!-- ==================================================== -->
+        <section id="view-guide" class="app-view">
+          <div class="view-header-bar">
+            <div>
+              <h3>Hướng Dẫn Vận Hành Hệ Thống</h3>
+              <p class="view-desc">Các bước vận hành chuẩn chỉ cho người tự host.</p>
+            </div>
+          </div>
+
+          <div class="guide-cards">
+            <div class="guide-card">
+              <div class="guide-step-number">1</div>
+              <div class="guide-step-body">
+                <h4>Mô hình nhiều người cùng host độc lập hoạt động thế nào?</h4>
+                <p>Mỗi người host là 1 Admin độc lập trên máy tính hoặc VPS của mình:</p>
+                <ol>
+                  <li>Bạn tự kết nối Fanpage của mình qua mục <strong>Quản Lý Fanpage</strong>.</li>
+                  <li>Vào mục <strong>Lịch Trực Ca Của Tôi</strong> để cài đặt giờ bạn trực ca (ví dụ: Ca đêm 23:00 - 07:00).</li>
+                  <li>Cấu hình Telegram và CallMeBot của chính bạn tại mục <strong>Cài Đặt Báo Thức</strong>.</li>
+                  <li>Người khác cũng host riêng và cài đặt ca trực của họ. Khi có tin nhắn đến, instance của ai đang trong ca trực thì máy đó mới đổ chuông và gọi điện đánh thức người đó!</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="guide-card">
+              <div class="guide-step-number">2</div>
+              <div class="guide-step-body">
+                <h4>Cách quét & thêm Fanpage từ Token Facebook</h4>
+                <p>Chỉ cần 1 mã Token, hệ thống sẽ tự động tìm tất cả Fanpage trong tài khoản:</p>
+                <ol>
+                  <li>Vào mục <strong>Quản Lý Fanpage</strong> &rarr; bấm <strong>"Quét & Thêm Fanpage Mới"</strong>.</li>
+                  <li>Dán mã Access Token (User Token hoặc Page Token).</li>
+                  <li>Bấm <strong>"Quét & Lấy Danh Sách Page Từ Token"</strong>. Hệ thống hiển thị danh sách các Fanpage tìm thấy kèm ảnh đại diện.</li>
+                  <li>Tích chọn các Page muốn thêm &rarr; bấm <strong>"Thêm Các Page Đã Chọn"</strong>.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="guide-card">
+              <div class="guide-step-number">3</div>
+              <div class="guide-step-body">
+                <h4>Cách kích hoạt chuông đánh thức CallMeBot qua Telegram</h4>
+                <p>Điện thoại tự động đổ chuông to như có cuộc gọi đến khi có khách nhắn đêm:</p>
+                <ol>
+                  <li>Mở Telegram trên điện thoại &rarr; tìm bot <strong>@CallMeBot_txtbot</strong> &rarr; bấm Start.</li>
+                  <li>Vào mục <strong>Cài Đặt Báo Thức</strong> &rarr; chọn phương thức <strong>Gọi Thoại Telegram (CallMeBot)</strong>.</li>
+                  <li>Điền Username Telegram (@username của bạn) &rarr; bấm <strong>"Test Đổ Chuông Ngay"</strong> để kiểm tra chuông reo trên điện thoại.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="guide-card" style="border-left-color: #10b981;">
+              <div class="guide-step-number" style="background: #10b981;">4</div>
+              <div class="guide-step-body">
+                <h4>Cách lấy Token Vĩnh Viễn (Never Expire) qua App ID & App Secret</h4>
+                <p>Giải pháp chống hết hạn Token triệt để, không bao giờ phải lấy lại mã token:</p>
+                <ol>
+                  <li>Vào <a href="https://developers.facebook.com/apps/" target="_blank" style="color: var(--primary); text-decoration: underline;">developers.facebook.com/apps</a> &rarr; Bấm <strong>Tạo ứng dụng</strong> &rarr; Chọn loại <strong>Doanh nghiệp</strong> hoặc <strong>Khác</strong>.</li>
+                  <li>Vào <strong>Cài đặt ứng dụng &rarr; Cơ bản</strong>: Lấy <strong>ID ứng dụng (App ID)</strong> và <strong>Khóa bí mật (App Secret)</strong>.</li>
+                  <li>Vào <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color: var(--primary); text-decoration: underline;">Graph API Explorer</a> &rarr; Chọn đúng App &rarr; Tích 4 quyền: <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_metadata</code>, <code>pages_messaging</code> &rarr; Bấm <strong>Generate Access Token</strong>.</li>
+                  <li>Dán 3 thông tin này vào mục <strong>"Quét & Thêm Fanpage Mới"</strong> &rarr; Bấm <strong>"⚡ Đổi Token Dài Hạn & Quét Page Vĩnh Viễn"</strong>.</li>
+                  <li>Tool tự động đổi sang Token Dài Hạn và sinh ra <strong>Page Access Token Vĩnh Viễn (Không bao giờ hết hạn)</strong> và lưu vào Kho Token Đã Lưu!</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- STANDARDIZED MODAL DIALOGS                               -->
+  <!-- ======================================================== -->
+
+  <!-- Modal 1: Add/Scan Fanpage from Token (Multi-Account & Auto Long-Lived Token) -->
+  <div id="addPageModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Quét & Thêm Fanpage (Đa Nguồn & Token Dài Hạn)</h3>
+          <p class="modal-subtitle">Tự động đổi Token Vĩnh Viễn (Never Expire) và lưu trữ mã nguồn để quản lý nhiều Fanpage</p>
+        </div>
+        <button id="closeAddPageModalBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Modal Mode Switcher Tabs -->
+        <div class="modal-tab-bar" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+          <button type="button" class="btn btn-sm btn-primary modal-tab-btn active" data-tab="tab-auto-longlived" style="border-radius: 6px; font-weight: 600;">
+            ⚡ Tự Đổi Token Vĩnh Viễn (App ID + Secret)
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary modal-tab-btn" data-tab="tab-saved-tokens" style="border-radius: 6px; font-weight: 600;">
+            📂 Chọn Nguồn Đã Lưu
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary modal-tab-btn" data-tab="tab-direct-token" style="border-radius: 6px; font-weight: 600;">
+            🔑 Dán Token Trực Tiếp
+          </button>
+        </div>
+
+        <!-- PANE 1: Auto Exchange Long-Lived Token (Recommended) -->
+        <div id="paneAutoLongLived" class="token-tab-pane">
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 12px; color: #60a5fa; line-height: 1.4;">
+              💡 <strong>Khuyên dùng:</strong> Nhập 3 thông tin dưới đây, Tool tự động đổi sang <strong>Token Vĩnh Viễn (Never Expire)</strong> cho tất cả Page!
+            </span>
+            <button type="button" id="btnOpenTokenGuideFromModal" class="btn btn-xs btn-primary" style="white-space: nowrap; gap: 4px;">
+              📖 Xem Hướng Dẫn Từng Bước
+            </button>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>1. App ID (Mã ứng dụng):</label>
+              <input type="text" id="modalAppId" class="form-control" placeholder="Ví dụ: 2361682801028889">
+            </div>
+            <div class="form-group">
+              <label>2. App Secret (Khóa bí mật ứng dụng):</label>
+              <input type="text" id="modalAppSecret" class="form-control" placeholder="Ví dụ: e8fe1eea2a04d34e49eedb571f3034b4">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>3. Token ban đầu (*Lấy từ Graph Explorer):</label>
+            <textarea id="modalUserToken" class="form-control" rows="2" placeholder="Dán mã Token ban đầu (EAA...) vào đây. Tool sẽ tự động đổi sang Token Dài Hạn & Vĩnh Viễn!"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Ghi chú nick Facebook (Nguồn tài khoản):</label>
+            <input type="text" id="modalAccountLabel" class="form-control" placeholder="Ví dụ: Nick Chính (Tuan Phong), Nick Phụ 01...">
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <button id="btnFetchTokenPages" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 11px 16px; font-weight: 700; gap: 8px;">
+              <span>⚡ Đổi Token Dài Hạn & Quét Page Vĩnh Viễn</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- PANE 2: Choose from Saved Token Sources -->
+        <div id="paneSavedTokens" class="token-tab-pane" style="display: none;">
+          <div class="form-group">
+            <label>Chọn nguồn Token đã lưu trước đó:</label>
+            <select id="modalSavedTokenSourceSelect" class="form-select">
+              <option value="">-- Chọn nguồn tài khoản đã lưu --</option>
+            </select>
+            <span class="form-hint">Chọn tài khoản bạn đã thêm trước đó để quét lại danh sách Fanpage mà không cần nhập lại mã token.</span>
+          </div>
+
+          <div id="savedSourceDetailPreview" style="display: none; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+              <span style="color: var(--text-muted);">Tên nguồn:</span>
+              <strong id="previewSourceName" style="color: var(--text-primary);">--</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+              <span style="color: var(--text-muted);">Loại Token:</span>
+              <strong id="previewSourceType" style="color: #34d399;">🛡️ Vĩnh Viễn (Never Expire)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+              <span style="color: var(--text-muted);">App ID:</span>
+              <code id="previewSourceAppId">--</code>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <span style="color: var(--text-muted);">Số Page đang liên kết:</span>
+              <span id="previewSourcePagesCount" style="font-weight: 700; color: #60a5fa;">0</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <button id="btnScanSavedTokenSource" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 11px 16px; font-weight: 700; gap: 8px;">
+              <span>🔄 Quét Lại Danh Sách Page Từ Nguồn Này</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- PANE 3: Direct Token Input (Quick Fallback) -->
+        <div id="paneDirectToken" class="token-tab-pane" style="display: none;">
+          <div class="form-group">
+            <label>Dán mã Token trực tiếp (*User Token hoặc Page Token):</label>
+            <textarea id="modalPageAccessToken" class="form-control" rows="3" placeholder="Dán mã Token (EAA...) vào đây..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Ghi chú nick Facebook:</label>
+            <input type="text" id="modalDirectAccountLabel" class="form-control" placeholder="Ví dụ: Nick Marketing">
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <button id="btnScanDirectToken" class="btn btn-secondary" style="width: 100%; justify-content: center; padding: 11px 16px; font-weight: 700; gap: 8px;">
+              <span>🔍 Quét & Lấy Danh Sách Page Từ Token Này</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Discovered Pages Checklist Container -->
+        <div id="discoveredPagesCard" style="display: none;" class="discovered-card">
+          <div class="discovered-header">
+            <div>
+              <strong id="discoveredPagesTitle" style="color: #60a5fa; font-size: 13px;">Danh sách Page tìm thấy:</strong>
+              <p id="discoveredPagesSubtitle" style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 0 0;">Tích chọn những Page bạn muốn thêm vào hệ thống quản lý</p>
+            </div>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="selectAllDiscoveredPages" checked>
+              <strong>Chọn tất cả</strong>
+            </label>
+          </div>
+
+          <div id="discoveredPagesList" class="discovered-list">
+            <!-- Dynamically populated page checklist items -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelAddPageBtn" class="btn btn-secondary">Đóng</button>
+        <button id="btnImportSelectedPages" class="btn btn-primary" style="display: none;">
+          📥 Thêm Các Page Đã Chọn Vào Hệ Thống
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 1B: Step-by-Step Token & App ID Guide Modal -->
+  <div id="tokenGuideModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg" style="max-width: 720px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">📖 Hướng Dẫn Từng Bước: Tạo App & Lấy Token Vĩnh Viễn</h3>
+          <p class="modal-subtitle">Cách lấy chính xác App ID, App Secret và Token để tạo Token Page vĩnh viễn không bao giờ hết hạn</p>
+        </div>
+        <button id="closeTokenGuideModalBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 16px;">
+
+        <!-- Step 1 -->
+        <div class="guide-step-box" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 18px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <span style="background: #3b82f6; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">1</span>
+            <strong style="color: #60a5fa; font-size: 14px;">Bước 1: Tạo ứng dụng Meta (Facebook App)</strong>
+          </div>
+          <ol style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+            <li>Truy cập cổng lập trình viên: <a href="https://developers.facebook.com/apps/" target="_blank" style="color: var(--primary); text-decoration: underline;">developers.facebook.com/apps</a>.</li>
+            <li>Bấm nút <strong>"Tạo ứng dụng" (Create App)</strong> màu xanh góc trên.</li>
+            <li>Chọn trường hợp sử dụng: Chọn <strong>"Doanh nghiệp" (Business)</strong> hoặc <strong>"Khác" (Other)</strong> &rarr; Bấm Tiếp tục.</li>
+            <li>Đặt tên ứng dụng (Ví dụ: <code>Tool Check Tin Nhan</code>) và điền email của bạn &rarr; Bấm <strong>"Tạo ứng dụng"</strong>.</li>
+          </ol>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="guide-step-box" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 18px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <span style="background: #3b82f6; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">2</span>
+            <strong style="color: #60a5fa; font-size: 14px;">Bước 2: Lấy App ID & App Secret</strong>
+          </div>
+          <ol style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+            <li>Tại menu bên trái của App vừa tạo, click vào <strong>Cài đặt ứng dụng (App Settings)</strong> &rarr; chọn <strong>Cơ bản (Basic)</strong>.</li>
+            <li>Bạn sẽ thấy ngay 2 thông số:
+              <ul style="margin-top: 4px; padding-left: 18px;">
+                <li><strong>ID ứng dụng (App ID)</strong>: Là một dãy số dài (Ví dụ: <code>2361682801028889</code>) &rarr; Copy dán vào ô <strong>1. App ID</strong>.</li>
+                <li><strong>Khóa bí mật của ứng dụng (App Secret)</strong>: Bấm nút <strong>"Hiển thị" (Show)</strong> và nhập mật khẩu Facebook &rarr; Copy chuỗi mã bí mật (Ví dụ: <code>e8fe1eea2a04d34e49eedb571f3034b4</code>) dán vào ô <strong>2. App Secret</strong>.</li>
+              </ul>
+            </li>
+          </ol>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="guide-step-box" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 18px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <span style="background: #3b82f6; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">3</span>
+            <strong style="color: #60a5fa; font-size: 14px;">Bước 3: Lấy Token ban đầu & Cấp đủ 4 quyền cốt lõi</strong>
+          </div>
+          <ol style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+            <li>Mở công cụ Graph API Explorer: <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color: var(--primary); text-decoration: underline;">developers.facebook.com/tools/explorer</a>.</li>
+            <li>Tại mục <strong>Meta App</strong> (góc trên bên phải): Chọn đúng tên App bạn vừa tạo ở Bước 1.</li>
+            <li>Tại mục <strong>User or Page</strong>: Để mặc định là <strong>User Token (Mã truy cập người dùng)</strong>.</li>
+            <li>Tại mục <strong>Add a Permission (Thêm quyền)</strong>, tìm kiếm và tích chọn <strong>ĐỦ 4 QUYỀN SAU</strong>:
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0;">
+                <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; font-family: monospace;">✓ pages_show_list</span>
+                <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; font-family: monospace;">✓ pages_read_engagement</span>
+                <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; font-family: monospace;">✓ pages_manage_metadata</span>
+                <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; font-family: monospace;">✓ pages_messaging</span>
+              </div>
+            </li>
+            <li>Bấm nút <strong>"Generate Access Token" (Tạo mã truy cập)</strong> màu xanh.</li>
+            <li>Facebook sẽ hiện cửa sổ popup xác nhận &rarr; Bấm <strong>"Tiếp tục dưới tên..."</strong> và chọn tất cả các Fanpage của bạn &rarr; Bấm Lưu.</li>
+            <li>Copy toàn bộ mã Token dài bắt đầu bằng chữ <code>EAA...</code> dán vào ô <strong>3. Token ban đầu</strong> trong Tool.</li>
+          </ol>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="guide-step-box" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 14px 18px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <span style="background: #10b981; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">4</span>
+            <strong style="color: #34d399; font-size: 14px;">Bước 4: Tool tự động chuyển đổi Token Vĩnh Viễn</strong>
+          </div>
+          <p style="margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+            Khi bạn bấm nút <strong>"⚡ Đổi Token Dài Hạn & Quét Page Vĩnh Viễn"</strong>, Tool sẽ tự động thực hiện:
+          </p>
+          <ul style="margin: 6px 0 0 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+            <li>Gọi API <code>oauth/access_token</code> đổi sang <strong>Long-Lived User Token (~60 ngày)</strong>.</li>
+            <li>Gọi <code>/me/accounts</code>: Meta sẽ cấp lại <strong>Page Access Token VĨNH VIỄN (Never Expire)</strong> cho toàn bộ Fanpage được quản lý!</li>
+            <li>Lưu trữ vào <strong>Kho Nguồn Token Đã Lưu</strong> để bạn quản lý nhiều nguồn nick FB khác nhau mà không bao giờ sợ mất mã.</li>
+          </ul>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="closeTokenGuideModalFooterBtn" class="btn btn-primary">Tôi Đã Hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Quick Reply Template -->
+  <div id="quickReplyModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="qrModalTitle">Thêm Mẫu Câu Trả Lời Nhanh</h3>
+          <p class="modal-subtitle">Tạo mẫu câu phản hồi thường dùng để tư vấn khách hàng nhanh chóng</p>
+        </div>
+        <button id="closeQrModalBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="qrModalId">
+        <div class="form-group">
+          <label>Tiêu đề mẫu câu (Ví dụ: Chào khách ban đêm, Báo giá freeship):</label>
+          <input type="text" id="qrModalTitleInput" class="form-control" placeholder="Nhập tiêu đề mẫu câu...">
+        </div>
+        <div class="form-group">
+          <label>Nội dung câu trả lời:</label>
+          <textarea id="qrModalContentInput" class="form-control" rows="4" placeholder="Nhập nội dung tin nhắn mẫu..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelQrBtn" class="btn btn-secondary">Hủy</button>
+        <button id="submitQrBtn" class="btn btn-primary">Lưu Mẫu Câu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Supabase Schema DDL Viewer -->
+  <div id="supabaseSchemaModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Kịch Bản DDL Supabase / PostgreSQL Schema</h3>
+          <p class="modal-subtitle">Sử dụng để tạo cấu trúc bảng trên Supabase SQL Editor khi triển khai cloud</p>
+        </div>
+        <button id="closeSupabaseModalBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; color: var(--text-muted);">Đường dẫn: <code>data/supabase_schema.sql</code></span>
+          <button id="copySupabaseSqlBtn" class="btn btn-sm btn-primary">📋 Sao Chép Toàn Bộ SQL</button>
+        </div>
+        <textarea id="supabaseSqlTextarea" class="form-control" style="height: 350px; font-family: monospace; font-size: 12px; line-height: 1.5; white-space: pre;" readonly></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="closeSupabaseModalFooterBtn" class="btn btn-secondary">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Media & Image Lightbox Dialog -->
+  <div id="imageLightboxModal" class="modal-backdrop lightbox-backdrop" style="display: none;">
+    <div class="lightbox-dialog" id="lightboxDialog">
+      <div class="lightbox-header">
+        <div class="lightbox-info">
+          <span class="lightbox-icon" id="lightboxMediaIcon">🖼️</span>
+          <span class="lightbox-title" id="lightboxTitle">Xem ảnh đính kèm</span>
+        </div>
+        <div class="lightbox-actions">
+          <div id="lightboxZoomControls" style="display: inline-flex; align-items: center; gap: 4px; margin-right: 6px;">
+            <button type="button" id="lightboxZoomOutBtn" class="btn btn-sm btn-secondary" title="Thu nhỏ (Zoom Out)"><span>➖</span></button>
+            <button type="button" id="lightboxResetZoomBtn" class="btn btn-sm btn-secondary" title="Kích thước chuẩn (100%)"><span>100%</span></button>
+            <button type="button" id="lightboxZoomInBtn" class="btn btn-sm btn-secondary" title="Phóng to (Zoom In)"><span>➕</span></button>
+          </div>
+          <a id="lightboxDownloadBtn" href="#" target="_blank" download class="btn btn-sm btn-secondary" title="Tải tệp gốc về máy">
+            <span>⬇</span> Tải Về
+          </a>
+          <a id="lightboxOpenTabBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-secondary" title="Mở trong tab mới">
+            <span>↗</span> Mở Tab Mới
+          </a>
+          <button id="closeLightboxBtn" class="btn-modal-close lightbox-close-btn" aria-label="Đóng">&times;</button>
+        </div>
+      </div>
+      <div class="lightbox-body" id="lightboxBody">
+        <img id="lightboxImage" src="" alt="Ảnh phóng to" class="lightbox-image" />
+        <video id="lightboxVideo" src="" controls playsinline class="lightbox-video" style="display: none;"></video>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Renew / Update Short-lived Token for Saved Source -->
+  <div id="renewTokenSourceModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">🔄 Cập Nhật / Đổi Token Mới Cho Nguồn</h3>
+          <p class="modal-subtitle">Nhập mã User Token ngắn hạn mới để tự động đổi thành Token Vĩnh Viễn</p>
+        </div>
+        <button id="closeRenewTokenModalBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="renewSourceId">
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-weight: 600; font-size: 13px;">Tên nguồn / Ghi chú Nick:</label>
+          <input type="text" id="renewSourceNameInput" class="form-control" placeholder="Ví dụ: Nick FB Chính (Tuấn Phong)">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-weight: 600; font-size: 13px;">App ID (Đã lưu):</label>
+            <input type="text" id="renewSourceAppIdInput" class="form-control" placeholder="Ví dụ: 2361682801028889">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-weight: 600; font-size: 13px;">App Secret (Đã lưu):</label>
+            <input type="text" id="renewSourceAppSecretInput" class="form-control" placeholder="Chuỗi mã bí mật App...">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🔑 Dán User Access Token ngắn hạn mới (EAA...):</span>
+            <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color: var(--primary); font-size: 12px; font-weight: 400; text-decoration: underline;">Lấy tại Graph API Explorer ↗</a>
+          </label>
+          <textarea id="renewSourceTokenInput" class="form-control" rows="3" placeholder="Dán mã Token mới bắt đầu bằng EAA... vào đây"></textarea>
+        </div>
+
+        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; padding: 10px 12px; font-size: 12px; line-height: 1.5; color: #93c5fd;">
+          ⚡ <strong>Tự Động 100%:</strong> Khi bấm Cập Nhật, Tool sẽ tự động dùng App ID & App Secret để đổi User Token này sang Token Vĩnh Viễn, đồng thời cập nhật ngay lập tức quyền cho tất cả các Fanpage thuộc nguồn này mà không cần xóa đi thêm lại!
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelRenewTokenBtn" class="btn btn-secondary">Hủy</button>
+        <button id="btnSubmitRenewToken" class="btn btn-primary">⚡ Đổi Token Vĩnh Viễn & Cập Nhật</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Token Inspector / Chi Tiết & Hạn Sử Dụng Token Meta -->
+  <div id="tokenInspectModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="tokenInspectTitle">🔍 Chi Tiết & Hạn Sử Dụng Token Meta</h3>
+          <p class="modal-subtitle" id="tokenInspectSubtitle">Kiểm tra thông số thời gian thực từ Meta Graph API</p>
+        </div>
+        <button id="closeTokenInspectBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body" id="tokenInspectBody">
+        <div style="text-align: center; padding: 24px; color: var(--text-muted);">
+          <span>⏳ Đang kết nối máy chủ Meta để soi Token...</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="closeTokenInspectFooterBtn" class="btn btn-primary">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 7: Facebook App Configuration (OAuth Settings) -->
+  <div id="facebookAppConfigModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">⚙️ Cài Đặt Facebook App &amp; Đăng Nhập OAuth</h3>
+          <p class="modal-subtitle">Cấu hình App ID &amp; App Secret để kích hoạt nút Đăng Nhập Facebook 1-Click</p>
+        </div>
+        <button id="closeFbAppConfigBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-weight: 600; font-size: 13px;">App ID (Mã ứng dụng Meta):</label>
+            <input type="text" id="fbConfigAppIdInput" class="form-control" placeholder="Ví dụ: 2361682801028889">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-weight: 600; font-size: 13px;">App Secret (Khóa bí mật):</label>
+            <input type="password" id="fbConfigAppSecretInput" class="form-control" placeholder="Chuỗi mã bí mật (e8fe1eea...)">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="font-weight: 600; font-size: 13px;">
+            🔗 Valid OAuth Redirect URIs (Bắt buộc dán vào Meta Developer):
+          </label>
+          <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px 0;">
+            Truy cập <a href="https://developers.facebook.com/apps" target="_blank" style="color: var(--color-primary); text-decoration: underline;">developers.facebook.com/apps ↗</a> &gt; App của bạn &gt; <strong>Facebook Login for Business &gt; Cài đặt (Settings)</strong> &gt; Dán các URL dưới đây vào ô <strong>Valid OAuth Redirect URIs</strong>:
+          </p>
+          <div id="oauthRedirectUrisContainer" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.5; color: #a7f3d0;">
+          💡 <strong>Mẹo Quản Lý Đa Tài Khoản:</strong> Khi App ở chế độ Development, để đăng nhập được bất kỳ tài khoản Facebook cá nhân nào khác vào Tool, bạn chỉ cần vào mục <strong>Vai trò (Roles) &gt; Thử nghiệm viên (Testers)</strong> trên Meta Developer và thêm nick Facebook đó vào!
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelFbAppConfigBtn" class="btn btn-secondary">Hủy</button>
+        <button id="saveFbAppConfigBtn" class="btn btn-primary">💾 Lưu Cấu Hình App</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js?v=20260915_2"></script>
+</body>
+</html>

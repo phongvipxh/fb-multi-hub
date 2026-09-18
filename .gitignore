@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# SQLite Database Files (Bảo vệ thông tin token và tin nhắn khách hàng thực tế)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/test_*.db*
+data/*.sqlite*
+!data/supabase_schema.sql
+!data/.gitkeep
+
+# User Uploaded Media Files (Hình ảnh, video, ghi âm đính kèm từ khách & test)
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Executables & Binaries (Tự động tải về qua khoi_dong.bat / setup_and_start.ps1)
+bin/*.exe
+bin/*.zip
+bin/*.tar.gz
+bin/node/
+bin/node_temp/
+!bin/.gitkeep
+
+# Logs & Temporary Files
+*.log
+logs/
+scratch/
+.playwright-mcp/
+.system_generated/
+
+# OS Specific Files
+.DS_Store
+Thumbs.db
+desktop.ini
