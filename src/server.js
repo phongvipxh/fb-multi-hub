@@ -762,6 +762,60 @@ app.post('/api/host-profile', (req, res) => {
   }
 });
 
+/**
+ * Upload Custom Alarm Audio File (.mp3, .wav, .ogg, .m4a, .aac, .flac, .webm)
+ */
+app.post('/api/host-profile/upload-alarm-sound', (req, res) => {
+  try {
+    const data = req.body.data || req.body.file_data;
+    const name = req.body.name || req.body.file_name;
+    if (!data) {
+      return res.status(400).json({ ok: false, error: 'Chưa có dữ liệu tệp âm thanh!' });
+    }
+
+    const uploadsDir = path.join(__dirname, '../public/uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const originalName = name || 'custom_alarm.mp3';
+    const extMatch = originalName.match(/\.([a-zA-Z0-9]+)$/);
+    const ext = extMatch ? extMatch[1].toLowerCase() : 'mp3';
+
+    const allowedExts = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'webm', 'wma', 'm4r'];
+    if (!allowedExts.includes(ext)) {
+      return res.status(400).json({
+        ok: false,
+        error: `Định dạng .${ext} không được hỗ trợ! Vui lòng chọn file âm thanh (.mp3, .wav, .ogg, .m4a, .aac, .flac, .webm).`
+      });
+    }
+
+    const safeBaseName = originalName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `custom_alarm_${Date.now()}_${safeBaseName}.${ext}`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    const base64Data = data.replace(/^data:[^;]+;base64,/, '');
+    fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+
+    const soundUrl = `/uploads/${fileName}`;
+
+    // Update host profile with new custom sound URL and type
+    const updated = updateHostProfile({
+      custom_sound_url: soundUrl,
+      web_sound_type: 'custom_file'
+    });
+
+    res.json({
+      ok: true,
+      message: 'Tải lên tệp âm thanh chuông báo thành công!',
+      sound_url: soundUrl,
+      host: updated
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'Lỗi tải lên âm thanh: ' + err.message });
+  }
+});
+
 app.post('/api/host-profile/toggle-sleep', (req, res) => {
   try {
     const host = getHostProfile();
@@ -1948,12 +2002,37 @@ app.get('/auth/facebook', (req, res) => {
       return res.status(400).send(`
         <!DOCTYPE html>
         <html><head><meta charset="utf-8"><title>Cần Cấu Hình Facebook App</title>
-        <style>body{background:#0b132b;color:#f8fafc;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;padding:20px;text-align:center;box-sizing:border-box;}</style>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { background: #0b132b; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+          .card { max-width: 520px; background: #1e293b; padding: 30px; border-radius: 14px; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); text-align: center; }
+          .btn-primary { background: #10b981; color: #000; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; margin-bottom: 10px; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+          .btn-secondary { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+          .btn-primary:hover { background: #059669; }
+          .btn-secondary:hover { background: #475569; }
+        </style>
         </head><body>
-          <div style="max-width:500px;background:#1e293b;padding:32px;border-radius:12px;border:1px solid #334155;">
-            <h3 style="color:#f59e0b;margin-top:0;">⚠️ Chưa Cấu Hình Facebook App ID</h3>
-            <p style="color:#94a3b8;font-size:14px;line-height:1.6;">Để sử dụng tính năng Đăng Nhập Facebook 1-Click, bạn cần nhập <strong>App ID</strong> và <strong>App Secret</strong> tại mục <strong>Quản Lý Fanpage -> Cài Đặt Facebook App</strong>.</p>
-            <button onclick="window.close()" style="background:#3b82f6;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:12px;">Đóng Cửa Sổ</button>
+          <div class="card">
+            <div style="font-size: 38px; margin-bottom: 8px;">💡</div>
+            <h3 style="color: #60a5fa; margin: 0 0 10px 0; font-size: 19px;">Tại Sao Cần Cấu Hình Facebook App?</h3>
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin-bottom: 16px; text-align: left;">
+              Khác với các bên thứ 3 (Pancake, Fchat) lưu dữ liệu trên máy chủ của họ, <strong>FB Multi-Hub chạy độc lập 100% trên máy tính của bạn (Self-Hosted)</strong> để bảo mật tuyệt đối dữ liệu khách hàng. Để dùng Đăng Nhập 1-Click tự động, Meta quy định bạn cần có App ID của chính mình để cấp quyền.
+            </p>
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 18px; text-align: left;">
+              <strong style="color: #34d399; font-size: 13px;">🚀 Bạn không muốn tạo App Meta?</strong>
+              <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
+                Bạn hoàn toàn có thể kết nối Fanpage ngay lập tức bằng cách <strong>Dán Token Facebook trực tiếp</strong> (chỉ mất 20 giây)!
+              </div>
+            </div>
+            <button class="btn-primary" onclick="if(window.opener){ try { window.opener.postMessage({type:'OPEN_DIRECT_TOKEN_MODAL'},'*'); } catch(e){} } window.close();">
+              <span>🔑</span> Dán Token Trực Tiếp (Không Cần App ID)
+            </button>
+            <button class="btn-secondary" onclick="if(window.opener){ try { window.opener.postMessage({type:'OPEN_FB_APP_CONFIG'},'*'); } catch(e){} } window.close();">
+              <span>⚙️</span> Cài Đặt Facebook App ID &amp; Secret
+            </button>
+            <div style="margin-top: 14px;">
+              <a href="#" onclick="window.close(); return false;" style="color: #64748b; font-size: 12px; text-decoration: none;">Đóng cửa sổ này</a>
+            </div>
           </div>
         </body></html>
       `);
@@ -1983,6 +2062,56 @@ app.get('/auth/facebook', (req, res) => {
   }
 });
 
+/**
+ * Helper to diagnose Facebook OAuth errors and provide clear actionable guidance
+ */
+function diagnoseOAuthError(errorStr) {
+  const str = String(errorStr || '').toLowerCase();
+  if (str.includes('redirect_uri') || str.includes('191') || str.includes('url isn\'t included') || str.includes('domain') || str.includes('cant load url') || str.includes('can\'t load url')) {
+    return {
+      type: 'REDIRECT_URI_MISMATCH',
+      code: '191',
+      title: 'Sai lệch Redirect URI (URL Chuyển Hướng)',
+      hint: 'Bạn chưa dán đúng URL callback vào Meta Developer Portal. Hãy vào App FB > Facebook Login for Business > Settings > mục "Valid OAuth Redirect URIs", dán đúng link callback hệ thống cung cấp và bấm Lưu thay đổi.',
+      suggestedFix: 'Dán lại link callback vào App Settings hoặc chuyển sang Cách B (Dán Token trực tiếp)'
+    };
+  }
+  if (str.includes('secret') || str.includes('appsecret') || str.includes('client_secret') || str.includes('invalid verification code') || str.includes('code exchange error [1]')) {
+    return {
+      type: 'INVALID_APP_SECRET',
+      code: '1',
+      title: 'Sai Khóa Bí Mật Ứng Dụng (App Secret) hoặc App ID',
+      hint: 'App Secret không trùng khớp với App ID này. Hãy vào Cài đặt ứng dụng > Thông tin cơ bản, bấm "Hiển thị" (Show) ở mục Khóa bí mật và sao chép lại chuỗi mã 32 ký tự.',
+      suggestedFix: 'Nhập lại App Secret chính xác ở Bước 1'
+    };
+  }
+  if (str.includes('expired') || str.includes('has been used') || str.includes('code expired')) {
+    return {
+      type: 'CODE_EXPIRED',
+      code: '100',
+      title: 'Mã xác thực đã hết hạn',
+      hint: 'Phiên xác thực Facebook tạm thời đã kết thúc trước khi hoàn tất trao đổi token. Vui lòng bấm Đăng nhập lại.',
+      suggestedFix: 'Bấm Đăng Nhập Lại'
+    };
+  }
+  if (str.includes('cancel') || str.includes('hủy') || str.includes('denied') || str.includes('access_denied')) {
+    return {
+      type: 'USER_CANCELLED',
+      code: 'CANCELLED',
+      title: 'Đã hủy thao tác đăng nhập',
+      hint: 'Cửa sổ xác thực Facebook đã bị đóng hoặc bạn đã bấm nút Hủy khi cấp quyền.',
+      suggestedFix: 'Bấm Đăng Nhập Lại hoặc chọn Cách B (Dán Token)'
+    };
+  }
+  return {
+    type: 'OAUTH_ERROR',
+    code: 'UNKNOWN',
+    title: 'Lỗi xác thực Facebook',
+    hint: 'Quá trình xác thực gặp trở ngại từ Meta Graph API hoặc mạng. Hãy kiểm tra lại thông tin App ID & Secret hoặc sử dụng Cách B (Dán Token Facebook trực tiếp không cần OAuth).',
+    suggestedFix: 'Dùng Cách B: Dán Token Facebook Trực Tiếp'
+  };
+}
+
 app.get('/auth/facebook/callback', async (req, res) => {
   let isPopup = false;
   let stateRedirectUri = '';
@@ -1999,24 +2128,49 @@ app.get('/auth/facebook/callback', async (req, res) => {
     // Check for user cancellation or error from Facebook
     if (req.query.error) {
       const errorMsg = req.query.error_description || req.query.error_message || req.query.error || 'Đã hủy cấp quyền Facebook';
+      const diag = diagnoseOAuthError(errorMsg);
       if (isPopup) {
         return res.send(`
-          <!DOCTYPE html><html><head><meta charset="utf-8"><title>Hủy Đăng Nhập</title></head>
-          <body style="background:#0b132b;color:#f87171;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;">
-            <div>
-              <h3>❌ Chưa Hoàn Tất Đăng Nhập</h3>
-              <p style="color:#94a3b8;">${errorMsg}</p>
-              <script>
-                if (window.opener) {
-                  window.opener.postMessage({ type: 'FB_AUTH_ERROR', error: ${JSON.stringify(errorMsg)} }, '*');
-                  setTimeout(() => window.close(), 1500);
-                }
-              </script>
+          <!DOCTYPE html><html><head><meta charset="utf-8"><title>Chưa Hoàn Tất Đăng Nhập</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>body{background:#0b132b;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}</style>
+          </head><body>
+            <div style="max-width:500px;background:#1e293b;padding:26px;border-radius:12px;border:1px solid #f59e0b;box-shadow:0 12px 36px rgba(0,0,0,0.6);text-align:left;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <span style="font-size:24px;">⚠️</span>
+                <h3 style="margin:0;color:#fbbf24;font-size:17px;">${diag.title}</h3>
+              </div>
+              <p style="color:#cbd5e1;font-size:13px;line-height:1.5;margin-bottom:12px;">${diag.hint}</p>
+              <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:8px 10px;margin-bottom:16px;font-family:monospace;font-size:11px;color:#94a3b8;word-break:break-all;">
+                Chi tiết: ${errorMsg}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <button onclick="if(window.opener){ try { window.opener.postMessage({type:'OPEN_DIRECT_TOKEN_MODAL'},'*'); } catch(e){} } window.close();" style="background:#10b981;color:#000;border:none;padding:10px 16px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                  <span>🔑</span> Thử Dán Token Trực Tiếp (Cách B - 100% Không Cần App ID)
+                </button>
+                <button onclick="if(window.opener){ try { window.opener.postMessage({type:'OPEN_FB_APP_CONFIG'},'*'); } catch(e){} } window.close();" style="background:#334155;color:#f8fafc;border:1px solid #475569;padding:9px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                  <span>⚙️</span> Kiểm Tra Lại App ID &amp; Secret ở Bước 1
+                </button>
+                <button onclick="window.close()" style="background:transparent;color:#94a3b8;border:none;padding:6px;cursor:pointer;font-size:12px;">
+                  Đóng cửa sổ
+                </button>
+              </div>
             </div>
+            <script>
+              if (window.opener) {
+                try {
+                  window.opener.postMessage({
+                    type: 'FB_AUTH_ERROR',
+                    error: ${JSON.stringify(errorMsg)},
+                    diagnosis: ${JSON.stringify(diag)}
+                  }, '*');
+                } catch(e) {}
+              }
+            </script>
           </body></html>
         `);
       }
-      return res.redirect(`/?fb_error=${encodeURIComponent(errorMsg)}`);
+      return res.redirect(`/?fb_error=${encodeURIComponent(errorMsg)}&fb_diag_title=${encodeURIComponent(diag.title)}&fb_diag_hint=${encodeURIComponent(diag.hint)}&fb_diag_type=${encodeURIComponent(diag.type)}`);
     }
 
     const { code } = req.query;
@@ -2117,19 +2271,52 @@ app.get('/auth/facebook/callback', async (req, res) => {
     return res.redirect(`/?fb_auth_success=1&account=${encodeURIComponent(user.name)}&pages=${connectedPagesCount}`);
   } catch (err) {
     console.error('[Facebook OAuth Error]:', err);
+    const diag = diagnoseOAuthError(err.message);
     if (isPopup) {
       return res.status(500).send(`
-        <!DOCTYPE html><html><head><meta charset="utf-8"><title>Lỗi Đăng Nhập</title></head>
-        <body style="background:#0b132b;color:#f87171;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;padding:20px;text-align:center;">
-          <div style="max-width:480px;background:#1e293b;padding:28px;border-radius:12px;border:1px solid #dc2626;">
-            <h3 style="margin-top:0;">⚠️ Lỗi Kết Nối Facebook OAuth</h3>
-            <p style="color:#cbd5e1;font-size:13px;line-height:1.5;">${err.message}</p>
-            <button onclick="window.close()" style="background:#475569;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;margin-top:12px;">Đóng</button>
+        <!DOCTYPE html><html><head><meta charset="utf-8"><title>Lỗi Đăng Nhập</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>body{background:#0b132b;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}</style>
+        </head><body>
+          <div style="max-width:520px;background:#1e293b;padding:26px;border-radius:12px;border:1px solid #ef4444;box-shadow:0 12px 36px rgba(0,0,0,0.6);text-align:left;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <span style="font-size:24px;">⚠️</span>
+              <h3 style="margin:0;color:#f87171;font-size:17px;">${diag.title}</h3>
+            </div>
+            <div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 12px;margin-bottom:14px;color:#fca5a5;font-size:12.5px;line-height:1.5;">
+              <strong>🔍 Điểm đúng / sai cần kiểm tra:</strong>
+              <div style="margin-top:4px;">${diag.hint}</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:8px 10px;margin-bottom:16px;font-family:monospace;font-size:11px;color:#cbd5e1;word-break:break-all;">
+              Chi tiết: ${err.message}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <button onclick="if(window.opener){ try { window.opener.postMessage({type:'OPEN_DIRECT_TOKEN_MODAL'},'*'); } catch(e){} } window.close();" style="background:#10b981;color:#000;border:none;padding:10px 16px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <span>🔑</span> Dùng Phương Án Dự Phòng: Dán Token Trực Tiếp (Cách B)
+              </button>
+              <button onclick="if(window.opener){ try { window.opener.postMessage({type:'OPEN_FB_APP_CONFIG'},'*'); } catch(e){} } window.close();" style="background:#334155;color:#f8fafc;border:1px solid #475569;padding:9px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:12.5px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <span>⚙️</span> Kiểm Tra Lại App ID &amp; Secret ở Bước 1
+              </button>
+              <button onclick="window.close()" style="background:transparent;color:#94a3b8;border:none;padding:6px;cursor:pointer;font-size:12px;">
+                Đóng cửa sổ
+              </button>
+            </div>
           </div>
+          <script>
+            if (window.opener) {
+              try {
+                window.opener.postMessage({
+                  type: 'FB_AUTH_ERROR',
+                  error: ${JSON.stringify(err.message)},
+                  diagnosis: ${JSON.stringify(diag)}
+                }, '*');
+              } catch(e) {}
+            }
+          </script>
         </body></html>
       `);
     }
-    return res.status(500).send(`Lỗi kết nối Facebook: ${err.message}`);
+    return res.redirect(`/?fb_error=${encodeURIComponent(err.message)}&fb_diag_title=${encodeURIComponent(diag.title)}&fb_diag_hint=${encodeURIComponent(diag.hint)}&fb_diag_type=${encodeURIComponent(diag.type)}`);
   }
 });
 

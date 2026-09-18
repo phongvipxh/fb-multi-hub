@@ -12,7 +12,65 @@ document.addEventListener('DOMContentLoaded', () => {
   let discoveredPagesCache = [];
 
   // -------------------------------------------------------------
-  // 1. Web Audio Alarm Engine (Synthesized Loud Chime & Ringtone Engine)
+  // YouTube Video ID Extractor Helper
+  function extractYouTubeVideoId(url) {
+    if (!url || typeof url !== 'string') return null;
+    const cleanUrl = url.trim();
+    const match = cleanUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i);
+    return match ? match[1] : null;
+  }
+
+  // YouTube Iframe API Ready Handler
+  window.onYouTubeIframeAPIReady = function() {
+    try {
+      window.ytAlarmPlayer = new YT.Player('youtubeAlarmPlayerSlot', {
+        width: '200',
+        height: '200',
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          enablejsapi: 1,
+          fs: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          rel: 0
+        },
+        events: {
+          onReady: () => {
+            console.log('[YouTube API] YouTube Alarm Player đã sẵn sàng.');
+          },
+          onStateChange: (event) => {
+            if (event.data === YT.PlayerState.ENDED) {
+              if (alarmAudioEngine.isPlaying) {
+                try {
+                  window.ytAlarmPlayer.seekTo(0);
+                  window.ytAlarmPlayer.playVideo();
+                } catch (e) {}
+              } else {
+                const btn = document.getElementById('testWebAudioChimeBtn');
+                if (btn && btn.classList.contains('btn-danger')) {
+                  btn.innerHTML = '<span>🔊</span> Thử Nghe Chuông Loa Ngay';
+                  btn.classList.remove('btn-danger');
+                  btn.classList.add('btn-secondary');
+                }
+              }
+            }
+          },
+          onError: (err) => {
+            console.warn('[YouTube API] Lỗi phát YouTube:', err);
+            if (alarmAudioEngine.isPlaying) {
+              alarmAudioEngine._synthEmergencySiren(alarmAudioEngine.audioCtx?.currentTime || 0);
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('[YouTube API] Khởi tạo iframe player lỗi:', e);
+    }
+  };
+
+  // 1. Web Audio Alarm Engine (Synthesized, Custom Audio & YouTube Alarm Engine)
   // -------------------------------------------------------------
   class WebAudioAlarmEngine {
     constructor() {
@@ -21,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
       this.masterGain = null;
       this.isPlaying = false;
       this.intervalId = null;
+      this.customAudio = null;
     }
 
     init() {
@@ -44,15 +103,59 @@ document.addEventListener('DOMContentLoaded', () => {
         this.compressor.connect(this.masterGain);
         this.masterGain.connect(this.audioCtx.destination);
       }
+      if (!this.customAudio) {
+        this.customAudio = new Audio();
+        this.customAudio.addEventListener('ended', () => {
+          const btn = document.getElementById('testWebAudioChimeBtn');
+          if (btn && btn.classList.contains('btn-danger')) {
+            btn.innerHTML = '<span>🔊</span> Thử Nghe Chuông Loa Ngay';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-secondary');
+          }
+        });
+      }
     }
 
     playSingleChime(volume = 1.0, soundType = 'loud_chime') {
       try {
         this.init();
+        const effectiveVol = Math.max(0.1, volume);
+
+        // Case 1: Custom Audio File
+        if (soundType === 'custom_file') {
+          const soundUrl = hostProfile?.custom_sound_url || document.getElementById('hostCustomSoundUrlInput')?.value;
+          if (soundUrl) {
+            this.customAudio.src = soundUrl;
+            this.customAudio.volume = Math.min(1.0, effectiveVol);
+            this.customAudio.loop = false;
+            this.customAudio.currentTime = 0;
+            this.customAudio.play().catch(e => {
+              console.warn('[CustomAudio] Play error:', e);
+              if (this.audioCtx) this._synthLoudChime(this.audioCtx.currentTime);
+            });
+            return;
+          }
+        }
+
+        // Case 2: YouTube Video Link
+        if (soundType === 'youtube') {
+          const ytUrl = hostProfile?.youtube_url || document.getElementById('hostYoutubeUrlInput')?.value;
+          const videoId = extractYouTubeVideoId(ytUrl);
+          if (videoId && window.ytAlarmPlayer && typeof window.ytAlarmPlayer.loadVideoById === 'function') {
+            try {
+              window.ytAlarmPlayer.loadVideoById({ videoId, startSeconds: 0 });
+              window.ytAlarmPlayer.setVolume(Math.min(100, Math.round(effectiveVol * 100)));
+              window.ytAlarmPlayer.playVideo();
+              return;
+            } catch (e) {
+              console.warn('[YouTube Alarm] Play error:', e);
+            }
+          }
+        }
+
         if (!this.audioCtx) return;
 
         // Apply master gain with boost capability (up to 150%)
-        const effectiveVol = Math.max(0.1, volume);
         this.masterGain.gain.setValueAtTime(effectiveVol * 1.5, this.audioCtx.currentTime);
 
         const now = this.audioCtx.currentTime;
@@ -231,10 +334,49 @@ document.addEventListener('DOMContentLoaded', () => {
       this.init();
       this.isPlaying = true;
 
-      // Play immediate chime
-      this.playSingleChime(volume, soundType);
+      const effectiveVol = Math.max(0.1, volume);
 
-      // Repeat chime every 1.8 seconds
+      // Show Emergency Alarm Bar
+      const alarmBar = document.getElementById('emergencyAlarmBar');
+      if (alarmBar) alarmBar.style.display = 'flex';
+
+      // If Custom Audio File
+      if (soundType === 'custom_file') {
+        const soundUrl = hostProfile?.custom_sound_url || document.getElementById('hostCustomSoundUrlInput')?.value;
+        if (soundUrl) {
+          this.customAudio.src = soundUrl;
+          this.customAudio.volume = Math.min(1.0, effectiveVol);
+          this.customAudio.loop = true;
+          this.customAudio.currentTime = 0;
+          this.customAudio.play().catch(e => {
+            console.warn('[CustomAudio] Play error, fallback to synth:', e);
+            this.intervalId = setInterval(() => {
+              if (!this.isPlaying) return;
+              this._synthEmergencySiren(this.audioCtx?.currentTime || 0);
+            }, 1800);
+          });
+          return;
+        }
+      }
+
+      // If YouTube Video Link
+      if (soundType === 'youtube') {
+        const ytUrl = hostProfile?.youtube_url || document.getElementById('hostYoutubeUrlInput')?.value;
+        const videoId = extractYouTubeVideoId(ytUrl);
+        if (videoId && window.ytAlarmPlayer && typeof window.ytAlarmPlayer.loadVideoById === 'function') {
+          try {
+            window.ytAlarmPlayer.loadVideoById({ videoId, startSeconds: 0 });
+            window.ytAlarmPlayer.setVolume(Math.min(100, Math.round(effectiveVol * 100)));
+            window.ytAlarmPlayer.playVideo();
+            return;
+          } catch (e) {
+            console.warn('[YouTube Alarm] Play error, fallback to synth:', e);
+          }
+        }
+      }
+
+      // Synthesized Chimes (repeating loop every 1.8s)
+      this.playSingleChime(volume, soundType);
       this.intervalId = setInterval(() => {
         if (!this.isPlaying) {
           clearInterval(this.intervalId);
@@ -242,10 +384,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         this.playSingleChime(volume, soundType);
       }, 1800);
-
-      // Show Emergency Alarm Bar
-      const alarmBar = document.getElementById('emergencyAlarmBar');
-      if (alarmBar) alarmBar.style.display = 'flex';
     }
 
     stopContinuousAlarm() {
@@ -253,6 +391,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (this.intervalId) {
         clearInterval(this.intervalId);
         this.intervalId = null;
+      }
+      if (this.customAudio) {
+        try {
+          this.customAudio.pause();
+          this.customAudio.currentTime = 0;
+        } catch (e) {}
+      }
+      if (window.ytAlarmPlayer && typeof window.ytAlarmPlayer.stopVideo === 'function') {
+        try {
+          window.ytAlarmPlayer.stopVideo();
+        } catch (e) {}
       }
       const alarmBar = document.getElementById('emergencyAlarmBar');
       if (alarmBar) alarmBar.style.display = 'none';
@@ -659,6 +808,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function updateAlarmSoundPanes(soundType) {
+    const customPane = document.getElementById('hostCustomAudioPane');
+    const ytPane = document.getElementById('hostYoutubeAudioPane');
+    if (customPane) customPane.style.display = soundType === 'custom_file' ? 'block' : 'none';
+    if (ytPane) ytPane.style.display = soundType === 'youtube' ? 'block' : 'none';
+  }
+
   function renderHostUI(host) {
     // Sidebar Host Info
     const hostNameEl = document.getElementById('sidebarHostName');
@@ -694,6 +850,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (webSoundType) {
       webSoundType.value = host.web_sound_type || 'loud_chime';
     }
+
+    const customUrlInput = document.getElementById('hostCustomSoundUrlInput');
+    if (customUrlInput) customUrlInput.value = host.custom_sound_url || '';
+
+    const ytUrlInput = document.getElementById('hostYoutubeUrlInput');
+    if (ytUrlInput) {
+      ytUrlInput.value = host.youtube_url || '';
+      const badge = document.getElementById('youtubeVideoDetectedBadge');
+      if (badge) {
+        const vid = extractYouTubeVideoId(host.youtube_url || '');
+        badge.style.display = vid ? 'inline-block' : 'none';
+      }
+    }
+
+    const fileNameDisplay = document.getElementById('customAudioFileNameDisplay');
+    const previewPlayer = document.getElementById('customAudioPreviewPlayer');
+    if (host.custom_sound_url) {
+      const filename = host.custom_sound_url.split('/').pop();
+      if (fileNameDisplay) fileNameDisplay.textContent = '✓ ' + decodeURIComponent(filename);
+      if (previewPlayer) {
+        previewPlayer.src = host.custom_sound_url;
+        previewPlayer.style.display = 'block';
+      }
+    } else {
+      if (fileNameDisplay) fileNameDisplay.textContent = 'Chưa chọn file';
+      if (previewPlayer) {
+        previewPlayer.src = '';
+        previewPlayer.style.display = 'none';
+      }
+    }
+
+    updateAlarmSoundPanes(host.web_sound_type || 'loud_chime');
 
     const alarmEnabledToggle = document.getElementById('hostAlarmEnabledToggle');
     if (alarmEnabledToggle) alarmEnabledToggle.checked = host.alarm_enabled === 'true';
@@ -2743,38 +2931,414 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Helper to quickly switch to Direct Token tab (No App ID required)
+  function switchToDirectTokenTab() {
+    openModal('addPageModal');
+    document.getElementById('discoveredPagesCard').style.display = 'none';
+    document.getElementById('btnImportSelectedPages').style.display = 'none';
+    loadTokenSources();
+    const directBtn = document.querySelector('.modal-tab-btn[data-tab="tab-direct-token"]');
+    if (directBtn) directBtn.click();
+  }
+
+  // Direct Token Quick Connect button in header
+  document.getElementById('btnDirectTokenQuickAdd')?.addEventListener('click', () => {
+    switchToDirectTokenTab();
+  });
+
   // -------------------------------------------------------------
-  // Facebook 1-Click OAuth Login & Multi-Account
+  // Unified Sequential Facebook Login & App Configuration Flow
   // -------------------------------------------------------------
+  async function openFacebookLoginSequentialModal() {
+    try {
+      const res = await fetch('/api/facebook-app-config');
+      const data = await res.json();
+      if (data.ok) {
+        const appIdInput = document.getElementById('seqFbAppIdInput');
+        const appSecretInput = document.getElementById('seqFbAppSecretInput');
+        const badge = document.getElementById('fbAppConfigStatusBadge');
+        const uriEl = document.getElementById('seqRedirectUriText');
+
+        if (appIdInput) appIdInput.value = data.appId || '';
+        if (appSecretInput) {
+          appSecretInput.value = '';
+          appSecretInput.placeholder = data.hasAppSecret ? '•••••••••••••••• (Đã lưu bí mật)' : 'Chuỗi mã bí mật (e8fe1eea...)';
+        }
+
+        if (badge) {
+          if (data.appId) {
+            badge.style.background = 'rgba(16, 185, 129, 0.2)';
+            badge.style.color = '#34d399';
+            badge.textContent = `✅ Đã cấu hình (App ID: ${data.appId})`;
+          } else {
+            badge.style.background = 'rgba(239, 68, 68, 0.15)';
+            badge.style.color = '#f87171';
+            badge.textContent = '⚠️ Chưa cấu hình App ID';
+          }
+        }
+
+        if (uriEl) {
+          const callbackUri = (data.redirectUris && data.redirectUris[0]) || `${window.location.origin}/auth/facebook/callback`;
+          uriEl.textContent = callbackUri;
+        }
+      }
+    } catch (err) {
+      console.warn('Lỗi tải cấu hình app:', err);
+    }
+    openModal('facebookLoginSequentialModal');
+  }
+
+  // Open Sequential Modal from Header Buttons
   document.getElementById('btnFacebookOAuthLogin')?.addEventListener('click', () => {
-    const width = 650;
-    const height = 750;
-    const left = Math.max(0, Math.round((window.screen.width - width) / 2));
-    const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+    openFacebookLoginSequentialModal();
+  });
+  document.getElementById('openFbAppConfigBtn')?.addEventListener('click', () => {
+    openFacebookLoginSequentialModal();
+  });
 
-    const popup = window.open(
-      '/auth/facebook?popup=1&reauth=1',
-      'fb_oauth_popup',
-      `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,resizable=yes`
-    );
+  // Modal Close Buttons
+  document.getElementById('closeFbSequentialModalBtn')?.addEventListener('click', () => {
+    closeModal('facebookLoginSequentialModal');
+  });
+  document.getElementById('closeFbSequentialFooterBtn')?.addEventListener('click', () => {
+    closeModal('facebookLoginSequentialModal');
+  });
 
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      showToast('Trình duyệt đã chặn cửa sổ pop-up. Đang mở trang đăng nhập trực tiếp...', 'info');
-      window.location.href = '/auth/facebook?reauth=1';
+  // Copy Callback URI
+  document.getElementById('btnCopySeqRedirectUri')?.addEventListener('click', () => {
+    const uri = document.getElementById('seqRedirectUriText')?.textContent.trim();
+    if (uri) {
+      navigator.clipboard.writeText(uri);
+      showToast('Đã sao chép Callback URI vào clipboard!', 'success');
     }
   });
 
-  // Listen for OAuth Success or Error from Popup Window
+  // Toggle Step 1 Detailed Guide
+  document.getElementById('btnToggleSeqGuide')?.addEventListener('click', () => {
+    const container = document.getElementById('seqGuideContainer');
+    const textSpan = document.getElementById('toggleSeqGuideText');
+    if (!container) return;
+    if (container.style.display === 'none') {
+      container.style.display = 'block';
+      if (textSpan) textSpan.textContent = 'Ẩn Hướng Dẫn';
+    } else {
+      container.style.display = 'none';
+      if (textSpan) textSpan.textContent = 'Hiện Hướng Dẫn Chi Tiết';
+    }
+  });
+
+  // Save Facebook App ID & App Secret (Step 1 Dedicated Save Button)
+  document.getElementById('btnSaveSeqFbAppConfig')?.addEventListener('click', async () => {
+    const appId = document.getElementById('seqFbAppIdInput')?.value.trim();
+    const appSecret = document.getElementById('seqFbAppSecretInput')?.value.trim();
+
+    if (!appId) {
+      showToast('Vui lòng nhập App ID trước khi bấm Lưu!', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnSaveSeqFbAppConfig');
+    const msgEl = document.getElementById('seqAppSaveResultMsg');
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ Đang lưu...</span>';
+
+    try {
+      const res = await fetch('/api/facebook-app-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const badge = document.getElementById('fbAppConfigStatusBadge');
+        if (badge) {
+          badge.style.background = 'rgba(16, 185, 129, 0.2)';
+          badge.style.color = '#34d399';
+          badge.textContent = `✅ Đã lưu cấu hình (App ID: ${appId})`;
+        }
+        if (appSecret) {
+          const appSecretInput = document.getElementById('seqFbAppSecretInput');
+          if (appSecretInput) {
+            appSecretInput.value = '';
+            appSecretInput.placeholder = '•••••••••••••••• (Đã lưu bí mật)';
+          }
+        }
+        if (msgEl) {
+          const nowTime = new Date().toLocaleTimeString('vi-VN');
+          msgEl.style.display = 'inline-block';
+          msgEl.style.color = '#34d399';
+          msgEl.textContent = `✓ Đã lưu thành công (${nowTime})`;
+        }
+        showToast('Đã lưu cấu hình App ID & App Secret thành công!', 'success');
+      } else {
+        if (msgEl) {
+          msgEl.style.display = 'inline-block';
+          msgEl.style.color = '#f87171';
+          msgEl.textContent = 'Lỗi: ' + (data.error || 'Thất bại');
+        }
+        showToast('Lỗi khi lưu cấu hình App: ' + data.error, 'error');
+      }
+    } catch (err) {
+      showToast('Lỗi mạng khi lưu App ID: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<span>💾</span> Lưu Cấu Hình App ID &amp; Secret';
+    }
+  });
+
+  // Execute Step 2A: OAuth 1-Click Login (Saves Step 1 and opens FB Login Dialog immediately)
+  document.getElementById('btnSeqExecuteOAuthLogin')?.addEventListener('click', async () => {
+    const appId = document.getElementById('seqFbAppIdInput')?.value.trim();
+    const appSecret = document.getElementById('seqFbAppSecretInput')?.value.trim();
+
+    if (!appId) {
+      showToast('Vui lòng nhập App ID ở Bước 1 trước khi đăng nhập!', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnSeqExecuteOAuthLogin');
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ Đang lưu & chuẩn bị đăng nhập...</span>';
+
+    try {
+      // Save App Config in Step 1
+      const res = await fetch('/api/facebook-app-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        showToast('Lỗi lưu App ID: ' + data.error, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<span>🔵</span> Lưu Thông Tin &amp; Đăng Nhập Facebook Ngay (1-Click)';
+        return;
+      }
+
+      closeModal('facebookLoginSequentialModal');
+
+      const width = 650;
+      const height = 750;
+      const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+      const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+
+      const popup = window.open(
+        '/auth/facebook?popup=1&reauth=1',
+        'fb_oauth_popup',
+        `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,resizable=yes`
+      );
+
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        showToast('Trình duyệt đã chặn pop-up. Đang mở trang đăng nhập trực tiếp...', 'info');
+        window.location.href = '/auth/facebook?reauth=1';
+      }
+    } catch (err) {
+      showToast('Lỗi: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔵</span> Lưu Thông Tin &amp; Đăng Nhập Facebook Ngay (1-Click)';
+    }
+  });
+
+  // Execute Step 2B: Direct Token Scan
+  document.getElementById('btnSeqExecuteTokenScan')?.addEventListener('click', async () => {
+    const token = document.getElementById('seqTokenInput')?.value.trim();
+    const appId = document.getElementById('seqFbAppIdInput')?.value.trim();
+    const appSecret = document.getElementById('seqFbAppSecretInput')?.value.trim();
+    const accountLabel = document.getElementById('seqAccountLabelInput')?.value.trim();
+
+    if (!token) {
+      showToast('Vui lòng dán mã Token Facebook!', 'error');
+      return;
+    }
+
+    const scanBtn = document.getElementById('btnSeqExecuteTokenScan');
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<span>⏳ Đang quét...</span>';
+
+    try {
+      // If appId provided, save it as well
+      if (appId) {
+        await fetch('/api/facebook-app-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+        });
+      }
+
+      const res = await fetch('/api/pages/fetch-from-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          app_id: appId,
+          app_secret: appSecret,
+          account_label: accountLabel
+        })
+      });
+      const data = await res.json();
+
+      if (!data.ok || !data.pages || data.pages.length === 0) {
+        showToast('Không tìm thấy Fanpage nào: ' + (data.error || 'Token không hợp lệ hoặc thiếu quyền'), 'error');
+        return;
+      }
+
+      closeModal('facebookLoginSequentialModal');
+      openModal('addPageModal');
+      activeScanTokenSourceId = data.token_source_id || 0;
+      renderDiscoveredPagesChecklist(data.pages);
+      loadTokenSources();
+      showToast(`🎉 Tìm thấy ${data.pages.length} Fanpage trong tài khoản!`, 'success');
+
+    } catch (err) {
+      showToast('Lỗi khi quét token: ' + err.message, 'error');
+    } finally {
+      scanBtn.disabled = false;
+      scanBtn.innerHTML = '<span>⚡</span> Quét &amp; Lấy Page Từ Token';
+    }
+  });
+
+  // Fallback & Diagnostic Feedback Engine for Facebook Login
+  function showFacebookOAuthDiagnosticFallback({ status, error, diagnosis, accountName, pagesCount }) {
+    const pane = document.getElementById('fbOAuthFallbackPane');
+    if (!pane) return;
+
+    if (status === 'error') {
+      const diagTitle = diagnosis?.title || 'Đăng nhập Facebook không thành công';
+      const diagHint = diagnosis?.hint || 'Quá trình xác thực gặp trở ngại từ Meta hoặc kết nối mạng. Hãy kiểm tra lại App ID & Secret hoặc sử dụng Cách B.';
+      const rawError = error || 'Lỗi không xác định từ Facebook';
+
+      pane.style.display = 'block';
+      pane.style.background = 'rgba(239, 68, 68, 0.1)';
+      pane.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      pane.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">❌</span>
+            <strong style="color: #f87171; font-size: 13.5px;">${escapeHtml(diagTitle)}</strong>
+          </div>
+          <button type="button" class="btn btn-xs btn-secondary" onclick="document.getElementById('fbOAuthFallbackPane').style.display='none'" style="font-size: 11px; padding: 2px 6px;">✕ Đóng</button>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.6); border-left: 3px solid #f87171; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #fca5a5; line-height: 1.5;">
+          <strong>🔍 Điểm đúng / sai & Chẩn đoán:</strong>
+          <div style="margin-top: 3px; color: #cbd5e1;">${escapeHtml(diagHint)}</div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; word-break: break-all; font-family: monospace; background: rgba(0,0,0,0.25); padding: 6px 8px; border-radius: 4px;">
+          Chi tiết lỗi Meta: ${escapeHtml(rawError)}
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button type="button" id="btnFallbackToDirectToken" class="btn btn-sm btn-primary" style="gap: 6px; font-weight: 700; font-size: 12px;">
+            <span>🔑</span> Dùng Phương Án Dự Phòng: Dán Token Trực Tiếp (Cách B)
+          </button>
+          <button type="button" id="btnFallbackEditAppConfig" class="btn btn-sm btn-secondary" style="gap: 6px; font-size: 12px;">
+            <span>✏️</span> Sửa Lại App ID &amp; Secret ở Bước 1
+          </button>
+        </div>
+      `;
+
+      pane.querySelector('#btnFallbackToDirectToken')?.addEventListener('click', () => {
+        switchToDirectTokenSection();
+      });
+      pane.querySelector('#btnFallbackEditAppConfig')?.addEventListener('click', () => {
+        const appIdInput = document.getElementById('seqFbAppIdInput');
+        if (appIdInput) {
+          appIdInput.focus();
+          appIdInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+
+      // Ensure modal is open and scrolled to top so user sees the diagnostic feedback immediately
+      openModal('facebookLoginSequentialModal');
+      pane.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    } else if (status === 'success') {
+      const isZeroPages = Number(pagesCount) === 0;
+      pane.style.display = 'block';
+      pane.style.background = isZeroPages ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)';
+      pane.style.borderColor = isZeroPages ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.4)';
+      pane.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">${isZeroPages ? '⚠️' : '🎉'}</span>
+            <div>
+              <strong style="color: ${isZeroPages ? '#fbbf24' : '#34d399'}; font-size: 13.5px;">
+                ${isZeroPages ? 'Đã Đăng Nhập Tài Khoản Nhưng Chưa Có Fanpage' : 'Đăng Nhập Facebook Thành Công!'}
+              </strong>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                Tài khoản: <strong style="color: #60a5fa;">${escapeHtml(accountName || 'Facebook')}</strong>
+                ${!isZeroPages ? ` &bull; Đã kết nối <strong style="color: #34d399;">${pagesCount} Fanpage</strong> vĩnh viễn.` : ''}
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-xs btn-secondary" onclick="document.getElementById('fbOAuthFallbackPane').style.display='none'" style="font-size: 11px; padding: 2px 6px;">✕ Đóng</button>
+        </div>
+        ${isZeroPages ? `
+          <div style="background: rgba(15, 23, 42, 0.6); border-left: 3px solid #f59e0b; padding: 8px 12px; border-radius: 4px; margin-top: 8px; font-size: 12px; color: #fde68a; line-height: 1.5;">
+            <strong>🔍 Chẩn đoán:</strong> Nick Facebook này hiện không sở hữu hoặc không có quyền Quản trị viên trên Trang nào, hoặc bạn chưa tích chọn cấp quyền Trang trong hộp thoại Facebook.
+            <div style="margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="btnZeroPagesTryAgain" class="btn btn-xs btn-secondary">🔵 Đăng Nhập Lại Bằng Nick Khác</button>
+              <button type="button" id="btnZeroPagesUseToken" class="btn btn-xs btn-primary">🔑 Thử Cách B: Dán Token Trực Tiếp</button>
+            </div>
+          </div>
+        ` : ''}
+      `;
+
+      if (isZeroPages) {
+        pane.querySelector('#btnZeroPagesTryAgain')?.addEventListener('click', () => {
+          document.getElementById('btnSeqExecuteOAuthLogin')?.click();
+        });
+        pane.querySelector('#btnZeroPagesUseToken')?.addEventListener('click', () => {
+          switchToDirectTokenSection();
+        });
+        openModal('facebookLoginSequentialModal');
+      }
+    }
+  }
+
+  function switchToDirectTokenSection() {
+    const tokenInput = document.getElementById('seqTokenInput');
+    if (tokenInput) {
+      tokenInput.focus();
+      tokenInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      tokenInput.style.borderColor = '#10b981';
+      tokenInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.3)';
+      setTimeout(() => {
+        tokenInput.style.borderColor = '';
+        tokenInput.style.boxShadow = '';
+      }, 3000);
+    }
+  }
+
+  // Listen for OAuth Success, Error or Popup Inter-Window Navigation
   window.addEventListener('message', (event) => {
     if (!event.data || typeof event.data !== 'object') return;
 
     if (event.data.type === 'FB_AUTH_SUCCESS') {
       showToast(`🎉 Đăng nhập thành công tài khoản Facebook "${event.data.accountName}"! Đã kết nối ${event.data.pagesCount} Fanpage.`, 'success');
+      showFacebookOAuthDiagnosticFallback({
+        status: 'success',
+        accountName: event.data.accountName,
+        pagesCount: event.data.pagesCount
+      });
       loadPages();
       loadTokenSources();
       loadConversations();
+      if (Number(event.data.pagesCount) > 0) {
+        setTimeout(() => closeModal('facebookLoginSequentialModal'), 2500);
+      }
     } else if (event.data.type === 'FB_AUTH_ERROR') {
-      showToast(`⚠️ Đăng nhập Facebook không thành công: ${event.data.error}`, 'error');
+      showToast(`⚠️ Đăng nhập Facebook không thành công!`, 'error');
+      showFacebookOAuthDiagnosticFallback({
+        status: 'error',
+        error: event.data.error,
+        diagnosis: event.data.diagnosis
+      });
+    } else if (event.data.type === 'OPEN_DIRECT_TOKEN_MODAL') {
+      openFacebookLoginSequentialModal();
+      switchToDirectTokenSection();
+    } else if (event.data.type === 'OPEN_FB_APP_CONFIG') {
+      openFacebookLoginSequentialModal();
+      document.getElementById('seqFbAppIdInput')?.focus();
     }
   });
 
@@ -2782,13 +3346,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('fb_auth_success') === '1') {
     const accName = urlParams.get('account') || 'Facebook';
-    const pagesCount = urlParams.get('pages') || '';
+    const pagesCount = urlParams.get('pages') || '0';
     showToast(`🎉 Đăng nhập thành công tài khoản Facebook "${accName}"${pagesCount ? ` (${pagesCount} Fanpage)` : ''}!`, 'success');
+    showFacebookOAuthDiagnosticFallback({
+      status: 'success',
+      accountName: accName,
+      pagesCount: pagesCount
+    });
     window.history.replaceState({}, document.title, window.location.pathname);
     loadPages();
     loadTokenSources();
   } else if (urlParams.get('fb_error')) {
-    showToast(`⚠️ Lỗi Facebook: ${urlParams.get('fb_error')}`, 'error');
+    const error = urlParams.get('fb_error');
+    const diagTitle = urlParams.get('fb_diag_title') || '';
+    const diagHint = urlParams.get('fb_diag_hint') || '';
+    showToast(`⚠️ Lỗi Facebook: ${diagTitle || error}`, 'error');
+    showFacebookOAuthDiagnosticFallback({
+      status: 'error',
+      error,
+      diagnosis: { title: diagTitle, hint: diagHint }
+    });
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
@@ -3384,21 +3961,155 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('hostWebSoundType')?.addEventListener('change', (e) => {
+    const soundType = e.target.value;
+    updateAlarmSoundPanes(soundType);
     const vol = parseInt(document.getElementById('hostWebSoundVolume')?.value || '100', 10) / 100;
-    alarmAudioEngine.playSingleChime(vol, e.target.value);
+    if (soundType !== 'custom_file' && soundType !== 'youtube') {
+      alarmAudioEngine.playSingleChime(vol, soundType);
+    }
   });
 
-  document.getElementById('testWebAudioChimeBtn')?.addEventListener('click', () => {
+  // Custom Audio File Upload Handlers
+  const btnSelectCustomAudio = document.getElementById('btnSelectCustomAudio');
+  const customAudioFileInput = document.getElementById('customAudioFileInput');
+  if (btnSelectCustomAudio && customAudioFileInput) {
+    btnSelectCustomAudio.addEventListener('click', () => {
+      customAudioFileInput.click();
+    });
+
+    customAudioFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      if (file.size > 25 * 1024 * 1024) {
+        showToast('File âm thanh quá lớn! Giới hạn tối đa 25MB.', 'error');
+        return;
+      }
+
+      btnSelectCustomAudio.disabled = true;
+      btnSelectCustomAudio.innerHTML = '<span>⏳</span> Đang tải lên...';
+      const fileNameDisplay = document.getElementById('customAudioFileNameDisplay');
+      if (fileNameDisplay) fileNameDisplay.textContent = 'Đang tải ' + file.name + '...';
+
+      try {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const base64Data = reader.result;
+          try {
+            const res = await fetch('/api/host-profile/upload-alarm-sound', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                file_name: file.name,
+                file_data: base64Data
+              })
+            });
+            const data = await res.json();
+            if (data.ok && data.sound_url) {
+              const customUrlInput = document.getElementById('hostCustomSoundUrlInput');
+              if (customUrlInput) customUrlInput.value = data.sound_url;
+              if (fileNameDisplay) fileNameDisplay.textContent = '✓ ' + file.name;
+
+              const preview = document.getElementById('customAudioPreviewPlayer');
+              if (preview) {
+                preview.src = data.sound_url;
+                preview.style.display = 'block';
+                preview.play().catch(() => {});
+              }
+
+              if (hostProfile) {
+                hostProfile.custom_sound_url = data.sound_url;
+                hostProfile.web_sound_type = 'custom_file';
+              }
+              showToast('Đã tải lên tệp âm thanh chuông báo thành công!', 'success');
+            } else {
+              showToast('Lỗi tải file: ' + (data.error || 'Thất bại'), 'error');
+              if (fileNameDisplay) fileNameDisplay.textContent = 'Lỗi tải file';
+            }
+          } catch (netErr) {
+            showToast('Lỗi mạng khi tải âm thanh: ' + netErr.message, 'error');
+          } finally {
+            btnSelectCustomAudio.disabled = false;
+            btnSelectCustomAudio.innerHTML = '<span>📂</span> Chọn File Khác...';
+          }
+        };
+        reader.onerror = () => {
+          showToast('Lỗi khi đọc file', 'error');
+          btnSelectCustomAudio.disabled = false;
+          btnSelectCustomAudio.innerHTML = '<span>📂</span> Chọn File Âm Thanh...';
+        };
+        reader.readAsDataURL(file);
+      } catch (readErr) {
+        showToast('Lỗi: ' + readErr.message, 'error');
+        btnSelectCustomAudio.disabled = false;
+        btnSelectCustomAudio.innerHTML = '<span>📂</span> Chọn File Âm Thanh...';
+      }
+    });
+  }
+
+  // YouTube Alarm Link Input & Badge Detection
+  const hostYoutubeUrlInput = document.getElementById('hostYoutubeUrlInput');
+  const youtubeBadge = document.getElementById('youtubeVideoDetectedBadge');
+  if (hostYoutubeUrlInput) {
+    hostYoutubeUrlInput.addEventListener('input', () => {
+      const url = hostYoutubeUrlInput.value.trim();
+      const videoId = extractYouTubeVideoId(url);
+      if (youtubeBadge) {
+        youtubeBadge.style.display = videoId ? 'inline-block' : 'none';
+      }
+    });
+  }
+
+  // Test Web Audio Chime / Custom Audio / YouTube Button
+  let isTestingAlarmSound = false;
+  const testWebAudioBtn = document.getElementById('testWebAudioChimeBtn');
+  testWebAudioBtn?.addEventListener('click', () => {
     const vol = parseInt(document.getElementById('hostWebSoundVolume')?.value || '100', 10) / 100;
     const soundType = document.getElementById('hostWebSoundType')?.value || 'loud_chime';
-    alarmAudioEngine.playSingleChime(vol, soundType);
+
     const soundNames = {
       loud_chime: '🔔 Chuông Đôi Ngân Vang Đanh To',
       phone_ring: '📱 Chuông Điện Thoại Réo Rắt',
       digital_alarm: '⏰ Đồng Hồ Điện Tử Bíp Dồn Dập',
-      siren: '🚨 Còi Hú Khẩn Cấp Cứu Hỏa'
+      siren: '🚨 Còi Hú Khẩn Cấp Cứu Hỏa',
+      custom_file: '📁 Tệp Âm Thanh Tùy Chỉnh',
+      youtube: '📺 Video / Nhạc YouTube'
     };
+
+    if (isTestingAlarmSound) {
+      alarmAudioEngine.stopContinuousAlarm();
+      isTestingAlarmSound = false;
+      testWebAudioBtn.innerHTML = '<span>🔊</span> Thử Nghe Chuông Loa Ngay';
+      testWebAudioBtn.classList.remove('btn-danger');
+      testWebAudioBtn.classList.add('btn-secondary');
+      showToast('Đã dừng phát thử âm thanh.', 'info');
+      return;
+    }
+
+    if (soundType === 'custom_file') {
+      const customUrl = document.getElementById('hostCustomSoundUrlInput')?.value;
+      if (!customUrl) {
+        showToast('Vui lòng tải lên tệp âm thanh trước khi thử nghe!', 'error');
+        return;
+      }
+    } else if (soundType === 'youtube') {
+      const ytUrl = document.getElementById('hostYoutubeUrlInput')?.value;
+      const vid = extractYouTubeVideoId(ytUrl);
+      if (!vid) {
+        showToast('Vui lòng nhập đường link YouTube hợp lệ trước khi thử nghe!', 'error');
+        return;
+      }
+    }
+
+    alarmAudioEngine.playSingleChime(vol, soundType);
     showToast('🔊 Đang phát: ' + (soundNames[soundType] || soundType), 'info');
+
+    if (soundType === 'youtube' || soundType === 'custom_file') {
+      isTestingAlarmSound = true;
+      testWebAudioBtn.innerHTML = '<span>⏹️</span> Dừng Nghe Thử';
+      testWebAudioBtn.classList.remove('btn-secondary');
+      testWebAudioBtn.classList.add('btn-danger');
+    }
   });
 
   // Save Host Config Button
@@ -3409,6 +4120,8 @@ document.addEventListener('DOMContentLoaded', () => {
       web_sound_enabled: document.getElementById('hostWebSoundToggle')?.checked ? 'true' : 'false',
       web_sound_volume: parseInt(document.getElementById('hostWebSoundVolume')?.value || '100', 10),
       web_sound_type: document.getElementById('hostWebSoundType')?.value || 'loud_chime',
+      custom_sound_url: document.getElementById('hostCustomSoundUrlInput')?.value || '',
+      youtube_url: document.getElementById('hostYoutubeUrlInput')?.value?.trim() || '',
       alarm_enabled: document.getElementById('hostAlarmEnabledToggle')?.checked ? 'true' : 'false',
       alarm_schedule_enabled: document.getElementById('hostAlarmScheduleToggle')?.checked ? 'true' : 'false',
       alarm_start_time: document.getElementById('hostAlarmStartTime')?.value,

@@ -210,6 +210,12 @@ if (!userColumns.includes('ntfy_topic')) {
 if (!userColumns.includes('web_sound_type')) {
   db.exec("ALTER TABLE users ADD COLUMN web_sound_type TEXT DEFAULT 'loud_chime'");
 }
+if (!userColumns.includes('custom_sound_url')) {
+  db.exec("ALTER TABLE users ADD COLUMN custom_sound_url TEXT DEFAULT ''");
+}
+if (!userColumns.includes('youtube_url')) {
+  db.exec("ALTER TABLE users ADD COLUMN youtube_url TEXT DEFAULT ''");
+}
 
 // Migration helper: add seen & safety alarm columns to conversations
 const convColumns = db.prepare('PRAGMA table_info(conversations)').all().map(c => c.name);
@@ -439,6 +445,8 @@ const saveOrUpdateUser = (userData) => {
         web_sound_enabled = @web_sound_enabled,
         web_sound_volume = @web_sound_volume,
         web_sound_type = @web_sound_type,
+        custom_sound_url = @custom_sound_url,
+        youtube_url = @youtube_url,
         auto_sleep_enabled = @auto_sleep_enabled,
         auto_sleep_idle_minutes = @auto_sleep_idle_minutes,
         last_activity_at = @last_activity_at,
@@ -473,6 +481,8 @@ const saveOrUpdateUser = (userData) => {
       web_sound_enabled: u.web_sound_enabled || 'true',
       web_sound_volume: u.web_sound_volume !== undefined ? Number(u.web_sound_volume) : 80,
       web_sound_type: u.web_sound_type || 'loud_chime',
+      custom_sound_url: u.custom_sound_url || '',
+      youtube_url: u.youtube_url || '',
       auto_sleep_enabled: u.auto_sleep_enabled !== undefined ? String(u.auto_sleep_enabled) : 'true',
       auto_sleep_idle_minutes: u.auto_sleep_idle_minutes !== undefined ? Number(u.auto_sleep_idle_minutes) : 10,
       last_activity_at: u.last_activity_at !== undefined ? Number(u.last_activity_at) : Date.now(),
@@ -492,6 +502,7 @@ const saveOrUpdateUser = (userData) => {
         ntfy_topic,
         pushover_user_key,
         web_sound_enabled, web_sound_volume, web_sound_type,
+        custom_sound_url, youtube_url,
         auto_sleep_enabled, auto_sleep_idle_minutes, last_activity_at,
         safety_alarm_enabled, safety_alarm_delay_minutes
       ) VALUES (
@@ -504,6 +515,7 @@ const saveOrUpdateUser = (userData) => {
         @ntfy_topic,
         @pushover_user_key,
         @web_sound_enabled, @web_sound_volume, @web_sound_type,
+        @custom_sound_url, @youtube_url,
         @auto_sleep_enabled, @auto_sleep_idle_minutes, @last_activity_at,
         @safety_alarm_enabled, @safety_alarm_delay_minutes
       )
@@ -534,6 +546,8 @@ const saveOrUpdateUser = (userData) => {
       web_sound_enabled: userData.web_sound_enabled || 'true',
       web_sound_volume: userData.web_sound_volume !== undefined ? Number(userData.web_sound_volume) : 80,
       web_sound_type: userData.web_sound_type || 'loud_chime',
+      custom_sound_url: userData.custom_sound_url || '',
+      youtube_url: userData.youtube_url || '',
       auto_sleep_enabled: userData.auto_sleep_enabled !== undefined ? String(userData.auto_sleep_enabled) : 'true',
       auto_sleep_idle_minutes: userData.auto_sleep_idle_minutes !== undefined ? Number(userData.auto_sleep_idle_minutes) : 10,
       last_activity_at: userData.last_activity_at !== undefined ? Number(userData.last_activity_at) : Date.now(),

@@ -1749,6 +1749,26 @@ const testServer = app.listen(0, async () => {
     assert(!filteredAcc2.some(c => c.sender_id === 'cust_acc1_99'), 'Lọc tài khoản Ca Sáng không được lẫn khách của nick Phong');
     console.log('  ✓ Quản lý kết hợp tin nhắn từ nhiều tài khoản: Xem đồng thời tất cả hoặc lọc riêng từng tài khoản chuẩn xác 100%');
 
+    // 19.9 Kiểm tra Cơ chế Chẩn đoán Đúng/Sai & Phương án Dự phòng khi Đăng nhập Lỗi
+    // Test 19.9a: Popup error phản hồi postMessage FB_AUTH_ERROR kèm chẩn đoán chi tiết và nút chuyển sang Cách B
+    const errorPopupRes = await fetch(`${baseUrl}/auth/facebook/callback?error=access_denied&error_description=User+cancelled&state=${Buffer.from(JSON.stringify({ popup: '1' })).toString('base64url')}`);
+    assert.strictEqual(errorPopupRes.status, 200);
+    const errorPopupHtml = await errorPopupRes.text();
+    assert(errorPopupHtml.includes('FB_AUTH_ERROR'), 'Phải phát tín hiệu FB_AUTH_ERROR tới opener');
+    assert(errorPopupHtml.includes('USER_CANCELLED') || errorPopupHtml.includes('hủy thao tác'), 'Phải nhận diện đúng mã chẩn đoán lỗi');
+    assert(errorPopupHtml.includes('OPEN_DIRECT_TOKEN_MODAL'), 'Phải có nút fallback trực tiếp sang Cách B dán Token');
+    console.log('  ✓ Cơ chế Fallback OAuth Popup phát hiện nguyên nhân lỗi và cung cấp lối thoát sang Cách B chuẩn xác');
+
+    // Test 19.9b: Non-popup error chuyển hướng về / kèm đầy đủ query chẩn đoán đúng/sai
+    const errorRedirectRes = await fetch(`${baseUrl}/auth/facebook/callback?error=redirect_uri_mismatch&error_description=Can%27t+Load+URL+191`, {
+      redirect: 'manual'
+    });
+    assert.strictEqual(errorRedirectRes.status, 302);
+    const errorRedirectLocation = decodeURIComponent(errorRedirectRes.headers.get('location') || '');
+    assert(errorRedirectLocation.includes('fb_error='), 'Location phải chứa tham số fb_error');
+    assert(errorRedirectLocation.includes('REDIRECT_URI_MISMATCH') || errorRedirectLocation.includes('fb_diag_title'), 'Location phải mang thông điệp chẩn đoán đúng/sai');
+    console.log('  ✓ Cơ chế Chẩn đoán Redirect URI Error chuyển hướng kèm dữ liệu hướng dẫn người dùng chính xác');
+
     // =============================================================
     // [20] Kiểm tra Khả Năng Thích Ứng Môi Trường VPN Đa Quốc Gia & Đồng Bộ Toàn Cầu
     // =============================================================
@@ -2022,8 +2042,82 @@ const testServer = app.listen(0, async () => {
     assert.strictEqual(newQrData.reply.title, 'Tài khoản ngân hàng');
     console.log('  ✓ POST /api/quick-replies tạo mẫu câu phản hồi nhanh tức thì thành công');
 
+    // [23] Kiểm tra Tải Lên Tệp Âm Thanh Chuông Báo Tùy Chỉnh & Link Báo Thức YouTube
+    console.log('\n[23] Kiểm tra Tải Lên Tệp Âm Thanh Chuông Báo Tùy Chỉnh & Link Báo Thức YouTube...');
+
+    // 23.1 Reject upload without data
+    const noDataUploadRes = await fetch(`${baseUrl}/api/host-profile/upload-alarm-sound`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    assert.strictEqual(noDataUploadRes.status, 400);
+    console.log('  ✓ API upload từ chối payload rỗng chuẩn xác');
+
+    // 23.2 Reject unsupported file extensions (e.g. .exe)
+    const invalidExtRes = await fetch(`${baseUrl}/api/host-profile/upload-alarm-sound`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'virus.exe',
+        data: 'data:application/octet-stream;base64,TVqQAAMAAAAEAAAA'
+      })
+    });
+    assert.strictEqual(invalidExtRes.status, 400);
+    const invalidExtData = await invalidExtRes.json();
+    assert(invalidExtData.error.includes('không được hỗ trợ'), 'Phải báo lỗi định dạng không hỗ trợ');
+    console.log('  ✓ API upload chặn tệp nguy hiểm không phải âm thanh chuẩn xác');
+
+    // 23.3 Upload valid custom sound file (.mp3 / .wav)
+    const mockAudioBase64 = Buffer.from('RIFF_MOCK_WAV_AUDIO_DATA_FOR_TESTING').toString('base64');
+    const uploadRes = await fetch(`${baseUrl}/api/host-profile/upload-alarm-sound`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'chuong_bao_thuc_doc_quyen.mp3',
+        data: `data:audio/mp3;base64,${mockAudioBase64}`
+      })
+    });
+    assert.strictEqual(uploadRes.status, 200);
+    const uploadData = await uploadRes.json();
+    assert.strictEqual(uploadData.ok, true);
+    assert(uploadData.sound_url.startsWith('/uploads/custom_alarm_'), 'Sound URL phải trỏ tới /uploads/custom_alarm_*');
+    assert.strictEqual(uploadData.host.web_sound_type, 'custom_file');
+    assert.strictEqual(uploadData.host.custom_sound_url, uploadData.sound_url);
+
+    // Verify physical file was written to disk
+    const writtenFilePath = path.join(__dirname, '../public', uploadData.sound_url);
+    assert(fs.existsSync(writtenFilePath), 'File âm thanh phải được ghi vào thư mục public/uploads/');
+    const fileContent = fs.readFileSync(writtenFilePath);
+    assert.strictEqual(fileContent.toString(), 'RIFF_MOCK_WAV_AUDIO_DATA_FOR_TESTING');
+    console.log('  ✓ Tải lên tệp âm thanh chuông báo (.mp3, .wav, .ogg, .flac) và lưu trữ thành công');
+
+    // 23.4 Save YouTube Alarm link in Host Profile
+    const saveYtRes = await fetch(`${baseUrl}/api/host-profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        web_sound_type: 'youtube',
+        youtube_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+      })
+    });
+    assert.strictEqual(saveYtRes.status, 200);
+    const saveYtData = await saveYtRes.json();
+    assert.strictEqual(saveYtData.ok, true);
+    assert.strictEqual(saveYtData.host.web_sound_type, 'youtube');
+    assert.strictEqual(saveYtData.host.youtube_url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+
+    // Verify GET /api/host-profile returns custom_sound_url and youtube_url
+    const getHostRes = await fetch(`${baseUrl}/api/host-profile`);
+    const getHostData = await getHostRes.json();
+    assert.strictEqual(getHostData.ok, true);
+    assert.strictEqual(getHostData.host.web_sound_type, 'youtube');
+    assert.strictEqual(getHostData.host.youtube_url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    assert.strictEqual(getHostData.host.custom_sound_url, uploadData.sound_url);
+    console.log('  ✓ Lưu trữ cấu hình link YouTube và tệp âm thanh tùy chỉnh vào Host Profile thành công 100%');
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 22 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, VPN ĐA QUỐC GIA, MINI CRM & CLOUDFLARE TUNNEL ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 23 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, CHUÔNG BÁO TÙY CHỈNH & YOUTUBE ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();

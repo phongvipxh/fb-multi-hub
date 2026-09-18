@@ -111,9 +111,54 @@ namespace FBMultiHubStandalone
             // Check node binary
             string nodeExe = "node";
             string portableNode = Path.Combine(appDir, @"bin\node\node.exe");
+            bool hasNode = false;
+
             if (File.Exists(portableNode))
             {
                 nodeExe = portableNode;
+                hasNode = true;
+            }
+            else
+            {
+                try
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo("node", "-v")
+                    {
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    };
+                    using (Process p = Process.Start(psi))
+                    {
+                        string output = p.StandardOutput.ReadToEnd();
+                        p.WaitForExit();
+                        if (p.ExitCode == 0 && output.Trim().StartsWith("v"))
+                        {
+                            hasNode = true;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // If Node is missing, run bundled setup_and_start.ps1 to download portable Node.js
+            if (!hasNode)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("➜ Chưa phát hiện Node.js trên máy! Đang tự động tải bộ cài đặt Node.js Portable...");
+                Console.ResetColor();
+
+                string psScript = Path.Combine(appDir, "setup_and_start.ps1");
+                ProcessStartInfo psiPs = new ProcessStartInfo("powershell", string.Format("-NoProfile -ExecutionPolicy Bypass -File \"{0}\"", psScript))
+                {
+                    WorkingDirectory = appDir,
+                    UseShellExecute = true
+                };
+                using (Process p = Process.Start(psiPs))
+                {
+                    p.WaitForExit();
+                }
+                return;
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
@@ -132,6 +177,10 @@ namespace FBMultiHubStandalone
             string nodeDir = Path.Combine(appDir, @"bin\node");
             string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
             serverPsi.EnvironmentVariables["PATH"] = binDir + ";" + nodeDir + ";" + currentPath;
+            serverPsi.EnvironmentVariables["DB_PATH"] = Path.Combine(dataDir, "fb_tool.db");
+
+            string port = Environment.GetEnvironmentVariable("PORT");
+            if (string.IsNullOrEmpty(port)) port = "3000";
 
             try
             {
@@ -152,13 +201,13 @@ namespace FBMultiHubStandalone
                 Thread.Sleep(2000);
                 try
                 {
-                    Process.Start("http://localhost:3000");
+                    Process.Start("http://localhost:" + port);
                 }
                 catch { }
             }).Start();
 
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\n👉 Dashboard: http://localhost:3000 (Trình duyệt sẽ tự động mở)");
+            Console.WriteLine(string.Format("\n👉 Dashboard: http://localhost:{0} (Trình duyệt sẽ tự động mở)", port));
             Console.WriteLine("👉 Đang chạy ngầm... Đóng cửa sổ này hoặc bấm Ctrl+C để tắt app.\n");
             Console.ResetColor();
 

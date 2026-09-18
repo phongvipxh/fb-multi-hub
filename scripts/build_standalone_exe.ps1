@@ -25,14 +25,36 @@ if (Test-Path $StagingDir) {
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 
 Write-Host "[1/4] Chuan bi ma nguon va tep tin he thong..." -ForegroundColor Yellow
+
+# Dam bao bin/node/node.exe san sang truoc khi dong goi
+$NodeBin = Join-Path $ProjectRoot "bin\node\node.exe"
+if (-not (Test-Path $NodeBin)) {
+    $SysNode = (Get-Command "node" -ErrorAction SilentlyContinue).Source
+    if ($SysNode -and (Test-Path $SysNode)) {
+        New-Item -ItemType Directory -Path (Join-Path $ProjectRoot "bin\node") -Force | Out-Null
+        Copy-Item -Path $SysNode -Destination $NodeBin -Force
+        Write-Host "      ➜ Da tich hop Node.js Binary ($SysNode) vao bin/node/node.exe..." -ForegroundColor Gray
+    }
+}
+
 Copy-Item -Path (Join-Path $ProjectRoot "src") -Destination $StagingDir -Recurse -Force
 Copy-Item -Path (Join-Path $ProjectRoot "public") -Destination $StagingDir -Recurse -Force
 Copy-Item -Path (Join-Path $ProjectRoot "package.json") -Destination $StagingDir -Force
 Copy-Item -Path (Join-Path $ProjectRoot "setup_and_start.ps1") -Destination $StagingDir -Force
+Copy-Item -Path (Join-Path $ProjectRoot "khoi_dong.bat") -Destination $StagingDir -Force -ErrorAction SilentlyContinue
+Copy-Item -Path (Join-Path $ProjectRoot "run.bat") -Destination $StagingDir -Force -ErrorAction SilentlyContinue
 
 $BinDir = Join-Path $ProjectRoot "bin"
 if (Test-Path $BinDir) {
     Copy-Item -Path $BinDir -Destination $StagingDir -Recurse -Force
+}
+
+$EnvPath = Join-Path $ProjectRoot ".env"
+$EnvExamplePath = Join-Path $ProjectRoot ".env.example"
+if (Test-Path $EnvPath) {
+    Copy-Item -Path $EnvPath -Destination $StagingDir -Force
+} elseif (Test-Path $EnvExamplePath) {
+    Copy-Item -Path $EnvExamplePath -Destination (Join-Path $StagingDir ".env") -Force
 }
 
 $ModulesDir = Join-Path $ProjectRoot "node_modules"
