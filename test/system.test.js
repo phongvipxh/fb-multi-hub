@@ -2214,8 +2214,73 @@ const testServer = app.listen(0, async () => {
       console.log('  ✓ API POST /api/token-sources/:id/manage-pages cập nhật lựa chọn nhiều Fanpage thành công');
     }
 
+    // [25] Kiểm tra Cơ Chế Phân Nhóm Fanpage Theo Tài Khoản Facebook, Bật/Tắt Hàng Loạt (Toggle-All) & Switch Quản Lý...
+    console.log('\n[25] Kiểm tra Cơ Chế Phân Nhóm Fanpage Theo Tài Khoản Facebook, Bật/Tắt Hàng Loạt & Switch Quản Lý...');
+    const tokenSourceRecords = db.getAllTokenSources();
+    assert.ok(tokenSourceRecords && tokenSourceRecords.length > 0, 'Phải có ít nhất 1 nguồn tài khoản Facebook đã lưu');
+    const primarySource = tokenSourceRecords[0];
+
+    // Tạo thêm 2 mock pages gán vào primarySource
+    const mockPageA = {
+      page_id: `page_grp_test_a_${Date.now()}`,
+      name: 'Fanpage Nhóm A (Thời Trang)',
+      access_token: 'EAA_TEST_GROUP_A',
+      token_source_id: primarySource.id,
+      is_active: 1
+    };
+    const mockPageB = {
+      page_id: `page_grp_test_b_${Date.now()}`,
+      name: 'Fanpage Nhóm B (Mỹ Phẩm)',
+      access_token: 'EAA_TEST_GROUP_B',
+      token_source_id: primarySource.id,
+      is_active: 1
+    };
+    db.saveOrUpdatePage(mockPageA);
+    db.saveOrUpdatePage(mockPageB);
+
+    // 25.1 Xác minh phân nhóm qua getTokenSourcesWithPages
+    const groupedSources = db.getTokenSourcesWithPages();
+    const foundSourceGroup = groupedSources.find(s => s.id === primarySource.id);
+    assert.ok(foundSourceGroup, 'Phải tìm thấy nhóm tài khoản Facebook');
+    assert.ok(foundSourceGroup.pages.some(p => p.page_id === mockPageA.page_id), 'Nhóm tài khoản phải chứa mockPageA');
+    assert.ok(foundSourceGroup.pages.some(p => p.page_id === mockPageB.page_id), 'Nhóm tài khoản phải chứa mockPageB');
+    console.log(`  ✓ Phân nhóm Fanpage theo Tài khoản Facebook "${foundSourceGroup.name}" chính xác (${foundSourceGroup.pages.length} Fanpage)`);
+
+    // 25.2 Test "Tắt Tất Cả" (Disable All) của tài khoản đó
+    const disableAllRes = await fetch(`${baseUrl}/api/token-sources/${primarySource.id}/manage-pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active_page_ids: [] })
+    });
+    assert.strictEqual(disableAllRes.status, 200);
+    const disableAllData = await disableAllRes.json();
+    assert.strictEqual(disableAllData.ok, true);
+    assert.strictEqual(disableAllData.active_count, 0);
+
+    const pagesAfterDisable = db.getAllPages().filter(p => p.token_source_id === primarySource.id);
+    const anyActiveAfterDisable = pagesAfterDisable.some(p => p.is_active === 1);
+    assert.strictEqual(anyActiveAfterDisable, false, 'Tất cả các trang thuộc tài khoản phải chuyển sang is_active = 0');
+    console.log('  ✓ Thao tác "Tắt Tất Cả" (Disable All) cho nhóm tài khoản thành công 100%');
+
+    // 25.3 Test "Bật Tất Cả" (Enable All) của tài khoản đó
+    const allAccountPageIds = pagesAfterDisable.map(p => p.page_id);
+    const enableAllRes = await fetch(`${baseUrl}/api/token-sources/${primarySource.id}/manage-pages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active_page_ids: allAccountPageIds })
+    });
+    assert.strictEqual(enableAllRes.status, 200);
+    const enableAllData = await enableAllRes.json();
+    assert.strictEqual(enableAllData.ok, true);
+    assert.strictEqual(enableAllData.active_count, allAccountPageIds.length);
+
+    const pagesAfterEnable = db.getAllPages().filter(p => p.token_source_id === primarySource.id);
+    const allActiveAfterEnable = pagesAfterEnable.every(p => p.is_active === 1);
+    assert.strictEqual(allActiveAfterEnable, true, 'Tất cả các trang thuộc tài khoản phải chuyển sang is_active = 1');
+    console.log(`  ✓ Thao tác "Bật Tất Cả" (Enable All) cho ${allAccountPageIds.length} trang thuộc tài khoản thành công 100%`);
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 24 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, QUẢN LÝ FANPAGE & AN TOÀN BÁO THỨC ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 25 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, PHÂN NHÓM TÀI KHOẢN & TOGGLE SWITCH ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();

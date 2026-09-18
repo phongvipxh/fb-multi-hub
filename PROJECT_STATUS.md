@@ -82,13 +82,11 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Cơ chế `hardStopAllAudio` dập tắt triệt để Web Audio API, HTML5 Audio và YouTube Player iframe.
   - Đồng bộ đa tab tức thì qua `BroadcastChannel` và `localStorage` killswitch: bấm tắt ở 1 tab lập tức ngắt âm thanh ở mọi tab khác.
   - Đồng bộ backend qua `POST /api/alarm/silence` đánh dấu hội thoại quá hạn đã xử lý và áp dụng thời gian nghỉ (Grace period) chống lặp.
-- Selective Fanpage Management & 3-Layer Alarm Protection (Active/Inactive):
-  - Cho phép người dùng chủ động chọn lọc các Fanpage cụ thể nào được quản lý trên tool cho từng tài khoản Facebook qua Modal `[📋 Chọn Page Quản Lý]`.
-  - Công tắc nhanh `[🟢 Đang Quản Lý]` / `[⏸️ Tạm Dừng]` trên từng card Fanpage; thanh lọc trạng thái `#pagesFilterBar` (`Tất Cả`, `Đang Quản Lý`, `Tạm Dừng`).
-  - Khóa chặt 3 tầng bảo vệ chống réo chuông cho các Fanpage tạm dừng:
-    - Tầng 1 (Database): `getUnrepliedConversationsForSafetyAlarm` ép điều kiện `AND p.is_active = 1`.
-    - Tầng 2 (Server Webhook): Bỏ qua 100% việc kích hoạt chuông SSE, Phone Siren và Alert Telegram/Discord khi `page.is_active === 0`.
-    - Tầng 3 (UI): Hiển thị cảnh báo trực quan và chặn gửi cảnh báo.
+- Selective Fanpage Management, Account Grouping & Modern Toggle Switch Controls:
+  - Phân nhóm toàn bộ Fanpage theo từng Tài Khoản Facebook (`.account-group-card`): Mỗi tài khoản có header riêng gồm Avatar, Tên, User ID, App ID, huy hiệu tổng hợp `🟢 X / Y Trang Đang Bật Quản Lý` và bộ nút điều khiển nhanh `[☑️ Bật Tất Cả]`, `[⬜ Tắt Tất Cả]`, `[📋 Chọn Lọc Page]`.
+  - Công tắc gạt Toggle Switch hiện đại (Fluent/iOS style): Bật (`🟢 Đang Bật` neon xanh) / Tắt (`⚪ Đã Tắt` xám) trực tiếp trên từng trang kèm animation trượt mượt mà.
+  - Tự động mở Modal tích chọn Fanpage ngay khi đăng nhập tài khoản mới (cả OAuth 1-Click và dán Token Cách B), cho phép người dùng chọn nhanh các trang muốn enable trước khi bắt đầu vận hành.
+  - Khóa chặt 3 tầng bảo vệ chống réo chuông cho các Fanpage tạm dừng (Database SQL, Server Webhook Engine, UI Banner).
 - Layout Balance & Visual Alignment Stabilization:
   - Header trên cùng chuẩn hóa `flex-wrap: nowrap`, thu gọn badge tunnel chống vỡ dòng và đè chữ.
   - Lưới card Fanpage `.pages-grid` cân đối với `minmax(360px, 1fr)`, không bị méo lệch khi có ít card.
@@ -100,11 +98,12 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
 ## 4. Repository & Deployment
 - GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub`
 - Current Branch: `main`
-- Verification: 24/24 Test Suites Passed (Exit Code 0)
+- Verification: 25/25 Test Suites Passed (Exit Code 0)
 - Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe` (48.05 MB)
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
-- 24 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, and Selective Fanpage Management & Inactive Alarm Locking.
+- 25 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, and Account-Grouped Fanpages with Toggle-All operations.
 - Last Status: 100% Pass — Mechanical Exit Code 0.
+
 
