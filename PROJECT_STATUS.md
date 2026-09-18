@@ -46,8 +46,21 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Áp dụng thời gian Meta đã đồng bộ (Meta-synced timestamp) khi gửi tin nhắn từ Tool, triệt tiêu hoàn toàn hiện tượng tin nhắn gửi đi bị gán sai mốc thời gian dẫn đến đảo lộn trật tự tin nhắn giữa Tool và Facebook Messenger.
   - Cơ chế tự động hiệu chuẩn (Auto-Calibrate) trong Auto-Sync nền: Tự động so khớp và nắn chỉnh timestamp của các tin nhắn hiện có về đúng `created_time` chính thức của Meta nếu bị lệch > 500ms.
   - Sắp xếp hội thoại xác định tuyệt đối: Truy vấn cơ sở dữ liệu `ORDER BY timestamp ASC, id ASC` và client-side sort trước khi render timeline, bảo toàn trật tự hội thoại 100% không bị nhảy vị trí kể cả khi các tin nhắn đến trong cùng một giây.
+- Mini CRM & Customer Tags Management (Pancake.vn & Fchat.vn style):
+  - 3-Column Desktop App layout: Chat Inbox | Conversation Transcript | Mini CRM Sidebar (collapsible).
+  - Pre-seeded 6 system tags (`Khách VIP`, `Đã Chốt Đơn`, `Cần Tư Vấn`, `Đã Cọc`, `Khách Bom Hàng`, `Đang Phân Vân`) with custom color badges displayed directly on inbox conversation items.
+  - Custom tag creator modal with live color preview; default system tags protected from accidental deletion.
+  - Internal staff notes timeline: hidden from Facebook customers, visible only to team members.
+  - Auto-phone detection: scans customer messages for phone numbers (`09xx`, `08xx`...) and offers 1-click apply to CRM contact profile.
+  - Direct click-to-call `📞` launcher.
+  - Multi-field search matching customer name, message text, phone number, address, and tag name.
 
-## 4. Test Suite Telemetry
-- Automated test script: npm test (node test/system.test.js)
-- 17 Test Suites covering Database, Routing, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge & Meta Clock Sync.
+## 4. Repository & Deployment
+- GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub` (Private)
+- Current Branch: `main`
+- Latest Commit: `3955f41` (Up to date with origin/main)
+
+## 5. Test Suite Telemetry
+- Automated test script: `npm test` (`node test/system.test.js`)
+- 21 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, and Mini CRM & Customer Tags.
 - Last Status: 100% Pass — Mechanical Exit Code 0.
