@@ -869,6 +869,27 @@ const togglePageActive = (id, isActive) => {
   return db.prepare('UPDATE pages SET is_active = ? WHERE id = ?').run(isActive ? 1 : 0, id);
 };
 
+const updatePageCustomDetails = (id, { color_tag, account_label, name } = {}) => {
+  const fields = [];
+  const params = [];
+  if (color_tag !== undefined) {
+    fields.push('color_tag = ?');
+    params.push(color_tag);
+  }
+  if (account_label !== undefined) {
+    fields.push('account_label = ?');
+    params.push(String(account_label).trim());
+  }
+  if (name !== undefined) {
+    fields.push('name = ?');
+    params.push(String(name).trim());
+  }
+  if (fields.length === 0) return null;
+  params.push(id);
+  db.prepare(`UPDATE pages SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+  return db.prepare('SELECT * FROM pages WHERE id = ?').get(id);
+};
+
 // -------------------------------------------------------------
 // Messages & Conversations Helpers (2-Column View)
 // -------------------------------------------------------------
@@ -1061,8 +1082,14 @@ const getConversations = ({ userId = null, pageId = null, search = '', unreplied
   }
 
   if (pageId) {
-    query += ` AND c.page_id = ?`;
-    params.push(pageId);
+    if (String(pageId).startsWith('account:')) {
+      const accLabel = String(pageId).replace('account:', '').trim();
+      query += ` AND (p.account_label = ? OR EXISTS (SELECT 1 FROM token_sources ts WHERE ts.id = p.token_source_id AND ts.name = ?))`;
+      params.push(accLabel, accLabel);
+    } else {
+      query += ` AND c.page_id = ?`;
+      params.push(pageId);
+    }
   }
 
   if (unrepliedOnly) {
@@ -1474,6 +1501,7 @@ module.exports = {
   assignPageOwner,
   deletePage,
   togglePageActive,
+  updatePageCustomDetails,
   getPageShifts,
   getAllShifts,
   addOrUpdatePageShift,

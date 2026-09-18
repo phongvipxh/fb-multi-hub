@@ -1364,8 +1364,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update responding fanpage indicator
     const pageName = conv?.page_name || pageId;
+    const replyingAccount = conv?.account_label ? ` [${conv.account_label}]` : '';
     const pageNameEl = document.getElementById('replyingPageNameText');
-    if (pageNameEl) pageNameEl.textContent = pageName;
+    if (pageNameEl) pageNameEl.textContent = pageName + replyingAccount;
 
     const input = document.getElementById('chatReplyInput');
     if (input) {
@@ -2588,9 +2589,28 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (pageFilter) {
-        pageFilter.innerHTML = '<option value="">Tất cả Page</option>' + data.pages.map(p => 
-          `<option value="${p.page_id}">${escapeHtml(p.name)}`
-        ).join('');
+        const currentVal = pageFilter.value;
+        const groups = {};
+        data.pages.forEach(p => {
+          const acc = (p.account_label || p.token_source_name || 'Tài khoản khác').trim();
+          if (!groups[acc]) groups[acc] = [];
+          groups[acc].push(p);
+        });
+
+        const numAccounts = Object.keys(groups).length;
+        let filterHtml = '<option value="">🌐 Tất cả Page & Tài khoản</option>';
+        for (const [accName, pages] of Object.entries(groups)) {
+          filterHtml += `<optgroup label="👤 ${escapeHtml(accName)}">`;
+          if (numAccounts > 1 && pages.length > 1) {
+            filterHtml += `<option value="account:${escapeHtml(accName)}">📂 Toàn bộ [${escapeHtml(accName)}] (${pages.length} page)</option>`;
+          }
+          pages.forEach(p => {
+            filterHtml += `<option value="${p.page_id}">📄 ${escapeHtml(p.name)}</option>`;
+          });
+          filterHtml += '</optgroup>';
+        }
+        pageFilter.innerHTML = filterHtml;
+        if (currentVal) pageFilter.value = currentVal;
       }
 
       if (grid) {

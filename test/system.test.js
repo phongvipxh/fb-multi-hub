@@ -1690,6 +1690,65 @@ const testServer = app.listen(0, async () => {
     assert.strictEqual(pageAcc2.account_label, 'Lê Văn Ca Sáng');
     console.log('  ✓ Hệ thống Đa Tài Khoản Facebook (Multi-Account) quản lý song song nhiều tài khoản và Fanpage hoàn hảo');
 
+    // 19.7 Kiểm tra API PATCH /api/pages/:id tùy biến Fanpage custom (color_tag, account_label, name)
+    const patchPageRes = await fetch(`${baseUrl}/api/pages/${pageAcc1.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        color_tag: '#10b981',
+        account_label: 'Phong VIP Account',
+        name: 'Trang Thời Trang Cao Cấp'
+      })
+    });
+    const patchPageData = await patchPageRes.json();
+    assert.strictEqual(patchPageRes.status, 200);
+    assert.strictEqual(patchPageData.ok, true);
+    assert.strictEqual(patchPageData.page.color_tag, '#10b981');
+    assert.strictEqual(patchPageData.page.account_label, 'Phong VIP Account');
+    assert.strictEqual(patchPageData.page.name, 'Trang Thời Trang Cao Cấp');
+    console.log('  ✓ API PATCH /api/pages/:id cho phép tùy biến màu sắc, nhãn tài khoản & tên trang custom thành công');
+
+    // 19.8 Kiểm tra Quản lý kết hợp hội thoại từ các tài khoản khác nhau cùng lúc
+    // Tạo 1 cuộc trò chuyện ở Page của Tài khoản 1 và 1 ở Page của Tài khoản 2
+    db.saveMessage({
+      mid: 'mid_acc1_' + Date.now(),
+      page_id: pageAcc1.page_id,
+      sender_id: 'cust_acc1_99',
+      sender_name: 'Khách Mua Hàng Nick Phong',
+      text: 'Chào shop của nick Phong',
+      attachments: [],
+      timestamp: Date.now() - 1000,
+      is_echo: 0
+    });
+
+    db.saveMessage({
+      mid: 'mid_acc2_' + Date.now(),
+      page_id: pageAcc2.page_id,
+      sender_id: 'cust_acc2_88',
+      sender_name: 'Khách Mua Hàng Nick Ca Sáng',
+      text: 'Chào shop của nick Ca Sáng',
+      attachments: [],
+      timestamp: Date.now(),
+      is_echo: 0
+    });
+
+    // 19.8a: Lọc toàn bộ tất cả tài khoản cùng lúc (pageId = null) -> Phải chứa cả 2 khách hàng
+    const allCombined = db.getConversations();
+    const hasCustAcc1 = allCombined.some(c => c.sender_id === 'cust_acc1_99');
+    const hasCustAcc2 = allCombined.some(c => c.sender_id === 'cust_acc2_88');
+    assert(hasCustAcc1 && hasCustAcc2, 'Khi không lọc page, toàn bộ tin nhắn từ các tài khoản phải hiển thị kết hợp cùng lúc');
+
+    // 19.8b: Lọc riêng tài khoản "Phong VIP Account"
+    const filteredAcc1 = db.getConversations({ pageId: 'account:Phong VIP Account' });
+    assert(filteredAcc1.some(c => c.sender_id === 'cust_acc1_99'), 'Lọc tài khoản Phong VIP phải có khách của nick Phong');
+    assert(!filteredAcc1.some(c => c.sender_id === 'cust_acc2_88'), 'Lọc tài khoản Phong VIP không được lẫn khách của nick Ca Sáng');
+
+    // 19.8c: Lọc riêng tài khoản "Lê Văn Ca Sáng"
+    const filteredAcc2 = db.getConversations({ pageId: 'account:Lê Văn Ca Sáng' });
+    assert(filteredAcc2.some(c => c.sender_id === 'cust_acc2_88'), 'Lọc tài khoản Ca Sáng phải có khách của nick Ca Sáng');
+    assert(!filteredAcc2.some(c => c.sender_id === 'cust_acc1_99'), 'Lọc tài khoản Ca Sáng không được lẫn khách của nick Phong');
+    console.log('  ✓ Quản lý kết hợp tin nhắn từ nhiều tài khoản: Xem đồng thời tất cả hoặc lọc riêng từng tài khoản chuẩn xác 100%');
+
     // =============================================================
     // [20] Kiểm tra Khả Năng Thích Ứng Môi Trường VPN Đa Quốc Gia & Đồng Bộ Toàn Cầu
     // =============================================================

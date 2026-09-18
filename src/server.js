@@ -27,6 +27,7 @@ const {
   updatePageTokenHealth,
   assignPageOwner,
   deletePage,
+  updatePageCustomDetails,
   getPageShifts,
   getAllShifts,
   addOrUpdatePageShift,
@@ -2152,6 +2153,16 @@ app.patch('/api/pages/:id/toggle', (req, res) => {
     const { is_active } = req.body;
     togglePageActive(req.params.id, is_active);
     res.json({ ok: true, message: 'Đã cập nhật trạng thái hoạt động của trang!' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.patch('/api/pages/:id', (req, res) => {
+  try {
+    const { color_tag, account_label, name } = req.body || {};
+    const updated = updatePageCustomDetails(req.params.id, { color_tag, account_label, name });
+    res.json({ ok: true, message: 'Đã cập nhật cấu hình Fanpage thành công!', page: updated });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
