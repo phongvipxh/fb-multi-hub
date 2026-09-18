@@ -2054,6 +2054,7 @@ app.get('/api/facebook-app-config', (req, res) => {
       ok: true,
       appId: config.appId || '',
       hasAppSecret: Boolean(config.appSecret),
+      appSecret: config.appSecret || '',
       redirectUris
     });
   } catch (err) {
