@@ -1286,6 +1286,46 @@ const getTokenSourceById = (id) => {
   `).get(id);
 };
 
+const getTokenSourcesWithPages = () => {
+  const sources = getAllTokenSources();
+  const allPages = db.prepare(`
+    SELECT id, page_id, name, avatar_url, token_status, is_permanent, token_source_id, account_label, color_tag
+    FROM pages
+    ORDER BY name ASC
+  `).all();
+
+  return sources.map(ts => {
+    const matchedPages = allPages.filter(p => p.token_source_id === ts.id);
+    return {
+      ...ts,
+      has_app_secret: Boolean(ts.app_secret),
+      app_secret_masked: ts.app_secret ? (ts.app_secret.substring(0, 4) + '••••••••' + ts.app_secret.slice(-4)) : '',
+      pages: matchedPages,
+      current_pages_count: matchedPages.length
+    };
+  });
+};
+
+const updateTokenSourceAppCredentials = ({ id, name, app_id, app_secret }) => {
+  const existing = getTokenSourceById(id);
+  if (!existing) return null;
+
+  const newName = name !== undefined ? String(name).trim() : existing.name;
+  const newAppId = app_id !== undefined ? String(app_id).trim() : existing.app_id;
+  const newAppSecret = app_secret !== undefined && String(app_secret).trim() !== '' ? String(app_secret).trim() : existing.app_secret;
+
+  db.prepare(`
+    UPDATE token_sources SET
+      name = ?,
+      app_id = ?,
+      app_secret = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(newName, newAppId, newAppSecret, id);
+
+  return getTokenSourceById(id);
+};
+
 const saveOrUpdateTokenSource = ({
   id,
   name,
@@ -1545,9 +1585,11 @@ module.exports = {
   markSafetyAlarmTriggered,
   updateUserActivity,
   getAllTokenSources,
+  getTokenSourcesWithPages,
   getTokenSourceById,
   getTokenSourceByFbUserId,
   saveOrUpdateTokenSource,
+  updateTokenSourceAppCredentials,
   deleteTokenSource,
   getFacebookAppConfig,
   saveFacebookAppConfig,

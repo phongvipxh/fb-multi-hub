@@ -56,9 +56,11 @@ const {
   getConversation,
   saveSettings,
   getAllTokenSources,
+  getTokenSourcesWithPages,
   getTokenSourceById,
   getTokenSourceByFbUserId,
   saveOrUpdateTokenSource,
+  updateTokenSourceAppCredentials,
   deleteTokenSource,
   getFacebookAppConfig,
   saveFacebookAppConfig,
@@ -1775,8 +1777,35 @@ app.post('/api/pages/bulk-import', async (req, res) => {
 // -------------------------------------------------------------
 app.get('/api/token-sources', (req, res) => {
   try {
-    const sources = getAllTokenSources();
+    const sources = getTokenSourcesWithPages();
     res.json({ ok: true, tokenSources: sources });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/token-sources/:id/update-app', (req, res) => {
+  try {
+    const sourceId = Number(req.params.id);
+    const { name, app_id, app_secret } = req.body || {};
+    const updated = updateTokenSourceAppCredentials({
+      id: sourceId,
+      name,
+      app_id,
+      app_secret
+    });
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: 'Không tìm thấy tài khoản để cập nhật!' });
+    }
+    res.json({
+      ok: true,
+      message: 'Đã cập nhật thông tin App cho tài khoản thành công!',
+      account: {
+        ...updated,
+        has_app_secret: Boolean(updated.app_secret),
+        app_secret_masked: updated.app_secret ? (updated.app_secret.substring(0, 4) + '••••••••' + updated.app_secret.slice(-4)) : ''
+      }
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -1995,10 +2024,44 @@ app.post('/api/facebook-app-config', (req, res) => {
   }
 });
 
+// In-memory registry for active OAuth sessions mapped by nonce for multi-account isolation
+const pendingOAuthSessions = new Map();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [nonce, sess] of pendingOAuthSessions.entries()) {
+    if (now - sess.createdAt > 15 * 60 * 1000) {
+      pendingOAuthSessions.delete(nonce);
+    }
+  }
+}, 10 * 60 * 1000).unref();
+
 app.get('/auth/facebook', (req, res) => {
   try {
     const appConfig = getFacebookAppConfig();
-    if (!appConfig.appId) {
+    let targetAppId = (req.query.app_id ? String(req.query.app_id).trim() : '') || appConfig.appId;
+    let targetAppSecret = (req.query.app_secret ? String(req.query.app_secret).trim() : '');
+    const accountId = req.query.account_id ? Number(req.query.account_id) : null;
+    const accountName = req.query.account_name ? String(req.query.account_name).trim() : '';
+
+    if (accountId) {
+      const existingAcc = getTokenSourceById(accountId);
+      if (existingAcc) {
+        if (!targetAppId && existingAcc.app_id) targetAppId = existingAcc.app_id;
+        if (!targetAppSecret && existingAcc.app_secret) targetAppSecret = existingAcc.app_secret;
+      }
+    }
+
+    if (targetAppId && !targetAppSecret) {
+      const match = getAllTokenSources().find(s => s.app_id === targetAppId && s.app_secret);
+      if (match) {
+        targetAppSecret = match.app_secret;
+      } else if (appConfig.appId === targetAppId && appConfig.appSecret) {
+        targetAppSecret = appConfig.appSecret;
+      }
+    }
+
+    if (!targetAppId) {
       return res.status(400).send(`
         <!DOCTYPE html>
         <html><head><meta charset="utf-8"><title>Cần Cấu Hình Facebook App</title>
@@ -2042,15 +2105,27 @@ app.get('/auth/facebook', (req, res) => {
     const isPopup = req.query.popup === '1';
     const isReauth = req.query.reauth === '1';
 
+    const nonce = Math.random().toString(36).substring(2, 12);
+    pendingOAuthSessions.set(nonce, {
+      appId: targetAppId,
+      appSecret: targetAppSecret,
+      accountId,
+      accountName,
+      redirectUri,
+      isPopup,
+      createdAt: Date.now()
+    });
+
     const stateObj = {
       popup: isPopup ? '1' : '0',
-      nonce: Math.random().toString(36).substring(2, 10),
-      redirect_uri: redirectUri
+      nonce,
+      redirect_uri: redirectUri,
+      app_id: targetAppId
     };
     const state = Buffer.from(JSON.stringify(stateObj)).toString('base64url');
 
     const authUrl = generateFacebookAuthUrl({
-      appId: appConfig.appId,
+      appId: targetAppId,
       redirectUri,
       state,
       reauth: isReauth
@@ -2115,6 +2190,8 @@ function diagnoseOAuthError(errorStr) {
 app.get('/auth/facebook/callback', async (req, res) => {
   let isPopup = false;
   let stateRedirectUri = '';
+  let nonce = '';
+  let stateAppId = '';
 
   try {
     if (req.query.state) {
@@ -2122,6 +2199,8 @@ app.get('/auth/facebook/callback', async (req, res) => {
         const decoded = JSON.parse(Buffer.from(req.query.state, 'base64url').toString('utf-8'));
         isPopup = decoded.popup === '1';
         stateRedirectUri = decoded.redirect_uri || '';
+        nonce = decoded.nonce || '';
+        stateAppId = decoded.app_id || '';
       } catch (e) {}
     }
 
@@ -2178,13 +2257,28 @@ app.get('/auth/facebook/callback', async (req, res) => {
       throw new Error('Không nhận được mã code xác thực từ Facebook!');
     }
 
+    const session = (nonce && pendingOAuthSessions.get(nonce)) || {};
     const appConfig = getFacebookAppConfig();
+    const targetAppId = session.appId || stateAppId || appConfig.appId;
+    let targetAppSecret = session.appSecret || '';
+
+    if (!targetAppSecret && targetAppId) {
+      if (session.accountId) {
+        targetAppSecret = getTokenSourceById(session.accountId)?.app_secret || '';
+      }
+      if (!targetAppSecret) {
+        const match = getAllTokenSources().find(s => s.app_id === targetAppId && s.app_secret);
+        if (match) targetAppSecret = match.app_secret;
+        else if (appConfig.appId === targetAppId) targetAppSecret = appConfig.appSecret;
+      }
+    }
+
     const redirectUri = stateRedirectUri || getOAuthRedirectUri(req);
 
     // Orchestrate complete OAuth flow
     const oauthResult = await handleFacebookOAuthFlow({
-      appId: appConfig.appId,
-      appSecret: appConfig.appSecret,
+      appId: targetAppId,
+      appSecret: targetAppSecret,
       redirectUri,
       code
     });
@@ -2194,18 +2288,21 @@ app.get('/auth/facebook/callback', async (req, res) => {
 
     // Save or update account in Token Vault (token_sources)
     const tokenSource = saveOrUpdateTokenSource({
-      name: user.name || `Tài khoản FB ${user.id}`,
+      id: session.accountId || undefined,
+      name: session.accountName || user.name || `Tài khoản FB ${user.id}`,
       fb_user_id: user.id || '',
       avatar_url: user.picture || '',
       email: user.email || '',
-      app_id: appConfig.appId,
-      app_secret: appConfig.appSecret,
+      app_id: targetAppId,
+      app_secret: targetAppSecret,
       user_token: oauthResult.userToken,
       long_lived_token: oauthResult.longLivedToken,
       token_type: 'OAUTH_LONG_LIVED',
       is_permanent: 1,
       pages_count: pages.length
     });
+
+    if (nonce) pendingOAuthSessions.delete(nonce);
 
     // Save and auto-subscribe all pages belonging to this Facebook account
     let connectedPagesCount = 0;
@@ -2257,7 +2354,9 @@ app.get('/auth/facebook/callback', async (req, res) => {
                 accountName: ${JSON.stringify(user.name)},
                 fbUserId: ${JSON.stringify(user.id)},
                 avatarUrl: ${JSON.stringify(user.picture)},
-                pagesCount: ${connectedPagesCount}
+                pagesCount: ${connectedPagesCount},
+                tokenSourceId: ${tokenSource ? tokenSource.id : 0},
+                appId: ${JSON.stringify(targetAppId)}
               }, '*');
               setTimeout(() => window.close(), 1200);
             } else {

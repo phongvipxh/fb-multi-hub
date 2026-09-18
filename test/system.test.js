@@ -1769,6 +1769,35 @@ const testServer = app.listen(0, async () => {
     assert(errorRedirectLocation.includes('REDIRECT_URI_MISMATCH') || errorRedirectLocation.includes('fb_diag_title'), 'Location phải mang thông điệp chẩn đoán đúng/sai');
     console.log('  ✓ Cơ chế Chẩn đoán Redirect URI Error chuyển hướng kèm dữ liệu hướng dẫn người dùng chính xác');
 
+    // 19.10 Kiểm tra Multi-Account độc lập App ID & Secret cho từng tài khoản và API cập nhật App credentials
+    const updateAppRes = await fetch(`${baseUrl}/api/token-sources/${sourceAcc1.id}/update-app`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Nguyễn Tuấn Phong (VIP Pro)',
+        app_id: '9988776655443322',
+        app_secret: 'custom_secret_for_account_1_32ch'
+      })
+    });
+    const updateAppData = await updateAppRes.json();
+    assert.strictEqual(updateAppRes.status, 200);
+    assert.strictEqual(updateAppData.ok, true);
+    assert.strictEqual(updateAppData.account.name, 'Nguyễn Tuấn Phong (VIP Pro)');
+    assert.strictEqual(updateAppData.account.app_id, '9988776655443322');
+    assert.strictEqual(updateAppData.account.has_app_secret, true);
+
+    const getMultiAccRes = await fetch(`${baseUrl}/api/token-sources`);
+    const getMultiAccData = await getMultiAccRes.json();
+    assert.strictEqual(getMultiAccRes.status, 200);
+    assert.strictEqual(getMultiAccData.ok, true);
+    assert(getMultiAccData.tokenSources.length >= 2, 'Phải có ít nhất 2 tài khoản');
+    const acc1Found = getMultiAccData.tokenSources.find(s => s.id === sourceAcc1.id);
+    assert(acc1Found, 'Tài khoản 1 phải có trong danh sách');
+    assert.strictEqual(acc1Found.app_id, '9988776655443322');
+    assert(Array.isArray(acc1Found.pages), 'Phải có mảng pages liên kết');
+    assert(acc1Found.pages.length >= 1, 'Tài khoản 1 phải có Fanpage liên kết');
+    console.log('  ✓ Hệ thống Multi-Account quản lý App ID & Secret riêng biệt theo từng tài khoản chuẩn xác 100%');
+
     // =============================================================
     // [20] Kiểm tra Khả Năng Thích Ứng Môi Trường VPN Đa Quốc Gia & Đồng Bộ Toàn Cầu
     // =============================================================
