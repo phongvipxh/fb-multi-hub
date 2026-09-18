@@ -484,30 +484,56 @@
             </div>
           </div>
 
-          <!-- SMART FILTER & SEARCH BAR -->
-          <div class="pages-filter-bar" id="pagesFilterBar" style="margin-bottom: 20px; padding: 12px 18px; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-color); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <div class="pages-filter-pills">
-                <button type="button" class="page-filter-btn active" data-page-status="all">🔘 Tất Cả (<span id="countFilterAll">0</span>)</button>
-                <button type="button" class="page-filter-btn" data-page-status="active">🟢 Đang Quản Lý (<span id="countFilterActive">0</span>)</button>
-                <button type="button" class="page-filter-btn" data-page-status="inactive">⏸️ Tạm Dừng (<span id="countFilterInactive">0</span>)</button>
+          <!-- WORKSPACE NAVIGATION TABS & CONTROLS BAR -->
+          <div class="pages-view-tabs-bar" id="pagesTabsBar">
+            <div class="pages-view-tabs-left">
+              <button type="button" class="pages-view-tab-btn active" data-tab="active">
+                <span>🟢</span> Đang Bật Quản Lý (<span id="countTabActive">0</span>)
+              </button>
+              <button type="button" class="pages-view-tab-btn" data-tab="by_account">
+                <span>👥</span> Theo Từng Tài Khoản (<span id="countTabAccounts">0</span>)
+              </button>
+              <button type="button" class="pages-view-tab-btn" data-tab="inactive">
+                <span>⏸️</span> Tạm Dừng (<span id="countTabInactive">0</span>)
+              </button>
+              <button type="button" class="pages-view-tab-btn" data-tab="all">
+                <span>🔘</span> Tất Cả Fanpage (<span id="countTabAll">0</span>)
+              </button>
+            </div>
+
+            <div class="pages-view-tabs-right">
+              <!-- View Mode Segmented Control: Table vs Grid -->
+              <div class="view-mode-toggle" id="pagesViewModeToggle">
+                <button type="button" class="view-mode-btn active" data-mode="table" title="Chế độ Bảng danh sách trực quan (Tối ưu cho nhiều Fanpage)">
+                  <span>📋</span> Bảng
+                </button>
+                <button type="button" class="view-mode-btn" data-mode="grid" title="Chế độ Lưới thẻ">
+                  <span>🔲</span> Thẻ
+                </button>
               </div>
-              <span id="pagesOverviewStatsBadge" class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 12px; padding: 5px 12px; font-weight: 700; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.3);">0 Đang Quản Lý</span>
-              <span id="accountsOverviewCountBadge" class="badge-tag" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 12px; padding: 5px 12px; font-weight: 700; border-radius: 20px; border: 1px solid rgba(59, 130, 246, 0.3);">0 Tài Khoản</span>
-            </div>
 
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="pagesSearchInput" class="form-control form-control-sm" placeholder="🔍 Tìm theo Fanpage, ID, Tài khoản..." style="width: 280px; font-size: 12.5px; padding: 6px 12px; border-radius: 8px;">
+              <!-- Real-time Search Input -->
+              <div style="position: relative;">
+                <input type="text" id="pagesSearchInput" class="form-control form-control-sm" placeholder="🔍 Tìm Fanpage, ID, Tài khoản..." style="width: 250px; font-size: 12.5px; padding: 6px 12px; border-radius: 8px;">
+              </div>
             </div>
           </div>
 
-          <!-- UNIFIED ACCOUNT HUBS & PAGES GRID -->
-          <div class="pages-grid" id="pagesGrid">
-            <!-- Dynamically populated with Account Hubs and Page Cards -->
+          <!-- UNIFIED FULL-WIDTH PAGES WORKSPACE CONTAINER -->
+          <div id="pagesWorkspaceContainer" class="pages-workspace-container">
+            <!-- Dynamically populated by app.js (Smart Table or Grid) -->
           </div>
 
-          <!-- Hidden containers for backward compatibility with automated tests -->
+          <!-- Hidden containers for backward compatibility with automated tests and legacy scripts -->
           <div style="display: none;">
+            <div class="pages-grid" id="pagesGrid"></div>
+            <div class="pages-filter-pills" id="pagesFilterBar">
+              <button type="button" class="page-filter-btn" data-page-status="all"><span id="countFilterAll">0</span></button>
+              <button type="button" class="page-filter-btn" data-page-status="active"><span id="countFilterActive">0</span></button>
+              <button type="button" class="page-filter-btn" data-page-status="inactive"><span id="countFilterInactive">0</span></button>
+            </div>
+            <span id="pagesOverviewStatsBadge">0 Đang Quản Lý</span>
+            <span id="accountsOverviewCountBadge">0 Tài Khoản</span>
             <table id="connectedAccountsMainTable">
               <tbody id="connectedAccountsTableBody"></tbody>
             </table>

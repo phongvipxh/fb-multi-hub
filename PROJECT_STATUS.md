@@ -96,6 +96,15 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Header trên cùng chuẩn hóa `flex-wrap: nowrap`, thu gọn badge tunnel chống vỡ dòng và đè chữ.
   - Lưới card Fanpage `.pages-grid` cân đối với `minmax(360px, 1fr)`, không bị méo lệch khi có ít card.
   - Đồng bộ nút bấm hành động `🗑️ Xóa` thành outline danger có icon, padding và chiều cao đồng nhất với các nút khác.
+- Interactive Smart Table Full-Width & Multi-Account Workspace Tabs (Pancake / Meta Business Suite Standard):
+  - Khắc phục triệt để lỗi co cụm 360px bằng `#pagesWorkspaceContainer` trải dài 100% bề ngang màn hình.
+  - Hệ thống 4 Workspace Navigation Tabs với số đếm động thời gian thực:
+    - `[🟢 Đang Bật Quản Lý (N)]` (Mặc định): Tập trung toàn bộ Fanpage đang Bật (`is_active = 1`) từ mọi tài khoản vào 1 bảng duy nhất, hỗ trợ nút "Tắt Tất Cả Trang Đang Bật".
+    - `[👥 Theo Từng Tài Khoản (N)]`: Phân nhóm theo từng nick Facebook, mỗi tài khoản là 1 card full-width với thanh công cụ (Cập nhật trang mới, Bật/Tắt tất cả, Chọn lọc page, Đăng nhập lại, Sửa app, Xóa) và bảng Fanpage trực thuộc.
+    - `[⏸️ Tạm Dừng (N)]`: Bảng danh sách các trang đang tắt quản lý (ngắt chuông & quét tin), có nút "Bật Lại" và "Bật Lại Tất Cả Trang".
+    - `[🔘 Tất Cả Fanpage (N)]`: Tổng quan toàn bộ hệ thống.
+  - Interactive Smart Table chuẩn Pancake: Cột 1 là Toggle Switch to rõ (`🟢 Đang Bật` / `⚪ Đã Tắt`), cột 2 là Fanpage (Avatar 36px, Tên, ID), cột 3 là Tài khoản Facebook sở hữu, cột 4 là Sức khỏe Token, cột 5 là Lịch trực ca, cột 6 là Dàn nút thao tác (Soi, Ca Trực, Webhook, Xóa).
+  - Bộ chuyển đổi chế độ xem View Mode Segmented Control: Linh hoạt chuyển đổi giữa `[📋 Bảng]` (Smart Table) và `[🔲 Thẻ]` (Grid Cards).
 - Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
   - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.06 MB).
   - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh.
@@ -110,5 +119,6 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
 - Automated test script: `npm test` (`node test/system.test.js`)
 - 26 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, Account-Grouped Fanpages with Toggle-All operations, and Fanpage Synchronization (Sync Pages / Sync All).
 - Last Status: 100% Pass — Mechanical Exit Code 0.
+
 
 
