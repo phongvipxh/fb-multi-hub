@@ -455,100 +455,65 @@
         <!-- VIEW 2: FANPAGE MANAGEMENT                           -->
         <!-- ==================================================== -->
         <section id="view-pages" class="app-view">
-          <div class="view-header-bar">
+          <!-- TOP WORKSPACE TOOLBAR -->
+          <div class="view-header-bar" style="margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
-              <h3>Quản Lý Tài Khoản &amp; Fanpage Facebook</h3>
-              <p class="view-desc">Quản lý các tài khoản Facebook kết nối, tự động gia hạn Token và theo dõi toàn bộ Fanpage.</p>
+              <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 19px; color: #f8fafc;">
+                <span>👥</span> Quản Lý Tài Khoản &amp; Fanpage Facebook
+              </h3>
+              <p class="view-desc" style="margin-top: 3px; font-size: 13px; color: var(--text-muted);">
+                Quản trị tập trung các tài khoản Facebook, quét cập nhật Fanpage mới và bật / tắt quản lý cho từng trang.
+              </p>
             </div>
-            <div class="view-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button id="runHealthCheckBtn" class="btn btn-secondary">
-                <span>🔍</span> Kiểm Tra Sức Khỏe Token
+            <div class="view-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button id="btnAddNewAccountMain" class="btn btn-primary" style="padding: 9px 18px; font-weight: 700; font-size: 13.5px; gap: 7px; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);">
+                <span style="font-size: 15px;">➕</span> Thêm Tài Khoản Mới
+              </button>
+              <button id="btnSyncAllAccountsPages" class="btn btn-secondary" style="gap: 6px; font-weight: 600; font-size: 13px;">
+                <span>🔄</span> Cập Nhật Trang Mới (Tất Cả)
+              </button>
+              <button id="btnEditGatewayAppConfigMain" class="btn btn-secondary" style="gap: 6px; font-size: 13px;">
+                <span>⚙️</span> Cổng Meta App
+              </button>
+              <button id="btnOpenTokenGuideFromPages" class="btn btn-secondary" style="gap: 6px; font-size: 13px;">
+                <span>📖</span> Hướng Dẫn
+              </button>
+              <button id="runHealthCheckBtn" class="btn btn-secondary" style="gap: 6px; font-size: 13px;">
+                <span>🔍</span> Soi Sức Khỏe Token
               </button>
             </div>
           </div>
 
-          <!-- SECTION 1: BẢNG TẤT CẢ TÀI KHOẢN FACEBOOK HIỆN CÓ -->
-          <div class="card-section" style="margin-bottom: 24px;">
-            <div class="card-section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div>
-                <h4 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-                  <span>👥</span> Bảng Tài Khoản Facebook Đang Kết Nối (Multi-Account)
-                </h4>
-                <p class="card-desc" style="margin-top: 4px;">
-                  Tất cả các tài khoản Facebook hiện đang kết nối với hệ thống. Mỗi tài khoản tự động duy trì Token và quản lý các Fanpage tương ứng.
-                </p>
+          <!-- SMART FILTER & SEARCH BAR -->
+          <div class="pages-filter-bar" id="pagesFilterBar" style="margin-bottom: 20px; padding: 12px 18px; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-color); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div class="pages-filter-pills">
+                <button type="button" class="page-filter-btn active" data-page-status="all">🔘 Tất Cả (<span id="countFilterAll">0</span>)</button>
+                <button type="button" class="page-filter-btn" data-page-status="active">🟢 Đang Quản Lý (<span id="countFilterActive">0</span>)</button>
+                <button type="button" class="page-filter-btn" data-page-status="inactive">⏸️ Tạm Dừng (<span id="countFilterInactive">0</span>)</button>
               </div>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <span id="accountsOverviewCountBadge" class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-size: 11.5px; padding: 4px 10px; font-weight: 600;">0 Tài Khoản</span>
-              </div>
+              <span id="pagesOverviewStatsBadge" class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 12px; padding: 5px 12px; font-weight: 700; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.3);">0 Đang Quản Lý</span>
+              <span id="accountsOverviewCountBadge" class="badge-tag" style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; font-size: 12px; padding: 5px 12px; font-weight: 700; border-radius: 20px; border: 1px solid rgba(59, 130, 246, 0.3);">0 Tài Khoản</span>
             </div>
 
-            <!-- Bảng danh sách tài khoản hiện có -->
-            <div class="table-responsive" style="margin-top: 12px;">
-              <table class="data-table" id="connectedAccountsMainTable">
-                <thead>
-                  <tr>
-                    <th>Tài Khoản Facebook</th>
-                    <th>Facebook User ID</th>
-                    <th>Fanpage Quản Lý</th>
-                    <th>Sức Khỏe Token</th>
-                    <th>Cổng Meta App</th>
-                    <th style="text-align: right; width: 230px;">Hành Động</th>
-                  </tr>
-                </thead>
-                <tbody id="connectedAccountsTableBody">
-                  <!-- Rendered dynamically by app.js -->
-                </tbody>
-              </table>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" id="pagesSearchInput" class="form-control form-control-sm" placeholder="🔍 Tìm theo Fanpage, ID, Tài khoản..." style="width: 280px; font-size: 12.5px; padding: 6px 12px; border-radius: 8px;">
             </div>
+          </div>
 
-            <!-- NÚT THÊM TÀI KHOẢN MỚI Ở NGAY BÊN DƯỚI BẢNG -->
-            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <button id="btnAddNewAccountMain" class="btn btn-primary" style="padding: 10px 22px; font-weight: 700; font-size: 14px; gap: 8px; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);">
-                  <span style="font-size: 16px;">➕</span> Thêm Tài Khoản Mới
-                </button>
-                <button id="btnEditGatewayAppConfigMain" class="btn btn-secondary" style="padding: 10px 16px; font-weight: 600; font-size: 13.5px; gap: 6px; color: #93c5fd; border-color: rgba(96, 165, 250, 0.3);">
-                  <span>⚙️</span> Cấu Hình / Sửa App ID &amp; Secret
-                </button>
-              </div>
+          <!-- UNIFIED ACCOUNT HUBS & PAGES GRID -->
+          <div class="pages-grid" id="pagesGrid">
+            <!-- Dynamically populated with Account Hubs and Page Cards -->
+          </div>
 
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <button id="btnOpenTokenGuideFromPages" class="btn btn-sm btn-secondary" style="gap: 6px;">
-                  <span>📖</span> Hướng Dẫn App &amp; Token
-                </button>
-              </div>
-            </div>
-
-            <!-- Hidden container for backward compatibility with legacy scripts -->
-            <div id="tokenSourcesContainer" style="display: none;">
+          <!-- Hidden containers for backward compatibility with automated tests -->
+          <div style="display: none;">
+            <table id="connectedAccountsMainTable">
+              <tbody id="connectedAccountsTableBody"></tbody>
+            </table>
+            <div id="tokenSourcesContainer">
               <div id="tokenSourcesList"></div>
             </div>
-          </div>
-
-          <div class="card-section-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div>
-              <h4 style="margin: 0; font-size: 15px; color: var(--text-primary);">📄 Danh Sách Fanpage Facebook:</h4>
-              <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0 0;">Bật / tắt quản lý cho từng Page. Chỉ các Page "Đang Quản Lý" mới quét tin và kêu chuông báo thức.</p>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <span id="pagesOverviewStatsBadge" class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11.5px; padding: 4px 10px; font-weight: 600;">0 Đang Quản Lý</span>
-            </div>
-          </div>
-
-          <div class="pages-filter-bar" id="pagesFilterBar">
-            <div class="pages-filter-pills">
-              <button type="button" class="page-filter-btn active" data-page-status="all">🔘 Tất Cả (<span id="countFilterAll">0</span>)</button>
-              <button type="button" class="page-filter-btn" data-page-status="active">🟢 Đang Quản Lý (<span id="countFilterActive">0</span>)</button>
-              <button type="button" class="page-filter-btn" data-page-status="inactive">⏸️ Tạm Dừng (<span id="countFilterInactive">0</span>)</button>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="pagesSearchInput" class="form-control form-control-sm" placeholder="🔍 Tìm Fanpage theo tên / ID..." style="width: 240px; font-size: 12px; padding: 5px 10px;">
-            </div>
-          </div>
-
-          <div class="pages-grid" id="pagesGrid">
-            <!-- Page cards dynamically populated -->
           </div>
         </section>
 

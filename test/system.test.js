@@ -2279,8 +2279,57 @@ const testServer = app.listen(0, async () => {
     assert.strictEqual(allActiveAfterEnable, true, 'Tất cả các trang thuộc tài khoản phải chuyển sang is_active = 1');
     console.log(`  ✓ Thao tác "Bật Tất Cả" (Enable All) cho ${allAccountPageIds.length} trang thuộc tài khoản thành công 100%`);
 
+    // [26] Kiểm tra Cơ Chế Cập Nhật Fanpage Mới (Sync Pages) & Quét Toàn Bộ Tài Khoản...
+    console.log('\n[26] Kiểm tra Cơ Chế Cập Nhật Fanpage Mới (Sync Pages) & Quét Toàn Bộ Tài Khoản...');
+
+    // 26.1 Kiểm tra gọi sync với tài khoản không tồn tại -> 404
+    const notFoundSyncRes = await fetch(`${baseUrl}/api/token-sources/999999/sync-pages`, { method: 'POST' });
+    assert.strictEqual(notFoundSyncRes.status, 404);
+    const notFoundSyncData = await notFoundSyncRes.json();
+    assert.strictEqual(notFoundSyncData.ok, false);
+    console.log('  ✓ API POST /api/token-sources/999999/sync-pages trả về 404 khi không tìm thấy tài khoản');
+
+    // 26.2 Tạo một token source riêng biệt để test quét và đồng bộ Fanpage mới
+    const testSyncSource = db.saveOrUpdateTokenSource({
+      name: 'Tài Khoản Sync Test (Tuấn Phong)',
+      app_id: '1234567890123456',
+      app_secret: 'mock_secret_test',
+      user_token: 'MOCK_TOKEN_FOR_SYNC_TEST',
+      long_lived_token: 'MOCK_LONG_LIVED_TOKEN_FOR_SYNC_TEST',
+      token_type: 'LONG_LIVED',
+      is_permanent: 1,
+      pages_count: 0
+    });
+    assert.ok(testSyncSource.id, 'Phải tạo được Token Source test sync');
+
+    // 26.3 Gọi POST /api/token-sources/:id/sync-pages để quét và nạp page mới
+    const syncRes = await fetch(`${baseUrl}/api/token-sources/${testSyncSource.id}/sync-pages`, { method: 'POST' });
+    assert.strictEqual(syncRes.status, 200);
+    const syncData = await syncRes.json();
+    assert.strictEqual(syncData.ok, true);
+    assert.strictEqual(syncData.account_name, 'Tài Khoản Sync Test (Tuấn Phong)');
+    assert(syncData.total_pages >= 1, 'Phải tìm thấy ít nhất 1 trang từ mock Graph API');
+    console.log(`  ✓ API POST /api/token-sources/:id/sync-pages quét thành công ${syncData.total_pages} trang (${syncData.new_pages_count} trang mới)`);
+
+    // 26.4 Gọi lại lần 2 để kiểm tra trạng thái các trang đã tồn tại (không trùng lặp, new_pages_count = 0)
+    const syncAgainRes = await fetch(`${baseUrl}/api/token-sources/${testSyncSource.id}/sync-pages`, { method: 'POST' });
+    assert.strictEqual(syncAgainRes.status, 200);
+    const syncAgainData = await syncAgainRes.json();
+    assert.strictEqual(syncAgainData.ok, true);
+    assert.strictEqual(syncAgainData.new_pages_count, 0, 'Lần 2 phải báo 0 trang mới');
+    assert(syncAgainData.updated_pages_count >= 1, 'Lần 2 phải cập nhật token cho trang hiện có');
+    console.log('  ✓ Quét lại lần 2 không sinh trùng lặp Fanpage, cập nhật token mượt mà');
+
+    // 26.5 Kiểm tra POST /api/token-sources/sync-all-pages (Quét toàn bộ tài khoản)
+    const syncAllRes = await fetch(`${baseUrl}/api/token-sources/sync-all-pages`, { method: 'POST' });
+    assert.strictEqual(syncAllRes.status, 200);
+    const syncAllData = await syncAllRes.json();
+    assert.strictEqual(syncAllData.ok, true);
+    assert(syncAllData.total_sources_scanned >= 1, 'Phải quét qua các tài khoản');
+    console.log(`  ✓ API POST /api/token-sources/sync-all-pages quét ${syncAllData.total_sources_scanned} tài khoản thành công`);
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 25 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, PHÂN NHÓM TÀI KHOẢN & TOGGLE SWITCH ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 26 BÀI TEST HỆ THỐNG, CẬP NHẬT FANPAGE MỚI & WORKSPACE HUBS ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();

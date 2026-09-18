@@ -2026,6 +2026,179 @@ app.post('/api/token-sources/:id/renew', async (req, res) => {
   }
 });
 
+app.post('/api/token-sources/:id/sync-pages', async (req, res) => {
+  try {
+    const sourceId = Number(req.params.id);
+    const source = getTokenSourceById(sourceId);
+    if (!source) {
+      return res.status(404).json({ ok: false, error: 'Không tìm thấy tài khoản Facebook cần cập nhật!' });
+    }
+
+    const token = source.long_lived_token || source.user_token;
+    if (!token || !token.trim()) {
+      return res.status(400).json({ ok: false, error: 'Tài khoản này chưa có Token Facebook hợp lệ! Hãy bấm [Đăng Nhập Lại].' });
+    }
+
+    const fetchResult = await fetchPagesFromToken({
+      token: token.trim(),
+      app_id: source.app_id || '',
+      app_secret: source.app_secret || ''
+    });
+
+    const freshPages = fetchResult.pages || [];
+    const existingPages = db.prepare('SELECT * FROM pages WHERE token_source_id = ?').all(source.id);
+    const existingPageIds = new Set(existingPages.map(p => p.page_id));
+
+    const newPagesFound = [];
+    let updatedPagesCount = 0;
+
+    for (const p of freshPages) {
+      if (!existingPageIds.has(p.page_id)) {
+        let subscribedAt = '';
+        try {
+          await subscribePageWebhook(p.page_id, p.access_token);
+          subscribedAt = new Date().toISOString();
+        } catch (e) {}
+
+        saveOrUpdatePage({
+          page_id: p.page_id,
+          name: p.name,
+          access_token: p.access_token,
+          user_id: 1,
+          account_label: source.name,
+          color_tag: '#3b82f6',
+          token_status: 'VALID',
+          avatar_url: p.avatar_url || '',
+          subscribed_at: subscribedAt,
+          token_source_id: source.id,
+          is_permanent: p.is_permanent ? 1 : (fetchResult.isPermanent ? 1 : 0)
+        });
+
+        newPagesFound.push({
+          page_id: p.page_id,
+          name: p.name,
+          avatar_url: p.avatar_url || ''
+        });
+      } else {
+        const ep = existingPages.find(item => item.page_id === p.page_id);
+        saveOrUpdatePage({
+          ...ep,
+          name: p.name || ep.name,
+          access_token: p.access_token,
+          avatar_url: p.avatar_url || ep.avatar_url,
+          token_status: 'VALID',
+          is_permanent: p.is_permanent ? 1 : (fetchResult.isPermanent ? 1 : 0)
+        });
+        updatedPagesCount++;
+      }
+    }
+
+    saveOrUpdateTokenSource({
+      ...source,
+      pages_count: freshPages.length
+    });
+
+    res.json({
+      ok: true,
+      account_name: source.name,
+      total_pages: freshPages.length,
+      new_pages_count: newPagesFound.length,
+      new_pages: newPagesFound,
+      updated_pages_count: updatedPagesCount
+    });
+  } catch (err) {
+    console.error(`[Sync Token Source Pages Error ${req.params.id}]:`, err);
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/token-sources/sync-all-pages', async (req, res) => {
+  try {
+    const sources = getAllTokenSources();
+    let totalNewPages = 0;
+    let totalUpdatedPages = 0;
+    const results = [];
+
+    for (const source of sources) {
+      const token = source.long_lived_token || source.user_token;
+      if (!token) continue;
+      try {
+        const fetchResult = await fetchPagesFromToken({
+          token: token.trim(),
+          app_id: source.app_id || '',
+          app_secret: source.app_secret || ''
+        });
+
+        const freshPages = fetchResult.pages || [];
+        const existingPages = db.prepare('SELECT * FROM pages WHERE token_source_id = ?').all(source.id);
+        const existingPageIds = new Set(existingPages.map(p => p.page_id));
+        let accountNewCount = 0;
+
+        for (const p of freshPages) {
+          if (!existingPageIds.has(p.page_id)) {
+            let subscribedAt = '';
+            try {
+              await subscribePageWebhook(p.page_id, p.access_token);
+              subscribedAt = new Date().toISOString();
+            } catch (e) {}
+
+            saveOrUpdatePage({
+              page_id: p.page_id,
+              name: p.name,
+              access_token: p.access_token,
+              user_id: 1,
+              account_label: source.name,
+              color_tag: '#3b82f6',
+              token_status: 'VALID',
+              avatar_url: p.avatar_url || '',
+              subscribed_at: subscribedAt,
+              token_source_id: source.id,
+              is_permanent: p.is_permanent ? 1 : (fetchResult.isPermanent ? 1 : 0)
+            });
+            accountNewCount++;
+            totalNewPages++;
+          } else {
+            const ep = existingPages.find(item => item.page_id === p.page_id);
+            saveOrUpdatePage({
+              ...ep,
+              name: p.name || ep.name,
+              access_token: p.access_token,
+              avatar_url: p.avatar_url || ep.avatar_url,
+              token_status: 'VALID',
+              is_permanent: p.is_permanent ? 1 : (fetchResult.isPermanent ? 1 : 0)
+            });
+            totalUpdatedPages++;
+          }
+        }
+
+        saveOrUpdateTokenSource({
+          ...source,
+          pages_count: freshPages.length
+        });
+
+        results.push({
+          source_id: source.id,
+          name: source.name,
+          new_count: accountNewCount,
+          total: freshPages.length
+        });
+      } catch (err) {
+        console.warn(`[Sync All Warning] Tài khoản ${source.name}: ${err.message}`);
+      }
+    }
+
+    res.json({
+      ok: true,
+      total_sources_scanned: sources.length,
+      total_new_pages: totalNewPages,
+      total_updated_pages: totalUpdatedPages,
+      results
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // -------------------------------------------------------------
 // Facebook OAuth 2.0 Multi-Account Authentication
 // -------------------------------------------------------------

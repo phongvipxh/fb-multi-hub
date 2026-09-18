@@ -581,6 +581,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Generic close buttons for any modal with data-modal attribute
+  document.querySelectorAll('[data-modal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetModal = btn.dataset.modal;
+      if (targetModal) closeModal(targetModal);
+    });
+  });
+
   // Global Lightbox & Media Dialog Function (Image with Zoom & Video)
   let lightboxZoomLevel = 1.0;
 
@@ -2916,6 +2924,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // -------------------------------------------------------------
+  // Account Pages Synchronization Engine (Quét Fanpage Mới)
+  // -------------------------------------------------------------
+  async function syncTokenSourcePages(sourceId, sourceName, btn) {
+    const origHtml = btn ? btn.innerHTML : '';
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spin-icon" style="display:inline-block;animation:spin 1s linear infinite;">🔄</span> Đang quét...';
+      }
+      showToast(`Đang quét Fanpage mới từ Facebook cho "${sourceName}"...`, 'info');
+
+      const res = await fetch(`/api/token-sources/${sourceId}/sync-pages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        if (data.new_pages_count > 0) {
+          showToast(`🎉 Đã tìm thấy và cập nhật ${data.new_pages_count} Fanpage mới từ "${sourceName}"!`, 'success');
+          await loadTokenSources();
+          await loadPages();
+          setTimeout(() => {
+            openManageAccountPagesModal(Number(sourceId));
+          }, 400);
+        } else {
+          showToast(`✅ Toàn bộ ${data.total_pages} Fanpage của "${sourceName}" đã là mới nhất!`, 'success');
+          await loadTokenSources();
+          await loadPages();
+        }
+      } else {
+        showToast('Lỗi khi cập nhật trang: ' + (data.error || 'Thao tác thất bại'), 'error');
+      }
+    } catch (err) {
+      showToast('Lỗi kết nối khi cập nhật trang: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+  }
+
+  async function syncAllTokenSourcesPages() {
+    const btn = document.getElementById('btnSyncAllAccountsPages');
+    const origHtml = btn ? btn.innerHTML : '';
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spin-icon" style="display:inline-block;animation:spin 1s linear infinite;">🔄</span> Đang quét tất cả...';
+      }
+      showToast('Đang quét cập nhật Fanpage mới cho toàn bộ các tài khoản Facebook...', 'info');
+
+      const res = await fetch('/api/token-sources/sync-all-pages', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.ok) {
+        if (data.total_new_pages > 0) {
+          showToast(`🎉 Quét hoàn tất! Đã tìm thấy ${data.total_new_pages} Fanpage mới trên các tài khoản.`, 'success');
+        } else {
+          showToast(`✅ Toàn bộ ${data.total_sources_scanned} tài khoản Facebook đã được đồng bộ mới nhất.`, 'success');
+        }
+        await loadTokenSources();
+        await loadPages();
+      } else {
+        showToast('Lỗi khi quét toàn bộ trang: ' + (data.error || 'Thất bại'), 'error');
+      }
+    } catch (err) {
+      showToast('Lỗi kết nối khi quét trang: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+  }
+
   function renderPagesGrid() {
     const grid = document.getElementById('pagesGrid');
     if (!grid) return;
@@ -2931,22 +3017,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const elActive = document.getElementById('countFilterActive');
     const elInactive = document.getElementById('countFilterInactive');
     const elStatsBadge = document.getElementById('pagesOverviewStatsBadge');
+    const elAccountsBadge = document.getElementById('accountsOverviewCountBadge');
 
     if (elAll) elAll.textContent = countAll;
     if (elActive) elActive.textContent = countActive;
     if (elInactive) elInactive.textContent = countInactive;
     if (elStatsBadge) elStatsBadge.textContent = `${countActive} / ${countAll} Đang Quản Lý`;
-
-    if (allPages.length === 0) {
-      grid.innerHTML = `
-        <div class="empty-state-sidebar" style="grid-column: 1 / -1; padding: 48px; text-align: center;">
-          <div class="empty-icon">📄</div>
-          <h3 style="margin: 8px 0 4px 0; color: #f1f5f9;">Chưa kết nối Fanpage nào</h3>
-          <p style="color: var(--text-muted); font-size: 13px;">Bấm nút "➕ Thêm Tài Khoản Mới" ở trên để kết nối Facebook và tự động nạp Fanpage.</p>
-        </div>
-      `;
-      return;
-    }
+    if (elAccountsBadge) elAccountsBadge.textContent = `${(savedTokenSourcesCache || []).length} Tài Khoản`;
 
     // Group pages by Facebook Account (token_source_id)
     const accountGroups = [];
@@ -2961,12 +3038,13 @@ document.addEventListener('DOMContentLoaded', () => {
         fb_user_id: ts.fb_user_id || '',
         avatar_url: ts.avatar_url || '',
         app_id: ts.app_id || '',
+        token_status: ts.token_status || 'VALID',
         is_permanent: ts.is_permanent,
         pages: pagesForTs
       });
     });
 
-    // Unassigned / standalone pages
+    // Standalone / unassigned pages (token_source_id === 0 or not in savedTokenSourcesCache)
     const unassignedPages = allPages.filter(p => !p.token_source_id || !knownSourceIds.has(p.token_source_id));
     if (unassignedPages.length > 0) {
       accountGroups.push({
@@ -2975,9 +3053,26 @@ document.addEventListener('DOMContentLoaded', () => {
         fb_user_id: '',
         avatar_url: '',
         app_id: '',
+        token_status: 'VALID',
         is_permanent: 0,
         pages: unassignedPages
       });
+    }
+
+    if (accountGroups.length === 0 && allPages.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state-sidebar" style="grid-column: 1 / -1; padding: 56px 24px; text-align: center; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px;">
+          <div class="empty-icon" style="font-size: 48px; margin-bottom: 12px;">👥</div>
+          <h3 style="margin: 0 0 6px 0; color: #f1f5f9; font-size: 19px;">Chưa Có Tài Khoản Facebook Nào Được Kết Nối</h3>
+          <p style="color: var(--text-muted); font-size: 13.5px; max-width: 520px; margin: 0 auto 22px auto; line-height: 1.6;">
+            Hãy bấm nút bên dưới để kết nối tài khoản Facebook (Đăng nhập 1-Click hoặc dán Token). Tool sẽ tự động nhận diện tất cả Fanpage và cho phép bạn bật / tắt quản lý cho từng trang.
+          </p>
+          <button type="button" class="btn btn-primary" onclick="openFacebookLoginSequentialModal()" style="padding: 11px 26px; font-weight: 700; font-size: 14.5px; gap: 8px; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.45);">
+            <span>➕</span> Kết Nối Tài Khoản Facebook Mới
+          </button>
+        </div>
+      `;
+      return;
     }
 
     // Filter each group's pages by status and search query
@@ -3003,13 +3098,19 @@ document.addEventListener('DOMContentLoaded', () => {
         ...group,
         filteredPages
       };
-    }).filter(g => g.filteredPages.length > 0);
+    }).filter(g => {
+      // If filtering or searching, only show groups that match
+      if (currentPageSearchQuery || currentPageStatusFilter !== 'all') {
+        return g.filteredPages.length > 0;
+      }
+      return true;
+    });
 
     if (filteredGroups.length === 0) {
       grid.innerHTML = `
-        <div class="empty-state-sidebar" style="grid-column: 1 / -1; padding: 40px 20px; text-align: center;">
+        <div class="empty-state-sidebar" style="grid-column: 1 / -1; padding: 48px 20px; text-align: center;">
           <div class="empty-icon">${currentPageStatusFilter === 'inactive' ? '⏸️' : '🔍'}</div>
-          <h4 style="margin: 8px 0 4px 0; color: #f1f5f9;">Không tìm thấy Fanpage phù hợp</h4>
+          <h4 style="margin: 8px 0 4px 0; color: #f1f5f9; font-size: 16px;">Không tìm thấy Fanpage phù hợp</h4>
           <p style="color: var(--text-muted); font-size: 13px;">${
             currentPageStatusFilter === 'inactive'
               ? 'Tất cả các Fanpage đều đang ở chế độ Đang Quản Lý (Active).'
@@ -3028,7 +3129,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const avatarHtml = group.avatar_url
         ? `<img src="${escapeHtml(group.avatar_url)}" class="account-group-avatar" alt="${escapeHtml(group.name)}">`
-        : `<div class="account-group-avatar" style="display:flex;align-items:center;justify-content:center;font-weight:700;color:#60a5fa;font-size:18px;">${escapeHtml(group.name).charAt(0)}</div>`;
+        : `<div class="account-group-avatar" style="display:flex;align-items:center;justify-content:center;font-weight:700;color:#60a5fa;font-size:18px;">${escapeHtml(group.name).charAt(0).toUpperCase()}</div>`;
 
       return `
         <div class="account-group-card" data-account-id="${group.id}">
@@ -3039,12 +3140,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="account-group-name-row">
                   <h4 class="account-group-name">${escapeHtml(group.name)}</h4>
                   <span class="badge-account-type">${group.id > 0 ? 'Facebook Account' : 'Độc Lập'}</span>
+                  ${group.is_permanent === 1 ? '<span class="token-source-badge-permanent" style="font-size: 10px; padding: 1px 6px;">🛡️ Token Vĩnh Viễn</span>' : ''}
                 </div>
                 <div class="account-group-sub">
-                  ${group.fb_user_id ? `<span>User ID: <code style="color:#cbd5e1;font-size:11px;">${group.fb_user_id}</code></span>` : ''}
-                  ${group.app_id ? `<span>• App ID: <code style="color:#cbd5e1;font-size:11px;">${group.app_id}</code></span>` : ''}
+                  ${group.fb_user_id ? `<span>User ID: <code style="color:#cbd5e1;font-size:11px;background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">${group.fb_user_id}</code></span>` : ''}
+                  ${group.app_id ? `<span>• Cổng App: <code style="color:#cbd5e1;font-size:11px;background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;">${group.app_id}</code></span>` : ''}
                   <span class="account-group-stats">
-                    ${isAllActive ? '🟢 Tất cả Đang Quản Lý' : (isNoneActive ? '⏸️ Tạm Dừng Tất Cả' : `🟢 ${activeCount} / ${totalCount} Đang Quản Lý`)}
+                    ${totalCount === 0 ? 'Chưa có Fanpage' : (isAllActive ? '🟢 Tất cả Đang Quản Lý' : (isNoneActive ? '⏸️ Tạm Dừng Tất Cả' : `🟢 ${activeCount} / ${totalCount} Đang Quản Lý`))}
                   </span>
                 </div>
               </div>
@@ -3052,21 +3154,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ${group.id > 0 ? `
               <div class="account-group-actions">
+                <button type="button" class="btn btn-xs btn-primary btn-sync-account-pages" data-id="${group.id}" data-name="${escapeHtml(group.name)}" title="Quét và cập nhật các Fanpage mới tạo hoặc mới được cấp quyền trên Facebook" style="font-weight: 700; gap: 5px; box-shadow: 0 2px 10px rgba(59, 130, 246, 0.35);">
+                  <span>🔄</span> Cập Nhật Trang Mới
+                </button>
                 <button type="button" class="btn btn-xs btn-secondary btn-account-toggle-all" data-id="${group.id}" data-action="enable" title="Bật quản lý tất cả các trang thuộc tài khoản này">
                   <span>☑️</span> Bật Tất Cả
                 </button>
                 <button type="button" class="btn btn-xs btn-secondary btn-account-toggle-all" data-id="${group.id}" data-action="disable" title="Tắt quản lý (Tạm dừng) tất cả các trang thuộc tài khoản này">
                   <span>⬜</span> Tắt Tất Cả
                 </button>
-                <button type="button" class="btn btn-xs btn-primary btn-select-account-pages" data-id="${group.id}" title="Tích chọn những trang cụ thể muốn quản lý">
+                <button type="button" class="btn btn-xs btn-secondary btn-select-account-pages" data-id="${group.id}" title="Tích chọn những trang cụ thể muốn quản lý">
                   <span>📋</span> Chọn Lọc Page
+                </button>
+                <button type="button" class="btn btn-xs btn-secondary btn-hub-reauth" data-id="${group.id}" data-appid="${escapeHtml(group.app_id || '')}" data-name="${escapeHtml(group.name)}" title="Đăng nhập lại / gia hạn Token cho tài khoản này">
+                  <span>🔄</span> Đăng Nhập Lại
+                </button>
+                <button type="button" class="btn btn-xs btn-secondary btn-hub-edit" data-id="${group.id}" title="Cấu hình App ID &amp; Secret cho tài khoản này">
+                  <span>⚙️</span> Sửa App
+                </button>
+                <button type="button" class="btn btn-xs btn-danger btn-hub-delete" data-id="${group.id}" data-name="${escapeHtml(group.name)}" title="Ngắt kết nối tài khoản này">
+                  <span>🗑️</span>
                 </button>
               </div>
             ` : ''}
           </div>
 
-          <div class="account-group-pages-grid">
-            ${group.filteredPages.map(p => {
+          <div class="account-group-pages-grid" style="${group.filteredPages.length === 0 ? 'display:block;' : ''}">
+            ${group.filteredPages.length === 0 ? `
+              <div class="empty-state-sidebar" style="padding: 26px 16px; text-align: center; background: rgba(15, 23, 42, 0.4); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
+                <div style="font-size: 28px; margin-bottom: 6px;">📄</div>
+                <strong style="color: #cbd5e1; font-size: 13.5px;">Chưa có Fanpage nào được nạp cho tài khoản "${escapeHtml(group.name)}".</strong>
+                <p style="color: var(--text-muted); font-size: 12px; margin: 4px 0 12px 0;">Bấm nút "Cập Nhật Trang Mới" để hệ thống tự động quét toàn bộ các trang bạn đang quản trị trên Facebook!</p>
+                <button type="button" class="btn btn-sm btn-primary btn-sync-account-pages" data-id="${group.id}" data-name="${escapeHtml(group.name)}" style="font-weight: 700; gap: 6px;">
+                  <span>🔄</span> Cập Nhật Trang Mới Ngay
+                </button>
+              </div>
+            ` : group.filteredPages.map(p => {
               const isActive = p.is_active === 1;
               const isValid = p.token_status === 'VALID';
               const isPerm = p.is_permanent === 1;
@@ -3190,6 +3313,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
+    // Wire Sync Account Pages (Cập Nhật Trang Mới của 1 tài khoản)
+    grid.querySelectorAll('.btn-sync-account-pages').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sourceId = btn.dataset.id;
+        const sourceName = btn.dataset.name || 'Tài khoản Facebook';
+        await syncTokenSourcePages(sourceId, sourceName, btn);
+      });
+    });
+
     // Wire Account Toggle All (Bật Tất Cả / Tắt Tất Cả)
     grid.querySelectorAll('.btn-account-toggle-all').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -3231,7 +3363,56 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Wire token inspection, shifts, webhook, delete buttons
+    // Wire Account Hub: Reauth button
+    grid.querySelectorAll('.btn-hub-reauth').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const accId = btn.dataset.id;
+        const appId = btn.dataset.appid || '';
+        const accName = btn.dataset.name || '';
+        const width = 650;
+        const height = 750;
+        const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+        const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+        const popupUrl = `/auth/facebook?popup=1&reauth=1&account_id=${encodeURIComponent(accId)}&app_id=${encodeURIComponent(appId)}&account_name=${encodeURIComponent(accName)}`;
+        const popup = window.open(popupUrl, 'fb_oauth_popup', `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,resizable=yes`);
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+          window.location.href = popupUrl.replace('popup=1&', '');
+        }
+      });
+    });
+
+    // Wire Account Hub: Edit App button
+    grid.querySelectorAll('.btn-hub-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openEditAccountAppModal(Number(btn.dataset.id));
+      });
+    });
+
+    // Wire Account Hub: Delete account button
+    grid.querySelectorAll('.btn-hub-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const accId = btn.dataset.id;
+        const accName = btn.dataset.name || 'tài khoản này';
+        if (!confirm(`Bạn có chắc chắn muốn ngắt kết nối tài khoản Facebook "${accName}"?\n(Các Fanpage đã kết nối vẫn được bảo toàn dữ liệu)`)) {
+          return;
+        }
+        try {
+          const res = await fetch(`/api/token-sources/${accId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.ok) {
+            showToast(`Đã ngắt kết nối tài khoản "${accName}" thành công!`, 'success');
+            loadTokenSources();
+            loadPages();
+          } else {
+            showToast('Lỗi khi xóa tài khoản: ' + data.error, 'error');
+          }
+        } catch (err) {
+          showToast('Lỗi mạng: ' + err.message, 'error');
+        }
+      });
+    });
+
+    // Wire token inspection, shifts, webhook, delete buttons for pages
     grid.querySelectorAll('.btn-inspect-token').forEach(btn => {
       btn.addEventListener('click', () => {
         openTokenInspectModal(btn.dataset.pageId);
@@ -6713,6 +6894,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Event wiring for Fanpage Filter Bar & Account Pages Modal
   // -------------------------------------------------------------
   function initFanpageFiltersAndAccountModalEvents() {
+    // 0. Top Workspace: Sync all accounts pages
+    document.getElementById('btnSyncAllAccountsPages')?.addEventListener('click', () => {
+      syncAllTokenSourcesPages();
+    });
+
     // 1. Status filter buttons (Tất cả / Đang Quản Lý / Tạm Dừng)
     document.querySelectorAll('.page-filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {

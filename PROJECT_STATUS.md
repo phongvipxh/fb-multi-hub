@@ -87,23 +87,28 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Công tắc gạt Toggle Switch hiện đại (Fluent/iOS style): Bật (`🟢 Đang Bật` neon xanh) / Tắt (`⚪ Đã Tắt` xám) trực tiếp trên từng trang kèm animation trượt mượt mà.
   - Tự động mở Modal tích chọn Fanpage ngay khi đăng nhập tài khoản mới (cả OAuth 1-Click và dán Token Cách B), cho phép người dùng chọn nhanh các trang muốn enable trước khi bắt đầu vận hành.
   - Khóa chặt 3 tầng bảo vệ chống réo chuông cho các Fanpage tạm dừng (Database SQL, Server Webhook Engine, UI Banner).
+- Account Hub Workspace & Dynamic Fanpage Synchronization:
+  - Nút "Cập Nhật Trang Mới" (Sync Pages) cho từng tài khoản: Quét trực tiếp Meta Graph API `/me/accounts`, nạp các Fanpage mới được cấp quyền Admin, tự động cấp token vĩnh viễn, subscribe webhook và mở modal chọn trang.
+  - Nút "Cập Nhật Trang Mới (Tất Cả)" trên Workspace Toolbar: Đồng bộ toàn bộ các tài khoản đang kết nối chỉ với 1 click.
+  - Tái cấu trúc giao diện View 2: Xóa bỏ bảng table trùng lặp, thống nhất thành các Thẻ Hub Tài Khoản Facebook độc lập, phân cấp trực quan và thẩm mỹ.
+  - Hỗ trợ đóng mở modal linh hoạt với generic `[data-modal]` handler và phím Esc.
 - Layout Balance & Visual Alignment Stabilization:
   - Header trên cùng chuẩn hóa `flex-wrap: nowrap`, thu gọn badge tunnel chống vỡ dòng và đè chữ.
   - Lưới card Fanpage `.pages-grid` cân đối với `minmax(360px, 1fr)`, không bị méo lệch khi có ít card.
   - Đồng bộ nút bấm hành động `🗑️ Xóa` thành outline danger có icon, padding và chiều cao đồng nhất với các nút khác.
 - Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
-  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.05 MB).
+  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.06 MB).
   - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh.
 
 ## 4. Repository & Deployment
 - GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub`
 - Current Branch: `main`
-- Verification: 25/25 Test Suites Passed (Exit Code 0)
-- Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe` (48.05 MB)
+- Verification: 26/26 Test Suites Passed (Exit Code 0)
+- Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe` (48.06 MB)
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
-- 25 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, and Account-Grouped Fanpages with Toggle-All operations.
+- 26 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, Account-Grouped Fanpages with Toggle-All operations, and Fanpage Synchronization (Sync Pages / Sync All).
 - Last Status: 100% Pass — Mechanical Exit Code 0.
 
 
