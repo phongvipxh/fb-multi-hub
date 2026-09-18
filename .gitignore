@@ -31,6 +31,10 @@ bin/*.tar.gz
 bin/node/
 bin/node_temp/
 !bin/.gitkeep
+dist/
+*.exe
+temp_payload.zip
+_runtime/
 
 # Logs & Temporary Files
 *.log

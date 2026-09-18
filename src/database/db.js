@@ -1090,8 +1090,12 @@ const getConversations = ({ userId = null, pageId = null, search = '', unreplied
     params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
   }
 
-  query += ` ORDER BY c.last_message_time DESC LIMIT ?`;
-  params.push(limit);
+  if (limit && Number(limit) > 0) {
+    query += ` ORDER BY c.last_message_time DESC LIMIT ?`;
+    params.push(Number(limit));
+  } else {
+    query += ` ORDER BY c.last_message_time DESC`;
+  }
 
   const rows = db.prepare(query).all(...params);
   return rows.map(r => {
@@ -1116,12 +1120,19 @@ const getConversation = (pageId, senderId) => {
   return c;
 };
 
-const getConversationMessages = (pageId, senderId, limit = 100) => {
+const getConversationMessages = (pageId, senderId, limit = null) => {
+  if (limit && Number(limit) > 0) {
+    return db.prepare(`
+      SELECT * FROM messages
+      WHERE page_id = ? AND sender_id = ?
+      ORDER BY timestamp ASC, id ASC LIMIT ?
+    `).all(pageId, senderId, Number(limit));
+  }
   return db.prepare(`
     SELECT * FROM messages
     WHERE page_id = ? AND sender_id = ?
-    ORDER BY timestamp ASC, id ASC LIMIT ?
-  `).all(pageId, senderId, limit);
+    ORDER BY timestamp ASC, id ASC
+  `).all(pageId, senderId);
 };
 
 const getRecentMessages = (limit = 50, pageId = null, userId = null) => {

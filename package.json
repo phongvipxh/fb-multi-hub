@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node test/system.test.js"
+    "test": "node test/system.test.js",
+    "build:exe": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe /nologo /target:exe /out:FB-Multi-Hub.exe /platform:anycpu src\\launcher\\Launcher.cs",
+    "build:standalone": "powershell -ExecutionPolicy Bypass -File scripts/build_standalone_exe.ps1"
   },
   "keywords": [
     "facebook",

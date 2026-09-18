@@ -1007,6 +1007,8 @@ html, body {
   font-size: 13px;
   line-height: 1.5;
   word-break: break-word;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
 }
 
 .chat-bubble-incoming {

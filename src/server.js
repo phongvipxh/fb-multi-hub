@@ -1097,7 +1097,8 @@ app.post('/api/conversations/sync', async (req, res) => {
 app.get('/api/conversations/:pageId/:senderId/messages', (req, res) => {
   try {
     const { pageId, senderId } = req.params;
-    const messages = getConversationMessages(pageId, senderId, 100);
+    const limit = req.query.limit ? Number(req.query.limit) : null;
+    const messages = getConversationMessages(pageId, senderId, limit);
     res.json({ ok: true, messages });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
