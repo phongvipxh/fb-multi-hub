@@ -1771,216 +1771,223 @@
           </div>
         </div>
 
-        <!-- SECTION 2: ADD OR CONFIGURE ACCOUNT & APP CREDENTIALS -->
+        <!-- SECTION 2: CONNECT NEW ACCOUNT (LOGIN FIRST OR TOKEN IDENTIFY) -->
         <div id="connectNewAccountSection" class="sequential-step-card" style="background: rgba(15, 23, 42, 0.7); border: 1.5px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="background: #3b82f6; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">1</span>
+              <span style="background: #3b82f6; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">➕</span>
               <div>
-                <strong style="color: #60a5fa; font-size: 14px;" id="seqFormSectionTitle">BƯỚC 1: Cấu Hình App ID &amp; Secret Cho Tài Khoản</strong>
-                <div style="font-size: 11px; color: var(--text-muted);">Mỗi tài khoản có thể dùng App riêng hoặc dùng chung 1 App qua phân quyền Roles</div>
+                <strong style="color: #60a5fa; font-size: 14px;" id="seqFormSectionTitle">Kết Nối Tài Khoản Facebook Mới</strong>
+                <div style="font-size: 11.5px; color: var(--text-muted);">Đăng nhập nhận diện tên tài khoản trước &bull; Tùy chọn gán App ID &amp; Secret riêng</div>
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <button type="button" id="btnToggleSeqGuide" class="btn btn-xs btn-secondary" style="font-size: 11px; padding: 3px 8px; gap: 4px; color: #93c5fd; border-color: rgba(96, 165, 250, 0.3);">
-                <span>📖</span> <span id="toggleSeqGuideText">Hiện Hướng Dẫn Chi Tiết</span>
-              </button>
-              <span id="fbAppConfigStatusBadge" class="badge-tag" style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 11px;">⚠️ Chưa cấu hình</span>
-            </div>
+            <span id="fbAppConfigStatusBadge" class="badge-tag" style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 11px;">⚠️ Chưa cấu hình</span>
           </div>
 
-          <!-- Quick App Reuse Selector if multiple accounts exist -->
-          <div id="reuseAppConfigRow" style="display: none; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <span style="font-size: 12px; color: #cbd5e1; white-space: nowrap;">⚡ Dùng nhanh App từ tài khoản đã có:</span>
-            <select id="selectSavedAppReuse" class="form-control form-control-sm" style="flex: 1; min-width: 220px; font-size: 12px;">
-              <option value="">-- Tự nhập App ID &amp; Secret mới --</option>
-            </select>
-          </div>
-
-          <!-- DETAILED STEP-BY-STEP GUIDE ACCORDION / BOX (Mặc định ẩn) -->
-          <div id="seqGuideContainer" style="display: none; background: rgba(10, 16, 30, 0.85); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.07);">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="color: #60a5fa; font-size: 14px;">📘</span>
-                <strong style="color: #93c5fd; font-size: 12.5px;">Hướng Dẫn Chi Tiết: Từ Tạo App Đến Cài Đặt Ứng Dụng &gt; Thông Tin Cơ Bản</strong>
-              </div>
-              <span style="color: var(--text-muted); font-size: 11px;">Miễn phí &bull; Làm 1 lần dùng mãi mãi</span>
+          <!-- OPTION A: 1-CLICK OAUTH LOGIN (RECOMMENDED) -->
+          <div style="background: rgba(24, 119, 242, 0.09); border: 1.5px solid rgba(24, 119, 242, 0.35); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+              <strong style="color: #60a5fa; font-size: 13.5px;">Cách 1: Đăng Nhập Facebook Trực Tiếp (1-Click)</strong>
+              <span class="badge-tag" style="background: #1877f2; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px;">ƯU TIÊN • NHẬN DIỆN TÊN TỰ ĐỘNG</span>
             </div>
-
-            <!-- 4 Visual Sequential Steps -->
-            <div style="display: flex; flex-direction: column; gap: 9px; font-size: 12px; color: var(--text-secondary); line-height: 1.55;">
-              
-              <!-- Sub-step 1: Create App -->
-              <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #3b82f6;">
-                <span style="background: #3b82f6; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">1</span>
-                <div>
-                  <strong style="color: #f1f5f9;">Tạo ứng dụng Meta:</strong>
-                  Truy cập cổng Meta Developer: <a href="https://developers.facebook.com/apps" target="_blank" style="color: #60a5fa; text-decoration: underline; font-weight: 600;">developers.facebook.com/apps ↗</a>. Bấm nút màu xanh <strong>"Tạo ứng dụng" (Create App)</strong> &rarr; Chọn loại ứng dụng <strong>"Doanh nghiệp" (Business)</strong> hoặc <strong>"Khác" (Other)</strong> &rarr; Bấm Tiếp tục &rarr; Đặt tên ứng dụng (VD: <code>FB Multi Hub</code>), nhập email &rarr; Bấm <strong>Tạo ứng dụng</strong>.
-                </div>
-              </div>
-
-              <!-- Sub-step 2: Navigate to App Settings > Basic -->
-              <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f59e0b;">
-                <span style="background: #f59e0b; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">2</span>
-                <div>
-                  <strong style="color: #f1f5f9;">Vào mục Cài đặt ứng dụng &gt; Thông tin cơ bản:</strong>
-                  Sau khi tạo xong, nhìn sang thanh menu bên trái của màn hình quản lý App:
-                  <br>&bull; Bấm vào menu <code style="background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; color: #fbbf24; font-weight: 600;">Cài đặt ứng dụng (App Settings)</code>
-                  <br>&bull; Chọn dòng <code style="background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; color: #fbbf24; font-weight: 600;">Thông tin cơ bản (Basic)</code>
-                </div>
-              </div>
-
-              <!-- Sub-step 3: Copy App ID & Secret -->
-              <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #10b981;">
-                <span style="background: #10b981; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">3</span>
-                <div>
-                  <strong style="color: #f1f5f9;">Xem &amp; Sao chép App ID và App Secret:</strong>
-                  Tại giao diện <em>Thông tin cơ bản</em>:
-                  <ul style="margin: 4px 0 0 16px; padding: 0;">
-                    <li><strong>ID ứng dụng (App ID)</strong>: Là chuỗi số dài hiển thị ngay ở ô đầu tiên &rarr; Sao chép dán vào ô <em>App ID</em> bên dưới.</li>
-                    <li><strong>Khóa bí mật của ứng dụng (App Secret)</strong>: Nằm ngay cạnh ô App ID &rarr; Bấm nút <strong>"Hiển thị" (Show)</strong> &rarr; Nhập mật khẩu Facebook cá nhân của bạn để xác thực &rarr; Sao chép chuỗi mã bí mật dài 32 ký tự dán vào ô <em>App Secret</em> bên dưới.</li>
-                  </ul>
-                </div>
-              </div>
-
-              <!-- Sub-step 4: Redirect URI -->
-              <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #8b5cf6;">
-                <span style="background: #8b5cf6; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">4</span>
-                <div>
-                  <strong style="color: #f1f5f9;">Thêm Redirect URI (Cấp quyền chuyển hướng đăng nhập):</strong>
-                  Tại menu bên trái, tìm mục <strong>Facebook Login for Business</strong> (hoặc bấm <em>Thêm sản phẩm / Thêm trường hợp sử dụng</em> &gt; chọn <em>Đăng nhập Facebook</em>) &rarr; chọn <strong>Cài đặt (Settings)</strong> &rarr; Dán link callback ở mục bên dưới vào ô <em>Valid OAuth Redirect URIs</em> &rarr; Bấm <strong>Lưu thay đổi (Save changes)</strong>.
-                </div>
-              </div>
-
-            </div>
-
-            <!-- MULTI-ACCOUNT GUIDANCE -->
-            <div style="margin-top: 12px; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 7px; padding: 12px;">
-              <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 8px;">
-                <span style="font-size: 15px;">👥</span>
-                <strong style="color: #60a5fa; font-size: 12.5px;">HƯỚNG DẪN DÀNH CHO MỖI TÀI KHOẢN FACEBOOK KHÁC NHAU:</strong>
-              </div>
-
-              <!-- Option 1: 1 App for Multiple Accounts -->
-              <div style="margin-bottom: 9px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 8px 10px; border-radius: 0 6px 6px 0;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 4px;">
-                  <strong style="color: #34d399; font-size: 12px;">💡 Cách 1 (Khuyên Dùng Nhất): Dùng 1 App duy nhất cho Tất Cả Tài Khoản FB</strong>
-                  <span class="badge-tag" style="background: #10b981; color: #fff; font-size: 9px; padding: 2px 6px;">Nhanh Nhất &bull; Tiện Nhất</span>
-                </div>
-                <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.55;">
-                  Bạn <strong>KHÔNG CẦN</strong> phải tạo nhiều App cho mỗi nick! Chỉ cần tạo 1 App duy nhất ở Bước 1 này, sau đó phân quyền cho các nick khác cùng dùng:
-                  <ol style="margin: 4px 0 0 16px; padding: 0;">
-                    <li>Trên trang quản trị App &rarr; Nhìn menu bên trái chọn <strong>Vai trò (App roles)</strong> &rarr; chọn <strong>Vai trò (Roles)</strong>.</li>
-                    <li>Bấm nút <strong>"Thêm nhà phát triển" (Add Developers)</strong> hoặc <strong>"Thêm người thử nghiệm" (Add Testers)</strong>.</li>
-                    <li>Nhập tên Facebook, email hoặc username của các nick Facebook khác &rarr; Bấm Xác nhận.</li>
-                    <li>Đăng nhập các nick FB kia vào <a href="https://developers.facebook.com" target="_blank" style="color: #60a5fa; text-decoration: underline;">developers.facebook.com ↗</a> bấm <strong>Chấp nhận lời mời</strong>.</li>
-                    <li>Hoàn tất! Giờ đây bất cứ nick Facebook nào cũng có thể bấm <strong>"🔵 Đăng Nhập Facebook Ngay"</strong> trên Tool với cùng 1 App ID này mà không cần tạo App mới!</li>
-                  </ol>
-                </div>
-              </div>
-
-              <!-- Option 2: Separate App for Each Account -->
-              <div style="background: rgba(255, 255, 255, 0.03); border-left: 3px solid #64748b; padding: 8px 10px; border-radius: 0 6px 6px 0;">
-                <div style="margin-bottom: 3px;">
-                  <strong style="color: #e2e8f0; font-size: 12px;">⚙️ Cách 2: Mỗi tài khoản Facebook tự tạo 1 App riêng biệt</strong>
-                </div>
-                <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.55;">
-                  Nếu bạn muốn tách biệt hoàn toàn giữa các tài khoản Facebook cá nhân / tài khoản doanh nghiệp:
-                  <ul style="margin: 4px 0 0 16px; padding: 0;">
-                    <li>Mỗi nick Facebook truy cập <a href="https://developers.facebook.com/apps" target="_blank" style="color: #60a5fa; text-decoration: underline;">developers.facebook.com/apps ↗</a> và tự tạo 1 App riêng theo 4 bước ở trên.</li>
-                    <li>Vào mục <strong>Cài đặt ứng dụng &gt; Thông tin cơ bản</strong> của App đó để lấy App ID &amp; App Secret riêng của tài khoản đó.</li>
-                    <li>Khi muốn kết nối Fanpage của tài khoản nào, bạn chỉ cần nhập App ID &amp; Secret của nick đó vào Bước 1 này rồi bấm Đăng Nhập. Tool sẽ tự động kết nối và phân loại các Fanpage theo đúng nguồn tài khoản!</li>
-                  </ul>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          <!-- Account Label (Optional Note) -->
-          <div class="form-group" style="margin-bottom: 8px;">
-            <label style="font-weight: 600; font-size: 12px;">Tên Gợi Nhớ Nick Facebook (Tùy chọn):</label>
-            <input type="text" id="seqAccountLabelInput" class="form-control" placeholder="Ví dụ: Nick Bán Hàng 1, Nick Quản Lý Ca Sáng... (bỏ trống sẽ tự lấy tên FB)">
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label style="font-weight: 600; font-size: 12px;">App ID (Mã ứng dụng Meta):</label>
-              <input type="text" id="seqFbAppIdInput" class="form-control" placeholder="Ví dụ: 2361682801028889">
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label style="font-weight: 600; font-size: 12px; display: flex; justify-content: space-between;">
-                <span>App Secret (Khóa bí mật):</span>
-                <a href="#" id="btnToggleAppSecretSeq" style="color: #60a5fa; font-size: 11px; text-decoration: none;">Hiện mã</a>
-              </label>
-              <input type="password" id="seqFbAppSecretInput" class="form-control" placeholder="Chuỗi mã bí mật (e8fe1eea...)">
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button type="button" id="btnSaveSeqFbAppConfig" class="btn btn-sm btn-primary" style="gap: 6px; font-weight: 600; padding: 6px 14px;">
-                <span>💾</span> Lưu Cấu Hình Cho Tài Khoản Này
-              </button>
-              <button type="button" id="btnResetSeqForm" class="btn btn-sm btn-secondary" style="gap: 4px; display: none; font-size: 11.5px;">
-                <span>✕</span> Đặt lại form
-              </button>
-            </div>
-            <span id="seqAppSaveResultMsg" style="font-size: 11.5px; color: #34d399; font-weight: 500; display: none;"></span>
-          </div>
-
-          <!-- OAuth Redirect URIs Collapsible / Helper -->
-          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 8px 12px; font-size: 11.5px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-              <span style="color: var(--text-muted);">🔗 Valid OAuth Redirect URI (Dán vào App FB &gt; Facebook Login for Business &gt; Settings):</span>
-              <button type="button" id="btnCopySeqRedirectUri" class="btn btn-xs btn-secondary" style="gap: 4px;">
-                📋 Sao chép link callback
-              </button>
-            </div>
-            <code id="seqRedirectUriText" style="display: block; color: #34d399; font-size: 11px; margin-top: 4px; word-break: break-all;">http://localhost:3000/auth/facebook/callback</code>
-          </div>
-        </div>
-
-        <!-- SECTION 3: EXECUTE LOGIN OR TOKEN SCAN -->
-        <div class="sequential-step-card" style="background: rgba(15, 23, 42, 0.7); border: 1.5px solid var(--border-color); border-radius: 10px; padding: 16px;">
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-            <span style="background: #10b981; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">2</span>
-            <strong style="color: #34d399; font-size: 14px;">BƯỚC 2: Thực Hiện Đăng Nhập &amp; Kết Nối Fanpage Cho Tài Khoản Này</strong>
-          </div>
-
-          <!-- Option 2A: 1-Click OAuth Login -->
-          <div style="background: rgba(24, 119, 242, 0.08); border: 1.5px solid rgba(24, 119, 242, 0.35); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <strong style="color: #60a5fa; font-size: 13px;">Cách A: Đăng nhập trực tiếp bằng Facebook (1-Click như Pancake)</strong>
-              <span class="badge-tag" style="background: #1877f2; color: #fff; font-size: 10px; font-weight: 700;">KHUYÊN DÙNG • 1-CLICK</span>
-            </div>
-            <p style="margin: 0 0 10px 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
-              Hệ thống tự động sử dụng đúng App ID &amp; Secret của tài khoản này để mở cửa sổ Facebook. Bạn chỉ cần bấm "Tiếp tục" là tài khoản và toàn bộ Fanpage được kết nối tức thì!
+            <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--text-secondary); line-height: 1.55;">
+              Cửa sổ Facebook mở lên &rarr; bạn bấm <strong>"Tiếp tục dưới tên..."</strong> &rarr; Hệ thống <strong>tự động nhận diện Tên Facebook, Avatar và quét toàn bộ Fanpage</strong>! Sau khi đăng nhập, bạn có thể gán App ID &amp; Secret riêng cho tài khoản bất cứ lúc nào.
             </p>
-            <button type="button" id="btnSeqExecuteOAuthLogin" class="btn" style="width: 100%; justify-content: center; background: #1877f2; color: #fff; font-weight: 700; padding: 11px 16px; box-shadow: 0 4px 14px rgba(24, 119, 242, 0.4); gap: 8px;">
-              <span>🔵</span> Đăng Nhập Tài Khoản Facebook Này Ngay (1-Click)
+            <button type="button" id="btnSeqExecuteOAuthLogin" class="btn" style="width: 100%; justify-content: center; background: #1877f2; color: #fff; font-weight: 700; padding: 12px 16px; box-shadow: 0 4px 14px rgba(24, 119, 242, 0.4); gap: 8px; font-size: 13.5px;">
+              <span>🔵</span> Đăng Nhập Facebook Ngay (1-Click Nhận Diện Tên)
             </button>
           </div>
 
-          <!-- Option 2B: Direct Token Paste -->
-          <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <strong style="color: var(--text-primary); font-size: 13px;">Cách B: Hoặc dán Token Facebook trực tiếp cho tài khoản này</strong>
-              <span class="badge-tag" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 10px;">Linh hoạt</span>
+          <!-- OPTION B: DIRECT TOKEN IDENTIFICATION (100% NO APP ID NEEDED UPFRONT) -->
+          <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+              <strong style="color: var(--text-primary); font-size: 13px;">Cách 2: Dán Token Facebook Trực Tiếp (Nhận Diện Tức Thì)</strong>
+              <span class="badge-tag" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 10px;">100% Không Cần App ID Trước</span>
             </div>
             <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
-              Dán User Token hoặc Page Token từ Graph API Explorer. Có App ID &amp; Secret ở trên thì Tool sẽ <strong>tự đổi sang Token Vĩnh Viễn</strong>!
+              Dán mã User Token ngắn hạn từ <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color: #34d399; text-decoration: underline;">Graph API Explorer ↗</a> &rarr; Tool <strong>nhận diện ngay Tên Nick &amp; Fanpage</strong> &rarr; Sau đó bạn mới nhập App ID &amp; Secret bên dưới để đổi sang Token Vĩnh Viễn!
             </p>
             <div class="form-group" style="margin-bottom: 8px;">
-              <textarea id="seqTokenInput" class="form-control" rows="2" placeholder="Dán mã Token (EAA...) vào đây..."></textarea>
+              <textarea id="seqTokenInput" class="form-control" rows="2" placeholder="Dán mã Token (EAA...) vào đây để nhận diện tài khoản..."></textarea>
             </div>
             <div style="display: flex; justify-content: flex-end;">
               <button type="button" id="btnSeqExecuteTokenScan" class="btn btn-secondary btn-sm" style="white-space: nowrap; font-weight: 600; gap: 6px;">
-                <span>⚡</span> Quét &amp; Lấy Page Từ Token
+                <span>⚡</span> Quét &amp; Nhận Diện Tài Khoản Từ Token
               </button>
             </div>
           </div>
+
+          <!-- SECTION 2C: APP CREDENTIALS DRAWER / CONFIGURATION -->
+          <div style="background: rgba(10, 16, 30, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 7px;">
+                <span style="font-size: 15px;">⚙️</span>
+                <strong style="color: #cbd5e1; font-size: 13px;">Thiết Lập App ID &amp; App Secret (Để Duy Trì Kết Nối Vĩnh Viễn)</strong>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" id="btnToggleSeqGuide" class="btn btn-xs btn-secondary" style="font-size: 11px; padding: 3px 8px; gap: 4px; color: #93c5fd; border-color: rgba(96, 165, 250, 0.3);">
+                  <span>📖</span> <span id="toggleSeqGuideText">Hiện Hướng Dẫn Chi Tiết</span>
+                </button>
+              </div>
+            </div>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px 0; line-height: 1.5;">
+              Mỗi nick có thể dùng App riêng hoặc dùng chung 1 App Cổng Chung. Khi tài khoản có App ID &amp; Secret, mọi Token Fanpage sẽ được <strong>duy trì vĩnh viễn không bao giờ hết hạn</strong>.
+            </p>
+
+            <!-- Quick App Reuse Selector if multiple accounts exist -->
+            <div id="reuseAppConfigRow" style="display: none; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-size: 12px; color: #cbd5e1; white-space: nowrap;">⚡ Dùng nhanh App từ tài khoản đã có:</span>
+              <select id="selectSavedAppReuse" class="form-control form-control-sm" style="flex: 1; min-width: 220px; font-size: 12px;">
+                <option value="">-- Tự nhập App ID &amp; Secret mới --</option>
+              </select>
+            </div>
+
+            <!-- DETAILED STEP-BY-STEP GUIDE ACCORDION / BOX (Mặc định ẩn) -->
+            <div id="seqGuideContainer" style="display: none; background: rgba(10, 16, 30, 0.95); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.07);">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="color: #60a5fa; font-size: 14px;">📘</span>
+                  <strong style="color: #93c5fd; font-size: 12.5px;">Hướng Dẫn Chi Tiết: Từ Tạo App Đến Cài Đặt Ứng Dụng &gt; Thông Tin Cơ Bản</strong>
+                </div>
+                <span style="color: var(--text-muted); font-size: 11px;">Miễn phí &bull; Làm 1 lần dùng mãi mãi</span>
+              </div>
+
+              <!-- 4 Visual Sequential Steps -->
+              <div style="display: flex; flex-direction: column; gap: 9px; font-size: 12px; color: var(--text-secondary); line-height: 1.55;">
+                
+                <!-- Sub-step 1: Create App -->
+                <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                  <span style="background: #3b82f6; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">1</span>
+                  <div>
+                    <strong style="color: #f1f5f9;">Tạo ứng dụng Meta:</strong>
+                    Truy cập cổng Meta Developer: <a href="https://developers.facebook.com/apps" target="_blank" style="color: #60a5fa; text-decoration: underline; font-weight: 600;">developers.facebook.com/apps ↗</a>. Bấm nút màu xanh <strong>"Tạo ứng dụng" (Create App)</strong> &rarr; Chọn loại ứng dụng <strong>"Doanh nghiệp" (Business)</strong> hoặc <strong>"Khác" (Other)</strong> &rarr; Bấm Tiếp tục &rarr; Đặt tên ứng dụng (VD: <code>FB Multi Hub</code>), nhập email &rarr; Bấm <strong>Tạo ứng dụng</strong>.
+                  </div>
+                </div>
+
+                <!-- Sub-step 2: Navigate to App Settings > Basic -->
+                <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                  <span style="background: #f59e0b; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">2</span>
+                  <div>
+                    <strong style="color: #f1f5f9;">Vào mục Cài đặt ứng dụng &gt; Thông tin cơ bản:</strong>
+                    Sau khi tạo xong, nhìn sang thanh menu bên trái của màn hình quản lý App:
+                    <br>&bull; Bấm vào menu <code style="background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; color: #fbbf24; font-weight: 600;">Cài đặt ứng dụng (App Settings)</code>
+                    <br>&bull; Chọn dòng <code style="background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; color: #fbbf24; font-weight: 600;">Thông tin cơ bản (Basic)</code>
+                  </div>
+                </div>
+
+                <!-- Sub-step 3: Copy App ID & Secret -->
+                <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #10b981;">
+                  <span style="background: #10b981; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">3</span>
+                  <div>
+                    <strong style="color: #f1f5f9;">Xem &amp; Sao chép App ID và App Secret:</strong>
+                    Tại giao diện <em>Thông tin cơ bản</em>:
+                    <ul style="margin: 4px 0 0 16px; padding: 0;">
+                      <li><strong>ID ứng dụng (App ID)</strong>: Là chuỗi số dài hiển thị ngay ở ô đầu tiên &rarr; Sao chép dán vào ô <em>App ID</em> bên dưới.</li>
+                      <li><strong>Khóa bí mật của ứng dụng (App Secret)</strong>: Nằm ngay cạnh ô App ID &rarr; Bấm nút <strong>"Hiển thị" (Show)</strong> &rarr; Nhập mật khẩu Facebook cá nhân của bạn để xác thực &rarr; Sao chép chuỗi mã bí mật dài 32 ký tự dán vào ô <em>App Secret</em> bên dưới.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Sub-step 4: Redirect URI -->
+                <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #8b5cf6;">
+                  <span style="background: #8b5cf6; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">4</span>
+                  <div>
+                    <strong style="color: #f1f5f9;">Thêm Redirect URI (Cấp quyền chuyển hướng đăng nhập):</strong>
+                    Tại menu bên trái, tìm mục <strong>Facebook Login for Business</strong> (hoặc bấm <em>Thêm sản phẩm / Thêm trường hợp sử dụng</em> &gt; chọn <em>Đăng nhập Facebook</em>) &rarr; chọn <strong>Cài đặt (Settings)</strong> &rarr; Dán link callback ở mục bên dưới vào ô <em>Valid OAuth Redirect URIs</em> &rarr; Bấm <strong>Lưu thay đổi (Save changes)</strong>.
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- MULTI-ACCOUNT GUIDANCE -->
+              <div style="margin-top: 12px; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 7px; padding: 12px;">
+                <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 8px;">
+                  <span style="font-size: 15px;">👥</span>
+                  <strong style="color: #60a5fa; font-size: 12.5px;">HƯỚNG DẪN DÀNH CHO MỖI TÀI KHOẢN FACEBOOK KHÁC NHAU:</strong>
+                </div>
+
+                <!-- Option 1: 1 App for Multiple Accounts -->
+                <div style="margin-bottom: 9px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 8px 10px; border-radius: 0 6px 6px 0;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; flex-wrap: wrap; gap: 4px;">
+                    <strong style="color: #34d399; font-size: 12px;">💡 Cách 1 (Khuyên Dùng Nhất): Dùng 1 App duy nhất cho Tất Cả Tài Khoản FB</strong>
+                    <span class="badge-tag" style="background: #10b981; color: #fff; font-size: 9px; padding: 2px 6px;">Nhanh Nhất &bull; Tiện Nhất</span>
+                  </div>
+                  <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.55;">
+                    Bạn <strong>KHÔNG CẦN</strong> phải tạo nhiều App cho mỗi nick! Chỉ cần tạo 1 App duy nhất ở Bước 1 này, sau đó phân quyền cho các nick khác cùng dùng:
+                    <ol style="margin: 4px 0 0 16px; padding: 0;">
+                      <li>Trên trang quản trị App &rarr; Nhìn menu bên trái chọn <strong>Vai trò (App roles)</strong> &rarr; chọn <strong>Vai trò (Roles)</strong>.</li>
+                      <li>Bấm nút <strong>"Thêm nhà phát triển" (Add Developers)</strong> hoặc <strong>"Thêm người thử nghiệm" (Add Testers)</strong>.</li>
+                      <li>Nhập tên Facebook, email hoặc username của các nick Facebook khác &rarr; Bấm Xác nhận.</li>
+                      <li>Đăng nhập các nick FB kia vào <a href="https://developers.facebook.com" target="_blank" style="color: #60a5fa; text-decoration: underline;">developers.facebook.com ↗</a> bấm <strong>Chấp nhận lời mời</strong>.</li>
+                      <li>Hoàn tất! Giờ đây bất cứ nick Facebook nào cũng có thể bấm <strong>"🔵 Đăng Nhập Facebook Ngay"</strong> trên Tool với cùng 1 App ID này mà không cần tạo App mới!</li>
+                    </ol>
+                  </div>
+                </div>
+
+                <!-- Option 2: Separate App for Each Account -->
+                <div style="background: rgba(255, 255, 255, 0.03); border-left: 3px solid #64748b; padding: 8px 10px; border-radius: 0 6px 6px 0;">
+                  <div style="margin-bottom: 3px;">
+                    <strong style="color: #e2e8f0; font-size: 12px;">⚙️ Cách 2: Mỗi tài khoản Facebook tự tạo 1 App riêng biệt</strong>
+                  </div>
+                  <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.55;">
+                    Nếu bạn muốn tách biệt hoàn toàn giữa các tài khoản Facebook cá nhân / tài khoản doanh nghiệp:
+                    <ul style="margin: 4px 0 0 16px; padding: 0;">
+                      <li>Mỗi nick Facebook truy cập <a href="https://developers.facebook.com/apps" target="_blank" style="color: #60a5fa; text-decoration: underline;">developers.facebook.com/apps ↗</a> và tự tạo 1 App riêng theo 4 bước ở trên.</li>
+                      <li>Vào mục <strong>Cài đặt ứng dụng &gt; Thông tin cơ bản</strong> của App đó để lấy App ID &amp; App Secret riêng của tài khoản đó.</li>
+                      <li>Khi muốn kết nối Fanpage của tài khoản nào, bạn chỉ cần nhập App ID &amp; Secret của nick đó vào Bước 1 này rồi bấm Đăng Nhập. Tool sẽ tự động kết nối và phân loại các Fanpage theo đúng nguồn tài khoản!</li>
+                    </ul>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Account Label (Optional Note) -->
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label style="font-weight: 600; font-size: 12px;">Tên Gợi Nhớ Nick Facebook (Tùy chọn):</label>
+              <input type="text" id="seqAccountLabelInput" class="form-control" placeholder="Ví dụ: Nick Bán Hàng 1, Nick Quản Lý Ca Sáng... (bỏ trống sẽ tự lấy tên FB)">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label style="font-weight: 600; font-size: 12px;">App ID (Mã ứng dụng Meta):</label>
+                <input type="text" id="seqFbAppIdInput" class="form-control" placeholder="Ví dụ: 2361682801028889">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label style="font-weight: 600; font-size: 12px; display: flex; justify-content: space-between;">
+                  <span>App Secret (Khóa bí mật):</span>
+                  <a href="#" id="btnToggleAppSecretSeq" style="color: #60a5fa; font-size: 11px; text-decoration: none;">Hiện mã</a>
+                </label>
+                <input type="password" id="seqFbAppSecretInput" class="form-control" placeholder="Chuỗi mã bí mật (e8fe1eea...)">
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" id="btnSaveSeqFbAppConfig" class="btn btn-sm btn-primary" style="gap: 6px; font-weight: 600; padding: 6px 14px;">
+                  <span>💾</span> Lưu Cấu Hình Cho Tài Khoản Này
+                </button>
+                <button type="button" id="btnResetSeqForm" class="btn btn-sm btn-secondary" style="gap: 4px; display: none; font-size: 11.5px;">
+                  <span>✕</span> Đặt lại form
+                </button>
+              </div>
+              <span id="seqAppSaveResultMsg" style="font-size: 11.5px; color: #34d399; font-weight: 500; display: none;"></span>
+            </div>
+
+            <!-- OAuth Redirect URIs Collapsible / Helper -->
+            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 8px 12px; font-size: 11.5px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                <span style="color: var(--text-muted);">🔗 Valid OAuth Redirect URI (Dán vào App FB &gt; Facebook Login for Business &gt; Settings):</span>
+                <button type="button" id="btnCopySeqRedirectUri" class="btn btn-xs btn-secondary" style="gap: 4px;">
+                  📋 Sao chép link callback
+                </button>
+              </div>
+              <code id="seqRedirectUriText" style="display: block; color: #34d399; font-size: 11px; margin-top: 4px; word-break: break-all;">http://localhost:3000/auth/facebook/callback</code>
+            </div>
+          </div>
+
         </div>
       </div>
 

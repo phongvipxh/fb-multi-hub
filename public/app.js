@@ -2955,6 +2955,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Unified Sequential Facebook Login & Multi-Account Management Flow
   // -------------------------------------------------------------
   let currentEditingAccountId = null;
+  let generalAppConfigCache = null;
 
   function renderConnectedAccountsList(tokenSources) {
     const container = document.getElementById('connectedAccountsList');
@@ -3167,6 +3168,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/facebook-app-config');
       const data = await res.json();
       if (data.ok) {
+        generalAppConfigCache = data;
         const appIdInput = document.getElementById('seqFbAppIdInput');
         const appSecretInput = document.getElementById('seqFbAppSecretInput');
         const badge = document.getElementById('fbAppConfigStatusBadge');
@@ -3185,11 +3187,11 @@ document.addEventListener('DOMContentLoaded', () => {
           if (activeAppId) {
             badge.style.background = 'rgba(16, 185, 129, 0.2)';
             badge.style.color = '#34d399';
-            badge.textContent = `✅ Đã cấu hình (App ID: ${activeAppId})`;
+            badge.textContent = `✅ Cổng App: ${activeAppId}`;
           } else {
             badge.style.background = 'rgba(239, 68, 68, 0.15)';
             badge.style.color = '#f87171';
-            badge.textContent = '⚠️ Chưa cấu hình App ID';
+            badge.textContent = '⚠️ Cần nhập App ID 1 lần làm Cổng';
           }
         }
 
@@ -3359,8 +3361,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (appSecret) {
           const appSecretInput = document.getElementById('seqFbAppSecretInput');
           if (appSecretInput) {
-            secretInput.value = '';
-            secretInput.placeholder = '•••••••••••••••• (Đã lưu bí mật)';
+            appSecretInput.value = '';
+            appSecretInput.placeholder = '•••••••••••••••• (Đã lưu bí mật)';
           }
         }
         if (msgEl) {
@@ -3391,26 +3393,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Execute Step 2A: OAuth 1-Click Login (Saves App Config and opens FB Login Dialog immediately)
   document.getElementById('btnSeqExecuteOAuthLogin')?.addEventListener('click', async () => {
-    const appId = document.getElementById('seqFbAppIdInput')?.value.trim();
-    const appSecret = document.getElementById('seqFbAppSecretInput')?.value.trim();
+    let appId = document.getElementById('seqFbAppIdInput')?.value.trim();
+    let appSecret = document.getElementById('seqFbAppSecretInput')?.value.trim();
     const accountLabel = document.getElementById('seqAccountLabelInput')?.value.trim();
 
+    // Fallback to cached gateway App ID if input is empty
+    if (!appId && generalAppConfigCache?.appId) {
+      appId = generalAppConfigCache.appId;
+    }
+
     if (!appId) {
-      showToast('Vui lòng nhập App ID ở Bước 1 trước khi đăng nhập!', 'error');
+      showToast('Meta Facebook yêu cầu cần 1 App ID để mở cửa sổ đăng nhập. Hãy nhập App ID bên dưới (làm 1 lần làm Cổng chung)!', 'warning');
+      const appIdInput = document.getElementById('seqFbAppIdInput');
+      if (appIdInput) {
+        appIdInput.focus();
+        appIdInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
     const btn = document.getElementById('btnSeqExecuteOAuthLogin');
     btn.disabled = true;
-    btn.innerHTML = '<span>⏳ Đang chuẩn bị đăng nhập...</span>';
+    btn.innerHTML = '<span>⏳ Đang chuẩn bị đăng nhập Facebook...</span>';
 
     try {
-      // Save App Config in Step 1
-      await fetch('/api/facebook-app-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ app_id: appId, app_secret: appSecret })
-      });
+      // Save App Config if newly typed in input
+      if (document.getElementById('seqFbAppIdInput')?.value.trim()) {
+        await fetch('/api/facebook-app-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+        });
+      }
 
       closeModal('facebookLoginSequentialModal');
 
@@ -3419,7 +3433,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const left = Math.max(0, Math.round((window.screen.width - width) / 2));
       const top = Math.max(0, Math.round((window.screen.height - height) / 2));
 
-      let popupUrl = `/auth/facebook?popup=1&reauth=1&app_id=${encodeURIComponent(appId)}&app_secret=${encodeURIComponent(appSecret)}&account_name=${encodeURIComponent(accountLabel)}`;
+      let popupUrl = `/auth/facebook?popup=1&reauth=1&app_id=${encodeURIComponent(appId)}&app_secret=${encodeURIComponent(appSecret || '')}&account_name=${encodeURIComponent(accountLabel || '')}`;
       if (currentEditingAccountId) {
         popupUrl += `&account_id=${encodeURIComponent(currentEditingAccountId)}`;
       }
@@ -3438,11 +3452,11 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Lỗi: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<span>🔵</span> Đăng Nhập Tài Khoản Facebook Này Ngay (1-Click)';
+      btn.innerHTML = '<span>🔵</span> Đăng Nhập Facebook Ngay (1-Click Nhận Diện Tên)';
     }
   });
 
-  // Execute Step 2B: Direct Token Scan
+  // Execute Step 2B: Direct Token Scan & Identification
   document.getElementById('btnSeqExecuteTokenScan')?.addEventListener('click', async () => {
     const token = document.getElementById('seqTokenInput')?.value.trim();
     const appId = document.getElementById('seqFbAppIdInput')?.value.trim();
@@ -3450,13 +3464,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const accountLabel = document.getElementById('seqAccountLabelInput')?.value.trim();
 
     if (!token) {
-      showToast('Vui lòng dán mã Token Facebook!', 'error');
+      showToast('Vui lòng dán mã Token Facebook để nhận diện tài khoản!', 'error');
       return;
     }
 
     const scanBtn = document.getElementById('btnSeqExecuteTokenScan');
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<span>⏳ Đang quét...</span>';
+    scanBtn.innerHTML = '<span>⏳ Đang nhận diện tài khoản...</span>';
 
     try {
       // If appId provided, save it as well
@@ -3485,18 +3499,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const userDisplayName = data.userName || accountLabel || 'Tài khoản Facebook';
+      showToast(`🎉 Đã nhận diện: "${userDisplayName}" (${data.pages.length} Fanpage)!`, 'success');
+
       closeModal('facebookLoginSequentialModal');
       openModal('addPageModal');
       activeScanTokenSourceId = data.token_source_id || 0;
       renderDiscoveredPagesChecklist(data.pages);
       loadTokenSources();
-      showToast(`🎉 Tìm thấy ${data.pages.length} Fanpage trong tài khoản!`, 'success');
 
     } catch (err) {
       showToast('Lỗi khi quét token: ' + err.message, 'error');
     } finally {
       scanBtn.disabled = false;
-      scanBtn.innerHTML = '<span>⚡</span> Quét &amp; Lấy Page Từ Token';
+      scanBtn.innerHTML = '<span>⚡</span> Quét &amp; Nhận Diện Tài Khoản Từ Token';
     }
   });
 
