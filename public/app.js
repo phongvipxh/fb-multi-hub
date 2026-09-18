@@ -3345,6 +3345,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (labelInput) labelInput.value = '';
     if (appIdInput) appIdInput.value = '';
+    const inlineAppId = document.getElementById('seqInlineAppIdInput');
+    if (inlineAppId) inlineAppId.value = '';
     if (secretInput) {
       secretInput.value = '';
       secretInput.placeholder = 'Chuỗi mã bí mật (e8fe1eea...)';
@@ -3371,6 +3373,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const labelInput = document.getElementById('seqAccountLabelInput');
     const appIdInput = document.getElementById('seqFbAppIdInput');
+    const inlineAppId = document.getElementById('seqInlineAppIdInput');
     const secretInput = document.getElementById('seqFbAppSecretInput');
     const tokenInput = document.getElementById('seqTokenInput');
     const titleEl = document.getElementById('seqFormSectionTitle');
@@ -3383,6 +3386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (labelInput) labelInput.value = acc.name || '';
     if (appIdInput) appIdInput.value = acc.app_id || '';
+    if (inlineAppId) inlineAppId.value = acc.app_id || '';
     if (secretInput) {
       secretInput.value = '';
       secretInput.placeholder = acc.has_app_secret ? '•••••••••••••••• (Đã lưu bí mật, nhập nếu muốn đổi)' : 'Chuỗi mã bí mật (e8fe1eea...)';
@@ -3417,28 +3421,39 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.ok) {
         generalAppConfigCache = data;
         const appIdInput = document.getElementById('seqFbAppIdInput');
+        const inlineAppIdInput = document.getElementById('seqInlineAppIdInput');
+        const inlinePromptBlock = document.getElementById('seqOAuthAppIdPromptBlock');
         const appSecretInput = document.getElementById('seqFbAppSecretInput');
         const badge = document.getElementById('fbAppConfigStatusBadge');
         const uriEl = document.getElementById('seqRedirectUriText');
+        const oauthBtnText = document.getElementById('btnSeqExecuteOAuthLoginText');
 
         if (!currentEditingAccountId && !skipFieldReset) {
           if (appIdInput && !appIdInput.value) appIdInput.value = data.appId || '';
+          if (inlineAppIdInput && !inlineAppIdInput.value) inlineAppIdInput.value = data.appId || '';
           if (appSecretInput && !appSecretInput.value) {
             appSecretInput.value = '';
             appSecretInput.placeholder = data.hasAppSecret ? '•••••••••••••••• (Đã lưu bí mật)' : 'Chuỗi mã bí mật (e8fe1eea...)';
           }
         }
 
-        if (badge) {
-          const activeAppId = (appIdInput && appIdInput.value) || data.appId;
-          if (activeAppId) {
+        const activeAppId = (appIdInput && appIdInput.value) || (inlineAppIdInput && inlineAppIdInput.value) || data.appId;
+
+        if (activeAppId) {
+          if (inlinePromptBlock) inlinePromptBlock.style.display = 'none';
+          if (oauthBtnText) oauthBtnText.textContent = `Đăng Nhập Facebook Ngay (Cổng App: ${activeAppId})`;
+          if (badge) {
             badge.style.background = 'rgba(16, 185, 129, 0.2)';
             badge.style.color = '#34d399';
             badge.textContent = `✅ Cổng App: ${activeAppId}`;
-          } else {
-            badge.style.background = 'rgba(239, 68, 68, 0.15)';
-            badge.style.color = '#f87171';
-            badge.textContent = '⚠️ Cần nhập App ID 1 lần làm Cổng';
+          }
+        } else {
+          if (inlinePromptBlock) inlinePromptBlock.style.display = 'block';
+          if (oauthBtnText) oauthBtnText.textContent = 'Bắt Đầu Đăng Nhập Facebook';
+          if (badge) {
+            badge.style.background = 'rgba(59, 130, 246, 0.2)';
+            badge.style.color = '#93c5fd';
+            badge.textContent = 'ℹ️ Cần App ID 1 lần làm Cổng';
           }
         }
 
@@ -3645,22 +3660,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Execute Step 2A: OAuth 1-Click Login (Saves App Config and opens FB Login Dialog immediately)
   document.getElementById('btnSeqExecuteOAuthLogin')?.addEventListener('click', async () => {
-    let appId = document.getElementById('seqFbAppIdInput')?.value.trim();
+    let appId = document.getElementById('seqInlineAppIdInput')?.value.trim() ||
+                document.getElementById('seqFbAppIdInput')?.value.trim() ||
+                generalAppConfigCache?.appId;
     let appSecret = document.getElementById('seqFbAppSecretInput')?.value.trim();
     const accountLabel = document.getElementById('seqAccountLabelInput')?.value.trim();
 
-    // Fallback to cached gateway App ID if input is empty
-    if (!appId && generalAppConfigCache?.appId) {
-      appId = generalAppConfigCache.appId;
-    }
-
     if (!appId) {
-      showToast('Meta Facebook yêu cầu cần 1 App ID để mở cửa sổ đăng nhập. Hãy nhập App ID bên dưới (làm 1 lần làm Cổng chung)!', 'warning');
-      const appIdInput = document.getElementById('seqFbAppIdInput');
-      if (appIdInput) {
-        appIdInput.focus();
-        appIdInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const inlineInput = document.getElementById('seqInlineAppIdInput');
+      const inlineBlock = document.getElementById('seqOAuthAppIdPromptBlock');
+      if (inlineBlock) inlineBlock.style.display = 'block';
+      if (inlineInput) {
+        inlineInput.focus();
+        inlineInput.style.borderColor = '#ef4444';
+        setTimeout(() => { if (inlineInput) inlineInput.style.borderColor = ''; }, 3000);
       }
+      showToast('Vui lòng nhập App ID vào ô trên, hoặc dùng Cách 2 bên dưới nếu bạn chỉ có Token!', 'warning');
       return;
     }
 
@@ -3670,13 +3685,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       // Save App Config if newly typed in input
-      if (document.getElementById('seqFbAppIdInput')?.value.trim()) {
-        await fetch('/api/facebook-app-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ app_id: appId, app_secret: appSecret })
-        });
-      }
+      await fetch('/api/facebook-app-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+      });
+      if (generalAppConfigCache) generalAppConfigCache.appId = appId;
 
       closeModal('facebookLoginSequentialModal');
 
@@ -3704,7 +3718,47 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Lỗi: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<span>🔵</span> Đăng Nhập Facebook Ngay (1-Click Nhận Diện Tên)';
+      const activeAppId = appId || generalAppConfigCache?.appId;
+      btn.innerHTML = `<span>🔵</span> <span id="btnSeqExecuteOAuthLoginText">${activeAppId ? `Đăng Nhập Facebook Ngay (Cổng App: ${activeAppId})` : 'Bắt Đầu Đăng Nhập Facebook'}</span>`;
+    }
+  });
+
+  // Two-way sync for Inline App ID Input & Drawer App ID Input
+  document.getElementById('seqInlineAppIdInput')?.addEventListener('input', (e) => {
+    const val = e.target.value;
+    const fbAppId = document.getElementById('seqFbAppIdInput');
+    if (fbAppId) fbAppId.value = val;
+  });
+  document.getElementById('seqFbAppIdInput')?.addEventListener('input', (e) => {
+    const val = e.target.value;
+    const inlineAppId = document.getElementById('seqInlineAppIdInput');
+    if (inlineAppId) inlineAppId.value = val;
+  });
+
+  // Quick Open Guide from Inline App ID prompt
+  document.getElementById('btnQuickOpenGuide')?.addEventListener('click', () => {
+    const drawer = document.getElementById('seqAppCredentialsDrawerContent');
+    const guideContainer = document.getElementById('seqGuideContainer');
+    const drawerBtnText = document.getElementById('toggleAppCredentialsText');
+    const guideBtnText = document.getElementById('toggleSeqGuideText');
+
+    if (drawer) drawer.style.display = 'block';
+    if (drawerBtnText) drawerBtnText.textContent = 'Thu Gọn Cấu Hình ▴';
+    if (guideContainer) {
+      guideContainer.style.display = 'block';
+      if (guideBtnText) guideBtnText.textContent = 'Ẩn Hướng Dẫn';
+      guideContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  // Jump to Token section from Cách 1 fallback link
+  document.getElementById('btnJumpToTokenWay')?.addEventListener('click', () => {
+    const tokenInput = document.getElementById('seqTokenInput');
+    if (tokenInput) {
+      tokenInput.focus();
+      tokenInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      tokenInput.style.borderColor = '#10b981';
+      setTimeout(() => { if (tokenInput) tokenInput.style.borderColor = ''; }, 2500);
     }
   });
 

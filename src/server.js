@@ -1671,13 +1671,30 @@ app.post('/api/pages/fetch-from-token', async (req, res) => {
       app_secret: app_secret ? app_secret.trim() : ''
     });
 
+    // Auto-discover App ID from User Token if not provided
+    let resolvedAppId = app_id ? app_id.trim() : '';
+    if (!resolvedAppId && token) {
+      try {
+        const appRes = await fetchWithRetry(`https://graph.facebook.com/v19.0/app?access_token=${encodeURIComponent(token.trim())}`);
+        const appData = await appRes.json();
+        if (appData && appData.id) {
+          resolvedAppId = String(appData.id).trim();
+          const currentConfig = getFacebookAppConfig();
+          if (!currentConfig.appId) {
+            saveFacebookAppConfig({ app_id: resolvedAppId });
+            console.log(`[Token Auto-Discovery] Tự động lưu Cổng App ID từ Token: ${resolvedAppId}`);
+          }
+        }
+      } catch (e) {}
+    }
+
     // Auto-save or update Token Source in Vault
     let tokenSourceId = 0;
-    if (app_id && app_secret) {
-      const sourceName = account_label?.trim() || result.userName || `Tài khoản App ${app_id.trim()}`;
+    if (resolvedAppId && app_secret) {
+      const sourceName = account_label?.trim() || result.userName || `Tài khoản App ${resolvedAppId}`;
       const savedSource = saveOrUpdateTokenSource({
         name: sourceName,
-        app_id: app_id.trim(),
+        app_id: resolvedAppId,
         app_secret: app_secret.trim(),
         user_token: token.trim(),
         long_lived_token: result.longLivedToken || token.trim(),
@@ -1689,7 +1706,7 @@ app.post('/api/pages/fetch-from-token', async (req, res) => {
     } else if (account_label && account_label.trim()) {
       const savedSource = saveOrUpdateTokenSource({
         name: account_label.trim(),
-        app_id: '',
+        app_id: resolvedAppId,
         app_secret: '',
         user_token: token.trim(),
         long_lived_token: result.longLivedToken || token.trim(),
@@ -1701,7 +1718,7 @@ app.post('/api/pages/fetch-from-token', async (req, res) => {
     } else if (result.userName) {
       const savedSource = saveOrUpdateTokenSource({
         name: result.userName,
-        app_id: '',
+        app_id: resolvedAppId,
         app_secret: '',
         user_token: token.trim(),
         long_lived_token: result.longLivedToken || token.trim(),

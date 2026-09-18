@@ -1814,12 +1814,32 @@
               <strong style="color: #60a5fa; font-size: 13.5px;">Cách 1: Đăng Nhập Facebook Trực Tiếp (1-Click)</strong>
               <span class="badge-tag" style="background: #1877f2; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px;">ƯU TIÊN • AUTO 100%</span>
             </div>
-            <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--text-secondary); line-height: 1.55;">
-              Cửa sổ Facebook mở lên &rarr; bạn bấm <strong>"Tiếp tục dưới tên..."</strong> &rarr; Hệ thống <strong>tự động nhận diện Tên Facebook, Avatar và quét toàn bộ Fanpage</strong>! Sau khi đăng nhập, bạn có thể gán App ID &amp; Secret riêng cho tài khoản bất cứ lúc nào.
+            <p style="margin: 0 0 10px 0; font-size: 12px; color: var(--text-secondary); line-height: 1.55;">
+              Cửa sổ Facebook mở lên &rarr; bạn bấm <strong>"Tiếp tục dưới tên..."</strong> &rarr; Hệ thống <strong>tự động nhận diện Tên Facebook, Avatar và quét toàn bộ Fanpage</strong>!
             </p>
+
+            <!-- Inline App ID Input for First-time setup (Auto-hidden once App ID is saved) -->
+            <div id="seqOAuthAppIdPromptBlock" style="display: block; margin-bottom: 12px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 10px 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                <label for="seqInlineAppIdInput" style="font-size: 12px; color: #93c5fd; font-weight: 600; margin: 0;">
+                  🔑 Nhập App ID Meta (Làm 1 lần duy nhất làm Cổng chung):
+                </label>
+                <button type="button" id="btnQuickOpenGuide" class="btn btn-xs btn-secondary" style="font-size: 11px; padding: 2px 8px; gap: 4px; color: #60a5fa;">
+                  <span>📖</span> Lấy App ID ở đâu?
+                </button>
+              </div>
+              <input type="text" id="seqInlineAppIdInput" class="form-control" placeholder="Dán App ID của bạn (Ví dụ: 2361682801028889)..." style="font-size: 13px; margin-bottom: 4px;">
+              <div style="font-size: 11px; color: var(--text-muted);">
+                💡 Chỉ cần 1 App duy nhất làm Cổng chung cho tất cả các nick Facebook. Sau khi nhập lần đầu, các lần đăng nhập tiếp theo là 1-Click!
+              </div>
+            </div>
+
             <button type="button" id="btnSeqExecuteOAuthLogin" class="btn" style="width: 100%; justify-content: center; background: #1877f2; color: #fff; font-weight: 700; padding: 12px 16px; box-shadow: 0 4px 14px rgba(24, 119, 242, 0.4); gap: 8px; font-size: 13.5px;">
-              <span>🔵</span> Đăng Nhập Facebook Ngay (1-Click Nhận Diện Tên)
+              <span>🔵</span> <span id="btnSeqExecuteOAuthLoginText">Đăng Nhập Facebook Ngay</span>
             </button>
+            <div style="margin-top: 8px; text-align: center; font-size: 11.5px; color: var(--text-muted);">
+              Hoặc nếu bạn chưa có App ID: <a href="javascript:void(0)" id="btnJumpToTokenWay" style="color: #34d399; text-decoration: underline; font-weight: 600;">Dùng Cách 2 bên dưới để dán Token (100% không cần App ID) ⬇️</a>
+            </div>
           </div>
 
           <!-- OPTION B: DIRECT TOKEN IDENTIFICATION (100% NO APP ID NEEDED UPFRONT) -->
