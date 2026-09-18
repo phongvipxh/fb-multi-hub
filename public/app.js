@@ -1618,6 +1618,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const typingIndicator = document.getElementById('agentTypingIndicator');
     if (typingIndicator) typingIndicator.style.display = 'none';
 
+    // Reset message tag manual selection flag
+    const tagSelect = document.getElementById('chatMessageTagSelect');
+    if (tagSelect) tagSelect.dataset.userManuallySelected = '';
+
     // Automatically mark conversation as seen by agent
     fetch(`/api/conversations/${pageId}/${senderId}/mark-seen`, { method: 'POST' })
       .then(() => loadStatus())
@@ -1674,6 +1678,95 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function update24hPolicyUI(lastCustomerTime, pageId, senderId) {
+    const badge = document.getElementById('chat24hWindowBadge');
+    const banner = document.getElementById('chat24hWarningBanner');
+    const warningText = document.getElementById('chat24hWarningText');
+    const openMetaBannerBtn = document.getElementById('chat24hOpenMetaBtn');
+    const tagSelect = document.getElementById('chatMessageTagSelect');
+    const metaUrl = `https://business.facebook.com/latest/inbox/all?asset_id=${pageId}`;
+
+    if (openMetaBannerBtn) openMetaBannerBtn.href = metaUrl;
+    const modalGoMeta = document.getElementById('btnModalGoMetaSuite');
+    if (modalGoMeta) modalGoMeta.href = metaUrl;
+
+    if (badge && !badge.dataset.listenerAdded) {
+      badge.dataset.listenerAdded = 'true';
+      badge.style.cursor = 'pointer';
+      badge.addEventListener('click', () => {
+        openModal('metaPolicyInfoModal');
+      });
+    }
+
+    if (!lastCustomerTime) {
+      if (badge) {
+        badge.className = 'badge-24h-window badge-24h-active';
+        badge.textContent = '🟢 Trong 24h';
+      }
+      if (banner) banner.style.display = 'none';
+      return;
+    }
+
+    const now = Date.now();
+    const elapsedMs = Math.max(0, now - lastCustomerTime);
+    const window24hMs = 24 * 60 * 60 * 1000;
+    const window7dMs = 7 * 24 * 60 * 60 * 1000;
+
+    if (elapsedMs <= window24hMs) {
+      const remainMs = window24hMs - elapsedMs;
+      const remHours = Math.floor(remainMs / (1000 * 60 * 60));
+      const remMins = Math.floor((remainMs % (1000 * 60 * 60)) / (1000 * 60));
+      if (badge) {
+        badge.className = 'badge-24h-window badge-24h-active';
+        badge.innerHTML = `🟢 Trong 24h (Còn ${remHours}h ${remMins}m)`;
+        badge.title = 'Khách hàng có tương tác trong 24 giờ qua. Bạn được phép gửi tin nhắn phản hồi tự do.';
+      }
+      if (banner) banner.style.display = 'none';
+      if (tagSelect && !tagSelect.dataset.userManuallySelected) {
+        tagSelect.value = '';
+      }
+    } else if (elapsedMs <= window7dMs) {
+      const remainMs = window7dMs - elapsedMs;
+      const remDays = Math.floor(remainMs / (1000 * 60 * 60 * 24));
+      const remHours = Math.floor((remainMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      if (badge) {
+        badge.className = 'badge-24h-window badge-24h-warning';
+        badge.innerHTML = `⚠️ Quá 24h (CSKH 7 ngày - Còn ${remDays}d ${remHours}h)`;
+        badge.title = 'Đã quá 24h kể từ tin nhắn cuối của khách. Hệ thống sẽ tự động gửi kèm Thẻ CSKH (HUMAN_AGENT).';
+      }
+      if (banner) {
+        banner.style.display = 'flex';
+        banner.style.background = 'rgba(245, 158, 11, 0.12)';
+        banner.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+        banner.style.color = '#fde68a';
+        if (warningText) {
+          warningText.innerHTML = `⚠️ <strong>Quá 24 giờ:</strong> Hệ thống sẽ tự động áp dụng <strong>Thẻ CSKH (HUMAN_AGENT)</strong> để gửi tin nhắn (Còn ${remDays} ngày ${remHours} giờ).`;
+        }
+      }
+      if (tagSelect && !tagSelect.dataset.userManuallySelected) {
+        tagSelect.value = 'HUMAN_AGENT';
+      }
+    } else {
+      if (badge) {
+        badge.className = 'badge-24h-window badge-24h-expired';
+        badge.innerHTML = '🛑 Quá 7 ngày (Meta chặn gửi API)';
+        badge.title = 'Đã quá 7 ngày kể từ tin nhắn cuối của khách. Meta chặn 100% qua API; hãy bấm "Mở Meta Suite" để nhắn trực tiếp trên Facebook.';
+      }
+      if (banner) {
+        banner.style.display = 'flex';
+        banner.style.background = 'rgba(239, 68, 68, 0.15)';
+        banner.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+        banner.style.color = '#fca5a5';
+        if (warningText) {
+          warningText.innerHTML = '🛑 <strong>Đã quá 7 ngày:</strong> Meta chặn 100% gửi tin qua API. Hãy bấm nút <strong>"Mở Meta Suite"</strong> bên cạnh để chat trực tiếp trên Facebook!';
+        }
+      }
+      if (tagSelect && !tagSelect.dataset.userManuallySelected) {
+        tagSelect.value = 'HUMAN_AGENT';
+      }
+    }
+  }
+
   async function loadMessages(pageId, senderId) {
     const timeline = document.getElementById('chatMessagesTimeline');
     if (!timeline) return;
@@ -1712,6 +1805,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (openMetaBtn) {
         openMetaBtn.href = `https://business.facebook.com/latest/inbox/all?asset_id=${pageId}`;
       }
+
+      // 24-Hour Policy Window calculation & UI update
+      const customerMsgs = (data.messages || []).filter(m => m.is_echo !== 1 && m.sender_id !== pageId);
+      const lastCustMsg = customerMsgs[customerMsgs.length - 1];
+      const lastCustTime = lastCustMsg 
+        ? (Number(lastCustMsg.timestamp) || (lastCustMsg.created_at ? new Date(lastCustMsg.created_at).getTime() : 0)) 
+        : (Number(data.conversation?.last_customer_message_time) || Number(conv?.last_customer_message_time) || 0);
+
+      update24hPolicyUI(lastCustTime, pageId, senderId);
 
       const statusBadge = document.getElementById('activeChatStatusBadge');
       if (statusBadge) {
@@ -2627,12 +2729,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const myAgentName = (hostProfile && hostProfile.name) ? hostProfile.name.trim() : 'Nhân viên';
+      const tagSelect = document.getElementById('chatMessageTagSelect');
+      const selectedTag = tagSelect ? tagSelect.value : '';
+
       const payload = { 
         text: textToSend,
         agent_name: myAgentName
       };
       if (attachmentToSend) {
         payload.attachment = attachmentToSend;
+      }
+      if (selectedTag) {
+        payload.tag = selectedTag;
       }
 
       const res = await fetch(`/api/conversations/${activeConversation.page_id}/${activeConversation.sender_id}/send-message`, {
@@ -2649,7 +2757,7 @@ document.addEventListener('DOMContentLoaded', () => {
           updateCharCounter();
         }
         clearStagedAttachment();
-        showToast('Đã gửi tin nhắn thành công!', 'success');
+        showToast(data.message || 'Đã gửi tin nhắn thành công!', 'success');
 
         const collisionEl = document.getElementById('agentCollisionBanner');
         if (collisionEl) collisionEl.style.display = 'none';
@@ -2671,7 +2779,34 @@ document.addEventListener('DOMContentLoaded', () => {
           textarea?.focus();
         }, 50);
       } else {
-        showToast('Lỗi khi gửi tin: ' + data.error, 'error');
+        const isError10 = data.errorCode === 10 || data.errorType === 'OUTSIDE_24H_WINDOW' || (data.error && (data.error.includes('[10]') || data.error.includes('khoảng thời gian cho phép') || data.error.includes('outside of allowed window')));
+        if (isError10) {
+          const modalDetail = document.getElementById('metaPolicyModalErrorDetail');
+          const modalGoMeta = document.getElementById('btnModalGoMetaSuite');
+          const metaUrl = data.metaInboxUrl || `https://business.facebook.com/latest/inbox/all?asset_id=${activeConversation.page_id}`;
+          
+          if (modalDetail) {
+            modalDetail.textContent = data.detailedError || data.error || 'Khách hàng đã quá 24 giờ không nhắn tin. Meta chặn gửi tin nhắn thông thường theo chính sách 24-Hour Policy.';
+          }
+          if (modalGoMeta) modalGoMeta.href = metaUrl;
+
+          const retryBtn = document.getElementById('btnModalRetryWithHumanAgent');
+          if (retryBtn) {
+            retryBtn.onclick = () => {
+              closeModal('metaPolicyInfoModal');
+              if (tagSelect) {
+                tagSelect.value = 'HUMAN_AGENT';
+                tagSelect.dataset.userManuallySelected = 'true';
+              }
+              executeSendReply(textToSend, attachmentToSend);
+            };
+          }
+
+          openModal('metaPolicyInfoModal');
+          showToast('⚠️ Meta chặn gửi tin: Ngoài cửa sổ 24 giờ cho phép!', 'error');
+        } else {
+          showToast('Lỗi khi gửi tin: ' + data.error, 'error');
+        }
       }
     } catch (err) {
       showToast('Lỗi mạng khi gửi tin: ' + err.message, 'error');
@@ -7226,6 +7361,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPagesGrid();
       });
     }
+
+    // 2.1 Chat Message Tag Select change
+    document.getElementById('chatMessageTagSelect')?.addEventListener('change', (e) => {
+      e.target.dataset.userManuallySelected = 'true';
+    });
 
     // 3. Modal Manage Account Pages: Select All
     document.getElementById('btnSelectAllAccountPages')?.addEventListener('click', () => {

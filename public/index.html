@@ -201,6 +201,7 @@
                       <span id="activeChatPageBadge" class="page-badge">Fanpage</span>
                       <span id="activeChatStatusBadge" class="status-indicator">🔴 Chưa trả lời</span>
                       <span id="activeChatSeenBadge" class="seen-indicator">👁️ Đã xem</span>
+                      <span id="chat24hWindowBadge" class="badge-24h-window badge-24h-active" title="Cửa sổ phản hồi theo chính sách Meta Messenger Platform">🟢 Trong 24h</span>
                     </div>
                   </div>
                 </div>
@@ -215,8 +216,8 @@
                   <button id="markRepliedBtn" class="btn btn-sm btn-secondary">
                     ✅ Đánh dấu đã trả lời
                   </button>
-                  <a id="openMetaInboxBtn" href="#" target="_blank" class="btn btn-sm btn-primary">
-                    Mở Meta Suite ↗
+                  <a id="openMetaInboxBtn" href="#" target="_blank" class="btn btn-sm btn-primary" title="Mở trực tiếp cuộc trò chuyện này trên Facebook Meta Business Suite">
+                    <span>🌐</span> Mở Meta Suite ↗
                   </a>
                 </div>
               </div>
@@ -278,6 +279,17 @@
                 <input type="file" id="chatImageFileInput" accept="image/*" style="display: none;">
                 <input type="file" id="chatDocFileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt" style="display: none;">
 
+                <!-- 24h Policy Warning & Direct Meta Link Banner -->
+                <div id="chat24hWarningBanner" class="chat-24h-warning-banner" style="display: none;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 16px;">⚠️</span>
+                    <span id="chat24hWarningText">Khách hàng đã quá 24h không nhắn tin. Hệ thống sẽ tự động dùng Thẻ CSKH (HUMAN_AGENT).</span>
+                  </div>
+                  <a id="chat24hOpenMetaBtn" href="#" target="_blank" class="btn btn-xxs btn-primary" style="margin-left: auto; text-decoration: none; white-space: nowrap;">
+                    <span>🌐</span> Mở Meta Suite
+                  </a>
+                </div>
+
                 <div class="meta-texting-container">
                   <!-- Staged Attachment Tray (Preview before sending) -->
                   <div id="attachmentStagingTray" class="attachment-staging-tray" style="display: none;">
@@ -304,7 +316,18 @@
                       </button>
                     </div>
 
-                    <div class="texting-tools-right">
+                    <div class="texting-tools-right" style="display: flex; align-items: center; gap: 8px;">
+                      <!-- Message Tag Selector (Thẻ CSKH / Meta Policy) -->
+                      <div class="message-tag-selector-wrap" title="Chọn Thẻ Tin Nhắn khi gửi ngoài cửa sổ 24 giờ của Meta">
+                        <span style="font-size: 11px; color: var(--text-muted); margin-right: 4px;">🏷️ Thẻ:</span>
+                        <select id="chatMessageTagSelect" class="chat-message-tag-select">
+                          <option value="">⚡ Tự động (Khuyên dùng)</option>
+                          <option value="HUMAN_AGENT">👤 CSKH Người Thật 7 ngày (HUMAN_AGENT)</option>
+                          <option value="POST_PURCHASE_UPDATE">📦 Cập Nhật Đơn Hàng (POST_PURCHASE_UPDATE)</option>
+                          <option value="ACCOUNT_UPDATE">🔔 Cập Nhật Tài Khoản (ACCOUNT_UPDATE)</option>
+                          <option value="CONFIRMED_EVENT_UPDATE">📅 Cập Nhật Sự Kiện (CONFIRMED_EVENT_UPDATE)</option>
+                        </select>
+                      </div>
                       <button type="button" id="quickLikeBtn" class="texting-tool-btn" title="Gửi nhanh biểu tượng Thích (👍) cho khách">
                         <span>👍 Like nhanh</span>
                       </button>
@@ -2068,6 +2091,52 @@
     </div>
   </div>
 
+  <!-- Modal: Meta 24-Hour Policy & Message Tags Guide -->
+  <div id="metaPolicyInfoModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog" style="max-width: 580px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 22px;">⚠️</span>
+          <div>
+            <h3 style="margin: 0; font-size: 16px; color: #f8fafc;">Chính Sách Cửa Sổ 24 Giờ (Meta 24-Hour Policy)</h3>
+            <span style="font-size: 11.5px; color: var(--text-muted);">Quy định của Facebook đối với tin nhắn Fanpage gửi cho khách</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-modal="metaPolicyInfoModal">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 18px 22px; font-size: 13px; line-height: 1.6; color: #cbd5e1;">
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+          <strong style="color: #f87171; display: block; margin-bottom: 4px;">⛔ Meta Chặn Gửi Tin Nhắn Thông Thường (Error 10)</strong>
+          <span id="metaPolicyModalErrorDetail">Khách hàng đã quá 24 giờ không tương tác. Facebook không cho phép gửi tin nhắn phản hồi tự do qua API.</span>
+        </div>
+
+        <h4 style="margin: 14px 0 6px 0; color: #f1f5f9; font-size: 13.5px;">💡 Các giải pháp để tiếp tục hỗ trợ khách hàng:</h4>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
+            <strong style="color: #38bdf8;">Cách 1 (Khuyên dùng): Mở trực tiếp trên Meta Business Suite</strong>
+            <p style="margin: 4px 0 8px 0; font-size: 12px; color: var(--text-muted);">Facebook không chặn người thật nhắn tin trực tiếp trên ứng dụng Facebook hoặc web Meta Business Suite.</p>
+            <a id="btnModalGoMetaSuite" href="#" target="_blank" class="btn btn-xs btn-primary" style="font-weight: 700; gap: 6px; text-decoration: none;">
+              <span>🌐</span> Mở Ngay Cuộc Trò Chuyện Này Trên Meta Suite ↗
+            </a>
+          </div>
+
+          <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
+            <strong style="color: #34d399;">Cách 2: Gửi kèm Thẻ CSKH Người Thật (HUMAN_AGENT)</strong>
+            <p style="margin: 4px 0 8px 0; font-size: 12px; color: var(--text-muted);">Nếu khách đã nhắn tin trong vòng <strong>7 ngày qua</strong>, bạn có thể chọn Thẻ <code>HUMAN_AGENT</code> trên khung soạn thảo để gửi tiếp.</p>
+            <button type="button" id="btnModalRetryWithHumanAgent" class="btn btn-xs btn-secondary" style="font-weight: 600; gap: 6px;">
+              <span>👤</span> Chọn Thẻ CSKH (HUMAN_AGENT) &amp; Thử Lại
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border-color);">
+        <button type="button" class="btn btn-secondary" data-modal="metaPolicyInfoModal">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Hidden YouTube Alarm Player Container -->
   <div id="youtubeAlarmContainer" style="display: block; position: fixed; bottom: -9999px; left: -9999px; width: 200px; height: 200px; pointer-events: none; opacity: 0.01; z-index: -999;">
     <div id="youtubeAlarmPlayerSlot"></div>
@@ -2078,6 +2147,6 @@
 
   <!-- YouTube Iframe API -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="app.js?v=20260919_2"></script>
+  <script src="app.js?v=20260919_3"></script>
 </body>
 </html>

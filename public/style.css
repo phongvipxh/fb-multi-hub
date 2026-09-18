@@ -4234,3 +4234,82 @@ input:checked + .slider:before {
   object-fit: cover;
 }
 
+/* ======================================================== */
+/* META 24-HOUR POLICY & MESSAGE TAGS                       */
+/* ======================================================== */
+.badge-24h-window {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.badge-24h-active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-24h-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  animation: pulse-border 2s infinite ease-in-out;
+}
+
+.badge-24h-expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(245, 158, 11, 0.35); }
+  50% { border-color: rgba(245, 158, 11, 0.8); }
+}
+
+.chat-24h-warning-banner {
+  margin-bottom: 8px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+.message-tag-selector-wrap {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+.chat-message-tag-select {
+  background: transparent;
+  color: #cbd5e1;
+  border: none;
+  font-size: 11.5px;
+  outline: none;
+  cursor: pointer;
+  max-width: 220px;
+}
+
+.chat-message-tag-select option {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+

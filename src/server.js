@@ -56,6 +56,7 @@ const {
   markSafetyAlarmTriggered,
   updateUserActivity,
   getConversation,
+  getConversation24hStatus,
   saveSettings,
   getAllTokenSources,
   getTokenSourcesWithPages,
@@ -1164,7 +1165,9 @@ app.get('/api/conversations/:pageId/:senderId/messages', (req, res) => {
     const { pageId, senderId } = req.params;
     const limit = req.query.limit ? Number(req.query.limit) : null;
     const messages = getConversationMessages(pageId, senderId, limit);
-    res.json({ ok: true, messages });
+    const conv = getConversation(pageId, senderId);
+    const status24h = getConversation24hStatus(conv?.last_customer_message_time);
+    res.json({ ok: true, messages, conversation: conv, status24h });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -1183,7 +1186,7 @@ app.post('/api/conversations/:pageId/:senderId/mark-replied', (req, res) => {
 app.post('/api/conversations/:pageId/:senderId/send-message', async (req, res) => {
   try {
     const { pageId, senderId } = req.params;
-    const { text, attachment } = req.body;
+    const { text, attachment, tag } = req.body;
 
     const trimmedText = (text || '').trim();
     if (!trimmedText && !attachment) {
@@ -1237,8 +1240,8 @@ app.post('/api/conversations/:pageId/:senderId/send-message', async (req, res) =
       }
     }
 
-    // Call Facebook Send API
-    const sendResult = await sendFacebookMessage(page.access_token, senderId, trimmedText, fbAttachment);
+    // Call Facebook Send API with optional Message Tag
+    const sendResult = await sendFacebookMessage(page.access_token, senderId, trimmedText, fbAttachment, { tag });
 
     // Save as echo/sent message with Meta-synchronized timestamp
     const timestamp = sendResult?.timestamp || getMetaSyncedNow();
@@ -1268,17 +1271,38 @@ app.post('/api/conversations/:pageId/:senderId/send-message', async (req, res) =
       attachments: attachmentsList,
       timestamp,
       agent_name: agentName,
+      used_tag: sendResult?.usedTag || sendResult?.usedFallbackTag || null,
       source: 'tool_reply'
     });
 
     res.json({ 
       ok: true, 
-      message: 'Đã gửi tin nhắn thành công!', 
+      message: sendResult?.usedFallbackTag 
+        ? `Đã gửi tin nhắn qua Thẻ CSKH (${sendResult.usedFallbackTag}) do khách hàng quá 24h!` 
+        : 'Đã gửi tin nhắn thành công!', 
       result: sendResult,
       attachment: savedAttachment
     });
   } catch (err) {
     console.error('[Send Message] Error:', err.message);
+
+    const isOutside24h = err.isOutside24h || err.code === 10 || (err.message && (err.message.includes('[10]') || err.message.includes('khoảng thời gian cho phép') || err.message.includes('outside of allowed window')));
+    if (isOutside24h) {
+      const conv = getConversation(req.params.pageId, req.params.senderId);
+      const metaInboxUrl = `https://business.facebook.com/latest/inbox/all?asset_id=${req.params.pageId}`;
+      return res.status(400).json({
+        ok: false,
+        errorCode: 10,
+        errorType: 'OUTSIDE_24H_WINDOW',
+        error: 'Tin nhắn này được gửi ngoài khoảng thời gian cho phép (Chính sách Meta 24-Hour Policy). Meta chặn gửi tin nhắn thông thường khi khách hàng không nhắn tin trong 24 giờ qua.',
+        detailedError: err.message,
+        lastCustomerMessageTime: conv?.last_customer_message_time || 0,
+        metaInboxUrl,
+        suggestedAction: 'open_meta_business_suite',
+        instructions: 'Chính sách Meta chỉ cho phép phản hồi trong 24 giờ. Nếu trong 7 ngày, hệ thống sẽ gửi kèm Thẻ CSKH (HUMAN_AGENT). Nếu khách đã quá 7 ngày không nhắn tin, Meta chặn 100% qua API; bạn hãy bấm nút [Mở Meta Business Suite] để chat trực tiếp trên Facebook.'
+      });
+    }
+
     res.status(500).json({ ok: false, error: err.message });
   }
 });

@@ -327,7 +327,7 @@ async function subscribePageWebhook(pageId, pageAccessToken) {
 /**
  * Sends a message or attachment from the Page to a user (PSID)
  */
-async function sendFacebookMessage(pageAccessToken, recipientPsid, messageText = '', attachment = null) {
+async function sendFacebookMessage(pageAccessToken, recipientPsid, messageText = '', attachment = null, options = {}) {
   if (!pageAccessToken || !recipientPsid) {
     throw new Error('Thiếu thông tin gửi tin nhắn (token hoặc recipient)');
   }
@@ -335,82 +335,142 @@ async function sendFacebookMessage(pageAccessToken, recipientPsid, messageText =
     throw new Error('Thiếu nội dung tin nhắn hoặc tệp đính kèm');
   }
 
+  const requestedTag = options.tag || null;
+  const requestedMessagingType = options.messaging_type || (requestedTag ? 'MESSAGE_TAG' : 'RESPONSE');
+
   // Allow mock tokens for automated test environments
   if (pageAccessToken.startsWith('MOCK_') || pageAccessToken.includes('TEST_TOKEN')) {
+    if (pageAccessToken.includes('MOCK_ERROR_10_EXPIRED_7D')) {
+      const err = new Error('Graph API Send Text Error [10]: (#10) Tin nhắn này được gửi ngoài khoảng thời gian cho phép. Đã quá 7 ngày.');
+      err.code = 10;
+      err.isOutside24h = true;
+      throw err;
+    }
+    if (pageAccessToken.includes('MOCK_ERROR_10_FALLBACK_TEST')) {
+      if (!requestedTag) {
+        // Simulate Error 10 first, then fallback to HUMAN_AGENT
+        return {
+          recipientId: recipientPsid.trim(),
+          messageId: `mid_mock_sent_fallback_${Date.now()}`,
+          timestamp: getMetaSyncedNow(),
+          usedFallbackTag: 'HUMAN_AGENT'
+        };
+      }
+    }
     return {
       recipientId: recipientPsid.trim(),
       messageId: `mid_mock_sent_${Date.now()}`,
-      timestamp: getMetaSyncedNow()
+      timestamp: getMetaSyncedNow(),
+      tag: requestedTag
     };
   }
 
   const url = `${GRAPH_API_BASE}/me/messages?access_token=${encodeURIComponent(pageAccessToken.trim())}`;
   let lastResult = null;
 
-  // 1. Send attachment if present
-  if (attachment && attachment.url) {
-    const attachBody = {
-      recipient: { id: recipientPsid.trim() },
-      message: {
-        attachment: {
-          type: attachment.type || 'image',
-          payload: {
-            url: attachment.url,
-            is_reusable: true
-          }
-        }
-      },
-      messaging_type: 'RESPONSE'
+  // Helper to detect Meta Error 10 (outside 24h allowed window)
+  const isOutside24hError = (data) => {
+    if (!data || !data.error) return false;
+    const code = Number(data.error.code);
+    const subcode = Number(data.error.error_subcode);
+    const msg = (data.error.message || '').toLowerCase();
+    return code === 10 || subcode === 2018001 || subcode === 2018278 || msg.includes('outside of allowed window') || msg.includes('khoảng thời gian cho phép');
+  };
+
+  // Helper to execute Meta send call with auto-fallback to HUMAN_AGENT tag
+  const executeSendWithFallback = async (messagePayload, isAttachment = false) => {
+    let messagingType = requestedMessagingType;
+    let tag = requestedTag;
+
+    const buildBody = (mType, mTag) => {
+      const body = {
+        recipient: { id: recipientPsid.trim() },
+        message: messagePayload,
+        messaging_type: mType
+      };
+      if (mType === 'MESSAGE_TAG' && mTag) {
+        body.tag = mTag;
+      }
+      return body;
     };
 
-    const attRes = await fetchWithRetry(url, {
+    let res = await fetchWithRetry(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(attachBody)
+      body: JSON.stringify(buildBody(messagingType, tag))
     });
 
-    const serverDate = attRes.headers.get('date');
+    const serverDate = res.headers.get('date');
     if (serverDate) updateMetaClockOffset(serverDate);
     const serverTimestamp = serverDate ? new Date(serverDate).getTime() : getMetaSyncedNow();
 
-    const attData = await attRes.json();
-    if (attData.error) {
-      throw new Error(`Graph API Send Attachment Error [${attData.error.code}]: ${attData.error.message}`);
+    let resData = await res.json();
+
+    // Auto-fallback: If sent as RESPONSE and failed with Error 10, retry once with HUMAN_AGENT tag
+    if (resData.error && isOutside24hError(resData) && messagingType === 'RESPONSE' && !tag) {
+      console.log(`[Meta Send Fallback] Gặp lỗi 10 (Ngoài 24h) khi gửi ${isAttachment ? 'tệp đính kèm' : 'tin nhắn'}. Tự động thử lại với Thẻ CSKH (HUMAN_AGENT)...`);
+      
+      const fallbackBody = buildBody('MESSAGE_TAG', 'HUMAN_AGENT');
+      const retryRes = await fetchWithRetry(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fallbackBody)
+      });
+
+      const retryDate = retryRes.headers.get('date');
+      if (retryDate) updateMetaClockOffset(retryDate);
+      const retryData = await retryRes.json();
+
+      if (!retryData.error) {
+        console.log(`[Meta Send Fallback] 🎉 Thử lại thành công với Thẻ CSKH (HUMAN_AGENT)! Tin nhắn đã được Meta tiếp nhận.`);
+        return {
+          recipientId: retryData.recipient_id,
+          messageId: retryData.message_id,
+          timestamp: retryDate ? new Date(retryDate).getTime() : serverTimestamp,
+          usedFallbackTag: 'HUMAN_AGENT'
+        };
+      } else {
+        resData = retryData; // update error details for final reporting
+      }
     }
-    lastResult = {
-      recipientId: attData.recipient_id,
-      messageId: attData.message_id,
-      timestamp: serverTimestamp
+
+    if (resData.error) {
+      const label = isAttachment ? 'Attachment' : 'Text';
+      const errMsg = `Graph API Send ${label} Error [${resData.error.code}]: ${resData.error.message}`;
+      const err = new Error(errMsg);
+      err.code = resData.error.code;
+      err.subcode = resData.error.error_subcode;
+      err.fbError = resData.error;
+      err.isOutside24h = isOutside24hError(resData);
+      throw err;
+    }
+
+    return {
+      recipientId: resData.recipient_id,
+      messageId: resData.message_id,
+      timestamp: serverTimestamp,
+      usedTag: tag || null
     };
+  };
+
+  // 1. Send attachment if present
+  if (attachment && attachment.url) {
+    const attachPayload = {
+      attachment: {
+        type: attachment.type || 'image',
+        payload: {
+          url: attachment.url,
+          is_reusable: true
+        }
+      }
+    };
+    lastResult = await executeSendWithFallback(attachPayload, true);
   }
 
   // 2. Send text if present
   if (messageText && messageText.trim()) {
-    const textBody = {
-      recipient: { id: recipientPsid.trim() },
-      message: { text: messageText.trim() },
-      messaging_type: 'RESPONSE'
-    };
-
-    const textRes = await fetchWithRetry(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(textBody)
-    });
-
-    const serverDate = textRes.headers.get('date');
-    if (serverDate) updateMetaClockOffset(serverDate);
-    const serverTimestamp = serverDate ? new Date(serverDate).getTime() : getMetaSyncedNow();
-
-    const textData = await textRes.json();
-    if (textData.error) {
-      throw new Error(`Graph API Send Text Error [${textData.error.code}]: ${textData.error.message}`);
-    }
-    lastResult = {
-      recipientId: textData.recipient_id,
-      messageId: textData.message_id,
-      timestamp: serverTimestamp
-    };
+    const textPayload = { text: messageText.trim() };
+    lastResult = await executeSendWithFallback(textPayload, false);
   }
 
   return lastResult;

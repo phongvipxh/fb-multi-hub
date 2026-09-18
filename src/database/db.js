@@ -243,6 +243,26 @@ if (!convColumns.includes('tags')) {
 if (!convColumns.includes('customer_notes')) {
   db.exec("ALTER TABLE conversations ADD COLUMN customer_notes TEXT DEFAULT ''");
 }
+if (!convColumns.includes('last_customer_message_time')) {
+  db.exec('ALTER TABLE conversations ADD COLUMN last_customer_message_time INTEGER DEFAULT 0');
+  // Backfill existing conversations from messages table
+  try {
+    db.exec(`
+      UPDATE conversations 
+      SET last_customer_message_time = COALESCE(
+        (SELECT MAX(timestamp) FROM messages 
+         WHERE messages.page_id = conversations.page_id 
+           AND messages.sender_id = conversations.sender_id 
+           AND (messages.is_echo = 0 OR messages.is_echo IS NULL)),
+        last_message_time,
+        0
+      )
+      WHERE last_customer_message_time = 0 OR last_customer_message_time IS NULL;
+    `);
+  } catch (e) {
+    console.warn('[DB Migration] Warning backfilling last_customer_message_time:', e.message);
+  }
+}
 
 // Migration helper: add seen columns to messages
 const msgColumns = db.prepare('PRAGMA table_info(messages)').all().map(c => c.name);
@@ -975,12 +995,15 @@ const saveMessage = ({
   }
 
   const isEchoVal = is_echo ? 1 : 0;
+  const initialCustomerTime = isEchoVal ? 0 : timestamp;
+
   const convStmt = db.prepare(`
     INSERT INTO conversations (
       page_id, sender_id, sender_name, last_message_text, last_message_time,
-      is_replied, is_seen, safety_alarm_triggered, unread_count, updated_at
+      is_replied, is_seen, safety_alarm_triggered, unread_count, updated_at,
+      last_customer_message_time
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), ?)
     ON CONFLICT(page_id, sender_id) DO UPDATE SET
       sender_name = CASE 
         WHEN ? = 1 THEN conversations.sender_name
@@ -992,6 +1015,11 @@ const saveMessage = ({
       last_message_time = CASE 
         WHEN excluded.last_message_time >= conversations.last_message_time THEN excluded.last_message_time 
         ELSE conversations.last_message_time 
+      END,
+      last_customer_message_time = CASE
+        WHEN ? = 0 AND (excluded.last_customer_message_time >= COALESCE(conversations.last_customer_message_time, 0) OR conversations.last_customer_message_time IS NULL)
+          THEN excluded.last_customer_message_time
+        ELSE COALESCE(conversations.last_customer_message_time, 0)
       END,
       is_replied = excluded.is_replied,
       is_seen = CASE WHEN ? = 1 THEN conversations.is_seen ELSE 0 END,
@@ -1009,7 +1037,9 @@ const saveMessage = ({
     isEchoVal ? 1 : 0, // is_seen
     0, // safety_alarm_triggered
     isEchoVal ? 0 : 1, // unread_count
+    initialCustomerTime, // last_customer_message_time
     isEchoVal, // CASE sender_name
+    isEchoVal, // CASE last_customer_message_time (? = 0)
     isEchoVal, // CASE is_seen
     isEchoVal  // CASE safety_alarm_triggered
   );
@@ -1556,8 +1586,65 @@ const updateCustomerCrm = (pageId, senderId, { phone, address, tags }) => {
   return getCustomerCrm(pageId, senderId);
 };
 
+const getConversation24hStatus = (lastCustomerMessageTime) => {
+  const time = Number(lastCustomerMessageTime) || 0;
+  if (!time) {
+    return {
+      status: 'unknown',
+      within24h: false,
+      within7d: false,
+      remainingHours: 0,
+      remainingMinutes: 0,
+      label: 'Chưa có mốc tin nhắn',
+      tagRecommended: 'HUMAN_AGENT'
+    };
+  }
+  const now = Date.now();
+  const elapsedMs = Math.max(0, now - time);
+
+  const window24hMs = 24 * 60 * 60 * 1000;
+  const window7dMs = 7 * 24 * 60 * 60 * 1000;
+
+  if (elapsedMs <= window24hMs) {
+    const remainMs = window24hMs - elapsedMs;
+    const remHours = Math.floor(remainMs / (1000 * 60 * 60));
+    const remMins = Math.floor((remainMs % (1000 * 60 * 60)) / (1000 * 60));
+    return {
+      status: 'within_24h',
+      within24h: true,
+      within7d: true,
+      remainingHours: remHours,
+      remainingMinutes: remMins,
+      label: `🟢 Trong 24h (Còn ${remHours}h ${remMins}m)`,
+      tagRecommended: ''
+    };
+  } else if (elapsedMs <= window7dMs) {
+    const remainMs = window7dMs - elapsedMs;
+    const remDays = Math.floor(remainMs / (1000 * 60 * 60 * 24));
+    const remHours = Math.floor((remainMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    return {
+      status: 'within_7d',
+      within24h: false,
+      within7d: true,
+      remainingDays: remDays,
+      remainingHours: remHours,
+      label: `⚠️ Quá 24h (CSKH 7 ngày - Còn ${remDays} ngày ${remHours}h)`,
+      tagRecommended: 'HUMAN_AGENT'
+    };
+  } else {
+    return {
+      status: 'expired_7d',
+      within24h: false,
+      within7d: false,
+      label: '🛑 Quá 7 ngày (Meta chặn gửi API)',
+      tagRecommended: 'HUMAN_AGENT'
+    };
+  }
+};
+
 module.exports = {
   db,
+  getConversation24hStatus,
   getSettings,
   getSetting,
   updateSetting,

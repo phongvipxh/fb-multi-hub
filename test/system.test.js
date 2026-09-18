@@ -2328,8 +2328,143 @@ const testServer = app.listen(0, async () => {
     assert(syncAllData.total_sources_scanned >= 1, 'Phải quét qua các tài khoản');
     console.log(`  ✓ API POST /api/token-sources/sync-all-pages quét ${syncAllData.total_sources_scanned} tài khoản thành công`);
 
+    // [27] Kiểm tra Chính Sách 24 Giờ (24-Hour Policy), Thẻ Tin Nhắn (Message Tags) & Tự Động Thử Lại (Auto-Fallback)...
+    console.log('\n[27] Kiểm tra Chính Sách 24 Giờ (24-Hour Policy), Thẻ Tin Nhắn (Message Tags) & Tự Động Thử Lại (Auto-Fallback)...');
+
+    const policyPageId = 'page_policy_24h_test';
+    const policyCustId = 'cust_policy_24h_01';
+
+    db.saveOrUpdatePage({
+      page_id: policyPageId,
+      name: 'Fanpage Thử Nghiệm 24h Policy',
+      access_token: 'MOCK_SEND_TOKEN_FOR_24H_TEST',
+      avatar_url: '',
+      is_active: 1
+    });
+
+    // 27.1 Kiểm tra lưu mốc last_customer_message_time khi khách nhắn tin
+    const nowTime = Date.now();
+    const custMsgTime = nowTime - (5 * 60 * 60 * 1000); // 5 giờ trước
+    db.saveMessage({
+      mid: `mid_cust_24h_${Date.now()}`,
+      page_id: policyPageId,
+      sender_id: policyCustId,
+      sender_name: 'Khách Hàng Thử Nghiệm 24h',
+      text: 'Shop ơi tư vấn sản phẩm giúp em với!',
+      attachments: [],
+      timestamp: custMsgTime,
+      is_echo: 0
+    });
+
+    let conv24h = db.getConversation(policyPageId, policyCustId);
+    assert.strictEqual(conv24h.last_customer_message_time, custMsgTime, 'last_customer_message_time phải khớp với mốc khách gửi');
+    console.log('  ✓ Lưu trữ mốc last_customer_message_time khi khách gửi tin nhắn chuẩn xác');
+
+    // 27.2 Khi Page gửi tin nhắn trả lời (is_echo = 1), last_customer_message_time của khách không bị ghi đè
+    db.saveMessage({
+      mid: `mid_page_reply_${Date.now()}`,
+      page_id: policyPageId,
+      sender_id: policyCustId,
+      sender_name: 'Fanpage Thử Nghiệm 24h Policy',
+      text: 'Dạ shop chào bạn ạ!',
+      attachments: [],
+      timestamp: nowTime - (4 * 60 * 60 * 1000),
+      is_echo: 1
+    });
+
+    conv24h = db.getConversation(policyPageId, policyCustId);
+    assert.strictEqual(conv24h.last_customer_message_time, custMsgTime, 'last_customer_message_time của khách không bị ghi đè bởi tin nhắn Page trả lời');
+    console.log('  ✓ Bảo toàn mốc last_customer_message_time khi Page gửi tin nhắn phản hồi');
+
+    // 27.3 Kiểm tra hàm tính toán trạng thái 24h (getConversation24hStatus)
+    const statusWithin24h = db.getConversation24hStatus(Date.now() - (2 * 60 * 60 * 1000));
+    assert.strictEqual(statusWithin24h.status, 'within_24h');
+    assert.strictEqual(statusWithin24h.within24h, true);
+
+    const statusWithin7d = db.getConversation24hStatus(Date.now() - (36 * 60 * 60 * 1000)); // 36 giờ trước (> 24h)
+    assert.strictEqual(statusWithin7d.status, 'within_7d');
+    assert.strictEqual(statusWithin7d.within24h, false);
+    assert.strictEqual(statusWithin7d.within7d, true);
+    assert.strictEqual(statusWithin7d.tagRecommended, 'HUMAN_AGENT');
+
+    const statusExpired7d = db.getConversation24hStatus(Date.now() - (9 * 24 * 60 * 60 * 1000)); // 9 ngày trước (> 7 ngày)
+    assert.strictEqual(statusExpired7d.status, 'expired_7d');
+    assert.strictEqual(statusExpired7d.within7d, false);
+    console.log('  ✓ Thuật toán getConversation24hStatus phân loại chuẩn xác 3 mức: within_24h, within_7d, expired_7d');
+
+    // 27.4 Kiểm tra API GET /messages trả về kèm trường status24h
+    const getMsgsRes = await fetch(`${baseUrl}/api/conversations/${policyPageId}/${policyCustId}/messages`);
+    assert.strictEqual(getMsgsRes.status, 200);
+    const getMsgsData = await getMsgsRes.json();
+    assert.strictEqual(getMsgsData.ok, true);
+    assert.ok(getMsgsData.status24h, 'Phải có trường status24h');
+    assert.strictEqual(getMsgsData.status24h.status, 'within_24h');
+    console.log('  ✓ API GET /api/conversations/.../messages trả về kèm cấu trúc status24h chi tiết');
+
+    // 27.5 Gửi tin nhắn kèm Message Tag chủ động (HUMAN_AGENT / POST_PURCHASE_UPDATE)
+    const sendWithTagRes = await fetch(`${baseUrl}/api/conversations/${policyPageId}/${policyCustId}/send-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Đơn hàng #DH12345 của bạn đã được xuất kho và đang giao nhé!',
+        tag: 'POST_PURCHASE_UPDATE'
+      })
+    });
+    assert.strictEqual(sendWithTagRes.status, 200);
+    const sendWithTagData = await sendWithTagRes.json();
+    assert.strictEqual(sendWithTagData.ok, true);
+    assert.strictEqual(sendWithTagData.result.tag, 'POST_PURCHASE_UPDATE');
+    console.log('  ✓ API POST /api/conversations/.../send-message tiếp nhận và gửi kèm Message Tag POST_PURCHASE_UPDATE thành công');
+
+    // 27.6 Kiểm tra cơ chế Tự Động Thử Lại (Auto-Fallback) sang thẻ HUMAN_AGENT khi gặp lỗi 10
+    db.saveOrUpdatePage({
+      page_id: 'page_fallback_test',
+      name: 'Fanpage Test Fallback',
+      access_token: 'MOCK_ERROR_10_FALLBACK_TEST',
+      avatar_url: '',
+      is_active: 1
+    });
+
+    const fallbackSendRes = await fetch(`${baseUrl}/api/conversations/page_fallback_test/cust_fb_01/send-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Em kiểm tra lại thông tin cho mình rồi ạ!'
+      })
+    });
+    assert.strictEqual(fallbackSendRes.status, 200);
+    const fallbackSendData = await fallbackSendRes.json();
+    assert.strictEqual(fallbackSendData.ok, true);
+    assert.strictEqual(fallbackSendData.result.usedFallbackTag, 'HUMAN_AGENT');
+    assert(fallbackSendData.message.includes('HUMAN_AGENT'), 'Thông báo phải ghi nhận đã gửi qua Thẻ CSKH');
+    console.log('  ✓ Cơ chế Auto-Fallback tự động phát hiện Error 10 và retry thành công với Thẻ CSKH (HUMAN_AGENT)');
+
+    // 27.7 Kiểm tra chẩn đoán lỗi thân thiện và cấp link Meta Suite khi vượt quá 7 ngày (Meta chặn API)
+    db.saveOrUpdatePage({
+      page_id: 'page_expired_7d_test',
+      name: 'Fanpage Test Expired 7D',
+      access_token: 'MOCK_ERROR_10_EXPIRED_7D',
+      avatar_url: '',
+      is_active: 1
+    });
+
+    const expiredSendRes = await fetch(`${baseUrl}/api/conversations/page_expired_7d_test/cust_exp_01/send-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Chào bạn, bên mình có chương trình mới ạ!'
+      })
+    });
+    assert.strictEqual(expiredSendRes.status, 400);
+    const expiredSendData = await expiredSendRes.json();
+    assert.strictEqual(expiredSendData.ok, false);
+    assert.strictEqual(expiredSendData.errorCode, 10);
+    assert.strictEqual(expiredSendData.errorType, 'OUTSIDE_24H_WINDOW');
+    assert(expiredSendData.metaInboxUrl.includes('page_expired_7d_test'), 'metaInboxUrl phải trỏ đúng Fanpage');
+    console.log('  ✓ API chẩn đoán mã lỗi 10 chuẩn xác, phản hồi cấu trúc OUTSIDE_24H_WINDOW kèm link Meta Business Suite');
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 26 BÀI TEST HỆ THỐNG, CẬP NHẬT FANPAGE MỚI & WORKSPACE HUBS ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 27 BÀI TEST HỆ THỐNG, 24-HOUR POLICY & MESSAGE TAGS ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();
