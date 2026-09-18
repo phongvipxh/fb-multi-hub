@@ -2718,6 +2718,39 @@ app.post('/api/test/alarm', async (req, res) => {
   }
 });
 
+// Đồng bộ Tắt Chuông Toàn Hệ Thống (Single-Click Unified Silence)
+let lastGlobalAlarmSilencedTime = 0;
+
+app.post('/api/alarm/silence', (req, res) => {
+  try {
+    lastGlobalAlarmSilencedTime = Date.now();
+
+    try {
+      const Database = require('better-sqlite3');
+      const dataDir = path.resolve(__dirname, '../data');
+      const dbPath = process.env.DB_PATH || path.join(dataDir, 'fb_tool.db');
+      const rawDb = new Database(dbPath);
+      rawDb.prepare('UPDATE conversations SET safety_alarm_triggered = 1 WHERE safety_alarm_triggered = 0').run();
+    } catch (e) {
+      console.warn('[AlarmSilence] DB update warning:', e.message);
+    }
+
+    // Phát lệnh SSE cho tất cả các tab / clients đang mở lập tức ngắt toàn bộ âm thanh
+    broadcastSSE('alarm_silenced', {
+      timestamp: lastGlobalAlarmSilencedTime,
+      reason: 'user_dismissed'
+    });
+
+    console.log('[AlarmSilence] Người dùng đã bấm TẮT CHUÔNG. Đã đồng bộ tắt âm thanh tới tất cả các tab.');
+    res.json({
+      ok: true,
+      message: 'Đã tắt chuông và đồng bộ toàn bộ hệ thống thành công.'
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.post('/api/test/simulate-message', async (req, res) => {
   try {
     const {
@@ -2999,6 +3032,10 @@ async function checkSafetyAlarmsAndInactivity() {
 
     // 2. Delayed Safety Alarm Check
     if (host.safety_alarm_enabled === 'true') {
+      // Cooldown after user pressed "Tắt chuông" (5 minutes grace period)
+      if (Date.now() - lastGlobalAlarmSilencedTime < 5 * 60 * 1000) {
+        return;
+      }
       const delayMin = Number(host.safety_alarm_delay_minutes) || 10;
       const overdueConvs = getUnrepliedConversationsForSafetyAlarm(delayMin);
 

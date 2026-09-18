@@ -24,8 +24,9 @@
       </div>
     </div>
     <div class="alarm-bar-actions">
-      <button id="dismissAlarmBtn" class="btn btn-sm btn-dismiss">🔕 Tắt Chuông Ngay</button>
-      <button id="snoozeAlarmBtn" class="btn btn-sm btn-snooze">⏰ Báo Lại Sau 5 Phút</button>
+      <button id="dismissAlarmBtn" class="btn-dismiss-unified" title="Tắt chuông và đồng bộ toàn bộ hệ thống">
+        <span>🔕</span> TẮT CHUÔNG NGAY
+      </button>
     </div>
   </div>
 
@@ -189,19 +190,7 @@
                   <div class="drop-zone-desc">Hỗ trợ Ảnh, Video, Ghi âm Voice, Tài liệu PDF, DOCX, XLSX (tối đa 25MB)</div>
                 </div>
               </div>
-              <!-- Safety Alarm Urgent Banner -->
-              <div id="safetyAlarmBanner" class="safety-alarm-banner" style="display: none;">
-                <div class="safety-alarm-content">
-                  <span class="safety-alarm-icon">🚨</span>
-                  <div class="safety-alarm-text">
-                    <strong id="safetyAlarmTitle">BÁO ĐỘNG AN TOÀN: Tin nhắn chưa có ai trả lời!</strong>
-                    <span id="safetyAlarmDesc">Có tin nhắn từ khách hàng đã quá thời gian chờ quy định. Vui lòng phản hồi ngay!</span>
-                  </div>
-                  <div class="safety-alarm-actions">
-                    <button type="button" id="silenceSafetyAlarmBtn" class="btn btn-sm btn-danger">🔕 Tắt Chuông Báo</button>
-                  </div>
-                </div>
-              </div>
+              <!-- Safety Alarm is now fully routed to the Single Unified Alarm Bar at the top of the screen -->
 
               <div id="chatDetailHeader" class="chat-detail-header" style="display: none;">
                 <div class="chat-header-user">
@@ -2037,6 +2026,6 @@
 
   <!-- YouTube Iframe API -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="app.js?v=20260919_1"></script>
+  <script src="app.js?v=20260919_2"></script>
 </body>
 </html>

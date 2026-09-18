@@ -386,25 +386,80 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 1800);
     }
 
-    stopContinuousAlarm() {
+    showUnifiedAlarmBar(title, subtitle) {
+      const alarmBar = document.getElementById('emergencyAlarmBar');
+      const titleEl = document.getElementById('emergencyAlarmTitle');
+      const subEl = document.getElementById('emergencyAlarmSubtitle');
+      if (titleEl && title) titleEl.textContent = title;
+      if (subEl && subtitle) subEl.textContent = subtitle;
+      if (alarmBar) alarmBar.style.display = 'flex';
+    }
+
+    hardStopAllAudio() {
       this.isPlaying = false;
       if (this.intervalId) {
         clearInterval(this.intervalId);
         this.intervalId = null;
       }
+
+      // 1. Triệt để tắt Web Audio API & reset gain về 0
+      if (this.masterGain && this.audioCtx) {
+        try {
+          this.masterGain.gain.cancelScheduledValues(0);
+          this.masterGain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+        } catch (e) {}
+      }
+      if (this.audioCtx && this.audioCtx.state !== 'closed') {
+        try { this.audioCtx.suspend(); } catch (e) {}
+      }
+
+      // 2. Triệt để tắt Custom Audio HTML5
       if (this.customAudio) {
         try {
           this.customAudio.pause();
           this.customAudio.currentTime = 0;
+          this.customAudio.loop = false;
+          this.customAudio.removeAttribute('src');
+          this.customAudio.load();
         } catch (e) {}
       }
-      if (window.ytAlarmPlayer && typeof window.ytAlarmPlayer.stopVideo === 'function') {
+
+      // 3. Triệt để tắt YouTube Alarm Player
+      if (window.ytAlarmPlayer) {
+        try { if (typeof window.ytAlarmPlayer.pauseVideo === 'function') window.ytAlarmPlayer.pauseVideo(); } catch (e) {}
+        try { if (typeof window.ytAlarmPlayer.stopVideo === 'function') window.ytAlarmPlayer.stopVideo(); } catch (e) {}
+        try { if (typeof window.ytAlarmPlayer.mute === 'function') window.ytAlarmPlayer.mute(); } catch (e) {}
+      }
+
+      // 4. Quét sạch tất cả các thẻ <audio> trên trang
+      document.querySelectorAll('audio').forEach(a => {
         try {
-          window.ytAlarmPlayer.stopVideo();
+          a.pause();
+          a.currentTime = 0;
+          a.loop = false;
         } catch (e) {}
+      });
+
+      // 5. Đặt lại trạng thái thử nghe chuông
+      if (typeof isTestingAlarmSound !== 'undefined') {
+        isTestingAlarmSound = false;
       }
+      const testWebAudioBtn = document.getElementById('testWebAudioChimeBtn');
+      if (testWebAudioBtn) {
+        testWebAudioBtn.innerHTML = '<span>🔊</span> Thử Nghe Chuông Loa Ngay';
+        testWebAudioBtn.classList.remove('btn-danger');
+        testWebAudioBtn.classList.add('btn-secondary');
+      }
+
+      // 6. Ẩn thanh báo thức chung
       const alarmBar = document.getElementById('emergencyAlarmBar');
       if (alarmBar) alarmBar.style.display = 'none';
+      const safetyBanner = document.getElementById('safetyAlarmBanner');
+      if (safetyBanner) safetyBanner.style.display = 'none';
+    }
+
+    stopContinuousAlarm() {
+      this.hardStopAllAudio();
     }
   }
 
@@ -711,20 +766,57 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.textContent = `${nextRate}x`;
   };
 
-  // Emergency Alarm Bar actions
-  document.getElementById('dismissAlarmBtn')?.addEventListener('click', () => {
-    alarmAudioEngine.stopContinuousAlarm();
-    showToast('Đã tắt chuông báo thức.', 'info');
+  // -------------------------------------------------------------
+  // Single Unified Alarm Dismiss & Full Multi-Tab / Server Sync
+  // -------------------------------------------------------------
+  const alarmSyncChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('fb_multi_hub_alarm_sync') : null;
+
+  if (alarmSyncChannel) {
+    alarmSyncChannel.onmessage = (event) => {
+      if (event.data?.action === 'stop_alarm') {
+        console.log('[AlarmSync] Nhận lệnh tắt chuông từ tab khác.');
+        alarmAudioEngine.hardStopAllAudio();
+        showToast('🔕 Đã tắt chuông (đồng bộ từ tab khác)', 'info');
+      } else if (event.data?.action === 'start_alarm') {
+        console.log('[AlarmSync] Nhận lệnh đổ chuông từ tab khác.');
+        alarmAudioEngine.showUnifiedAlarmBar(event.data.title, event.data.subtitle);
+      }
+    };
+  }
+
+  // Cross-Tab Fallback via LocalStorage Event
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'fb_hub_alarm_killswitch' && e.newValue) {
+      console.log('[AlarmSync] Nhận killswitch tắt chuông qua localStorage.');
+      alarmAudioEngine.hardStopAllAudio();
+      showToast('🔕 Đã tắt chuông (đồng bộ từ cửa sổ khác)', 'info');
+    }
   });
 
-  document.getElementById('snoozeAlarmBtn')?.addEventListener('click', () => {
-    alarmAudioEngine.stopContinuousAlarm();
-    showToast('Đã hoãn báo thức. Sẽ báo lại sau 5 phút nếu vẫn có tin nhắn mới.', 'info');
-    setTimeout(() => {
-      if (hostProfile && hostProfile.alarm_enabled === 'true') {
-        alarmAudioEngine.startContinuousAlarm(getEffectiveVolume(), getEffectiveSoundType());
-      }
-    }, 5 * 60 * 1000);
+  // Hàm Dập Tắt Chuông Chung Toàn Diện (Unified Killswitch)
+  window.triggerUnifiedAlarmDismiss = function() {
+    // 1. Dập tắt triệt để toàn bộ âm thanh trên tab hiện tại
+    alarmAudioEngine.hardStopAllAudio();
+
+    // 2. Đồng bộ tức thì tới tất cả các tab khác qua BroadcastChannel & LocalStorage
+    if (alarmSyncChannel) {
+      try {
+        alarmSyncChannel.postMessage({ action: 'stop_alarm', timestamp: Date.now() });
+      } catch (e) {}
+    }
+    try {
+      localStorage.setItem('fb_hub_alarm_killswitch', Date.now().toString());
+    } catch (e) {}
+
+    // 3. Gửi lệnh lên Server để ngắt kiểm tra báo động an toàn & broadcast SSE
+    fetch('/api/alarm/silence', { method: 'POST' }).catch(() => {});
+
+    showToast('🔕 Đã tắt chuông và đồng bộ toàn bộ hệ thống!', 'success');
+  };
+
+  // Nút Tắt Chuông Chung Duy Nhất (Unified Dismiss Button)
+  document.getElementById('dismissAlarmBtn')?.addEventListener('click', () => {
+    window.triggerUnifiedAlarmDismiss();
   });
 
   // -------------------------------------------------------------
@@ -1059,6 +1151,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Web Audio sound trigger
       if (hostProfile && hostProfile.web_sound_enabled === 'true') {
         if (hostProfile.alarm_enabled === 'true') {
+          alarmAudioEngine.showUnifiedAlarmBar(
+            `🚨 BÁO THỨC: CÓ TIN NHẮN MỚI TỪ KHÁCH HÀNG!`,
+            `Tin nhắn từ ${msg.sender_name} (${msg.page_name}). Loa máy tính đang đổ chuông để đánh thức bạn trực ca.`
+          );
           alarmAudioEngine.startContinuousAlarm(getEffectiveVolume(), getEffectiveSoundType());
         } else {
           alarmAudioEngine.playSingleChime(getEffectiveVolume(), getEffectiveSoundType());
@@ -1100,6 +1196,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = JSON.parse(e.data);
       console.log('[SSE] Lệnh đổ chuông báo thức:', data);
 
+      alarmAudioEngine.showUnifiedAlarmBar(
+        `🚨 BÁO THỨC ĐẾN GIỜ TRỰC: ${data.pageName}`,
+        `Khách hàng ${data.senderName} vừa nhắn tin! Đang gọi điện qua ${data.method}.`
+      );
       alarmAudioEngine.startContinuousAlarm(getEffectiveVolume(), getEffectiveSoundType());
       showBrowserNotification(
         `🚨 BÁO THỨC ĐẾN GIỜ TRỰC: ${data.pageName}`,
@@ -1280,28 +1380,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = JSON.parse(e.data);
         console.log('[SSE] Báo động an toàn tin nhắn bỏ quên:', data);
 
-        const banner = document.getElementById('safetyAlarmBanner');
-        const titleEl = document.getElementById('safetyAlarmTitle');
-        const descEl = document.getElementById('safetyAlarmDesc');
+        const title = `🚨 BÁO ĐỘNG AN TOÀN: Tin nhắn chưa trả lời (${data.minutes_unreplied || data.delay_minutes || 10} phút)!`;
+        const subtitle = `Khách hàng ${data.sender_name || 'Khách'} trên Page ${data.page_name || data.page_id || ''} chưa được phản hồi sau ${data.minutes_unreplied || data.delay_minutes || 10} phút quy định. Vui lòng kiểm tra ngay!`;
 
-        if (banner) banner.style.display = 'block';
-        if (titleEl) {
-          titleEl.textContent = `🚨 BÁO ĐỘNG AN TOÀN: Tin nhắn chưa trả lời (${data.minutes_unreplied} phút)!`;
-        }
-        if (descEl) {
-          descEl.textContent = `Khách hàng ${data.sender_name || 'Khách'} trên Page ${data.page_name || data.page_id} chưa được phản hồi sau ${data.minutes_unreplied} phút quy định. Vui lòng kiểm tra ngay!`;
-        }
-
-        // Web Audio sound trigger continuous
+        // Chỉ hiển thị 1 thanh báo thức chung duy nhất ở đầu màn hình kèm nút tắt chuông duy nhất
+        alarmAudioEngine.showUnifiedAlarmBar(title, subtitle);
         alarmAudioEngine.startContinuousAlarm(getEffectiveVolume(), getEffectiveSoundType());
 
-        showBrowserNotification(
-          `🚨 BÁO ĐỘNG AN TOÀN (${data.minutes_unreplied}p chưa rep)`,
-          `Khách hàng ${data.sender_name || 'Khách'} trên Page ${data.page_name} đang chờ phản hồi!`
-        );
+        showBrowserNotification(title, subtitle);
       } catch (err) {
         console.warn('[SSE] safety_alarm error:', err);
       }
+    });
+
+    sseSource.addEventListener('alarm_silenced', () => {
+      console.log('[SSE] Nhận thông báo đã tắt chuông từ máy chủ.');
+      alarmAudioEngine.hardStopAllAudio();
+      showToast('🔕 Đã tắt chuông và đồng bộ toàn bộ hệ thống!', 'info');
     });
 
     sseSource.addEventListener('user_sleep_state_changed', (e) => {
@@ -5093,12 +5188,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Silence Safety Alarm Button
+  // Silence Safety Alarm Button (Backward-compatible route to unified killswitch)
   document.getElementById('silenceSafetyAlarmBtn')?.addEventListener('click', () => {
-    alarmAudioEngine.stopContinuousAlarm();
-    const banner = document.getElementById('safetyAlarmBanner');
-    if (banner) banner.style.display = 'none';
-    showToast('Đã tắt chuông báo động an toàn', 'info');
+    if (typeof window.triggerUnifiedAlarmDismiss === 'function') {
+      window.triggerUnifiedAlarmDismiss();
+    } else {
+      alarmAudioEngine.hardStopAllAudio();
+    }
   });
 
   // Save Auto-Sleep Config Button (Card 4)
