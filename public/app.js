@@ -3461,6 +3461,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const callbackUri = (data.redirectUris && data.redirectUris[0]) || `${window.location.origin}/auth/facebook/callback`;
           uriEl.textContent = callbackUri;
         }
+        const siteUrlEl = document.getElementById('siteUrlText');
+        if (siteUrlEl) siteUrlEl.textContent = `${window.location.origin}/`;
+        const appDomainEl = document.getElementById('appDomainText');
+        if (appDomainEl) appDomainEl.textContent = window.location.hostname;
       }
     } catch (err) {
       console.warn('Lỗi tải cấu hình app:', err);
@@ -3564,6 +3568,20 @@ document.addEventListener('DOMContentLoaded', () => {
       navigator.clipboard.writeText(uri);
       showToast('Đã sao chép Callback URI vào clipboard!', 'success');
     }
+  });
+
+  // Copy Site URL
+  document.getElementById('btnCopySiteUrl')?.addEventListener('click', () => {
+    const url = document.getElementById('siteUrlText')?.textContent.trim() || `${window.location.origin}/`;
+    navigator.clipboard.writeText(url);
+    showToast('Đã sao chép URL trang web vào clipboard!', 'success');
+  });
+
+  // Copy App Domain
+  document.getElementById('btnCopyAppDomain')?.addEventListener('click', () => {
+    const domain = document.getElementById('appDomainText')?.textContent.trim() || window.location.hostname;
+    navigator.clipboard.writeText(domain);
+    showToast('Đã sao chép Miền ứng dụng vào clipboard!', 'success');
   });
 
   // Toggle Step 1 Detailed Guide

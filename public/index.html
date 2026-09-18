@@ -1938,12 +1938,15 @@
                   </div>
                 </div>
 
-                <!-- Sub-step 4: Redirect URI -->
+                <!-- Sub-step 4: Domain & Redirect URI -->
                 <div style="display: flex; gap: 9px; align-items: flex-start; background: rgba(255, 255, 255, 0.02); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #8b5cf6;">
                   <span style="background: #8b5cf6; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px;">4</span>
                   <div>
-                    <strong style="color: #f1f5f9;">Thêm Redirect URI (Cấp quyền chuyển hướng đăng nhập):</strong>
-                    Tại menu bên trái, tìm mục <strong>Facebook Login for Business</strong> (hoặc bấm <em>Thêm sản phẩm / Thêm trường hợp sử dụng</em> &gt; chọn <em>Đăng nhập Facebook</em>) &rarr; chọn <strong>Cài đặt (Settings)</strong> &rarr; Dán link callback ở mục bên dưới vào ô <em>Valid OAuth Redirect URIs</em> &rarr; Bấm <strong>Lưu thay đổi (Save changes)</strong>.
+                    <strong style="color: #f1f5f9;">Khai báo Miền &amp; Redirect URI (Bắt buộc để tránh lỗi "Không thể tải URL"):</strong>
+                    <div style="margin-top: 4px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.55;">
+                      &bull; <strong>Tại Cài đặt ứng dụng &gt; Thông tin cơ bản:</strong> Ô <em>Miền ứng dụng</em> điền <code>localhost</code>. Kéo xuống dưới cùng bấm <strong>+ Thêm nền tảng</strong> &rarr; Chọn <strong>Trang web</strong> &rarr; Ô <em>URL trang web</em> điền <code>http://localhost:3000/</code> &rarr; Bấm <strong>Lưu thay đổi</strong>.
+                      <br>&bull; <strong>Tại Facebook Login for Business &gt; Cài đặt:</strong> Ô <em>Valid OAuth Redirect URIs</em> dán link callback ở bảng bên dưới &rarr; Bấm <strong>Lưu thay đổi</strong>.
+                    </div>
                   </div>
                 </div>
 
@@ -2025,15 +2028,34 @@
               <span id="seqAppSaveResultMsg" style="font-size: 11.5px; color: #34d399; font-weight: 500; display: none;"></span>
             </div>
 
-            <!-- OAuth Redirect URIs Collapsible / Helper -->
-            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 8px 12px; font-size: 11.5px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                <span style="color: var(--text-muted);">🔗 Valid OAuth Redirect URI (Dán vào App FB &gt; Facebook Login for Business &gt; Settings):</span>
-                <button type="button" id="btnCopySeqRedirectUri" class="btn btn-xs btn-secondary" style="gap: 4px;">
-                  📋 Sao chép link callback
-                </button>
+            <!-- OAuth Redirect URIs & Domains Collapsible / Helper -->
+            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 10px 12px; font-size: 11.5px; display: flex; flex-direction: column; gap: 8px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                  <span style="color: var(--text-muted);">🔗 <strong>Valid OAuth Redirect URI</strong> (Dán vào <em>FB Login &gt; Cài đặt &gt; Valid OAuth Redirect URIs</em>):</span>
+                  <button type="button" id="btnCopySeqRedirectUri" class="btn btn-xs btn-secondary" style="gap: 4px;">
+                    📋 Sao chép
+                  </button>
+                </div>
+                <code id="seqRedirectUriText" style="display: block; color: #34d399; font-size: 11px; margin-top: 3px; word-break: break-all;">http://localhost:3000/auth/facebook/callback</code>
               </div>
-              <code id="seqRedirectUriText" style="display: block; color: #34d399; font-size: 11px; margin-top: 4px; word-break: break-all;">http://localhost:3000/auth/facebook/callback</code>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div style="background: rgba(255,255,255,0.02); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.04);">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #94a3b8; font-size: 11px;">🌐 <strong>URL trang web:</strong></span>
+                    <button type="button" id="btnCopySiteUrl" class="btn btn-xs btn-secondary" style="font-size: 10px; padding: 1px 6px;">📋 Chép</button>
+                  </div>
+                  <code id="siteUrlText" style="color: #60a5fa; font-size: 11px; display: block; margin-top: 2px;">http://localhost:3000/</code>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.04);">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #94a3b8; font-size: 11px;">🏷️ <strong>Miền ứng dụng:</strong></span>
+                    <button type="button" id="btnCopyAppDomain" class="btn btn-xs btn-secondary" style="font-size: 10px; padding: 1px 6px;">📋 Chép</button>
+                  </div>
+                  <code id="appDomainText" style="color: #fbbf24; font-size: 11px; display: block; margin-top: 2px;">localhost</code>
+                </div>
+              </div>
             </div>
             </div>
           </div>

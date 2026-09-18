@@ -842,9 +842,6 @@ function generateFacebookAuthUrl({ appId, redirectUri, state = '', reauth = fals
   const scopes = [
     'pages_show_list',
     'pages_messaging',
-    'pages_read_engagement',
-    'pages_manage_metadata',
-    'business_management',
     'public_profile'
   ];
 
