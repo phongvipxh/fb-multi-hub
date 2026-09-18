@@ -77,18 +77,34 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Giao diện Multi-Account trực quan tại View 2: Bảng hiển thị toàn bộ các tài khoản Facebook đang kết nối kèm Avatar, User ID, số lượng Fanpage, trạng thái Token và Cổng App riêng. Nút "➕ Thêm Tài Khoản Mới" mở modal đăng nhập tuần tự.
   - Tối ưu luồng Đăng Nhập 1-Click: Khi hệ thống chưa có App ID, hiển thị trực diện ô nhập App ID làm Cổng chung ngay trong Cách 1 kèm nút hướng dẫn nhanh và lối tắt chuyển sang Cách 2. Khi đã có App ID, tự động chuyển sang 1-Click thực thụ.
   - Token Auto-Discovery: Khi dán User Token ở Cách 2, backend tự động truy vấn `GET /app?access_token={token}` để trích xuất App ID và tự động lưu làm Cổng App chung cho hệ thống mà người dùng không cần nhập thủ công.
+- Unified Single Alarm Dismiss Button & Cross-Tab Synchronization:
+  - Gom toàn bộ các loại báo động (Khẩn cấp, Báo động an toàn, Tin nhắn mới) về duy nhất 1 thanh nổi đỏ toàn màn hình ở vị trí trên cùng (`#emergencyAlarmBar`) với duy nhất 1 nút bấm to, rõ: `[🔕 TẮT CHUÔNG NGAY]`.
+  - Cơ chế `hardStopAllAudio` dập tắt triệt để Web Audio API, HTML5 Audio và YouTube Player iframe.
+  - Đồng bộ đa tab tức thì qua `BroadcastChannel` và `localStorage` killswitch: bấm tắt ở 1 tab lập tức ngắt âm thanh ở mọi tab khác.
+  - Đồng bộ backend qua `POST /api/alarm/silence` đánh dấu hội thoại quá hạn đã xử lý và áp dụng thời gian nghỉ (Grace period) chống lặp.
+- Selective Fanpage Management & 3-Layer Alarm Protection (Active/Inactive):
+  - Cho phép người dùng chủ động chọn lọc các Fanpage cụ thể nào được quản lý trên tool cho từng tài khoản Facebook qua Modal `[📋 Chọn Page Quản Lý]`.
+  - Công tắc nhanh `[🟢 Đang Quản Lý]` / `[⏸️ Tạm Dừng]` trên từng card Fanpage; thanh lọc trạng thái `#pagesFilterBar` (`Tất Cả`, `Đang Quản Lý`, `Tạm Dừng`).
+  - Khóa chặt 3 tầng bảo vệ chống réo chuông cho các Fanpage tạm dừng:
+    - Tầng 1 (Database): `getUnrepliedConversationsForSafetyAlarm` ép điều kiện `AND p.is_active = 1`.
+    - Tầng 2 (Server Webhook): Bỏ qua 100% việc kích hoạt chuông SSE, Phone Siren và Alert Telegram/Discord khi `page.is_active === 0`.
+    - Tầng 3 (UI): Hiển thị cảnh báo trực quan và chặn gửi cảnh báo.
+- Layout Balance & Visual Alignment Stabilization:
+  - Header trên cùng chuẩn hóa `flex-wrap: nowrap`, thu gọn badge tunnel chống vỡ dòng và đè chữ.
+  - Lưới card Fanpage `.pages-grid` cân đối với `minmax(360px, 1fr)`, không bị méo lệch khi có ít card.
+  - Đồng bộ nút bấm hành động `🗑️ Xóa` thành outline danger có icon, padding và chiều cao đồng nhất với các nút khác.
 - Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
-  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (~48 MB).
-  - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh. Người dùng tải về chỉ cần click đúp là chạy ngay lập tức, không cần cài đặt Node.js hay bất kỳ phần mềm hỗ trợ nào.
+  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.05 MB).
+  - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh.
 
 ## 4. Repository & Deployment
 - GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub`
 - Current Branch: `main`
-- Verification: 23/23 Test Suites Passed (Exit Code 0)
-- Latest Commit: `e88bb02` (Up to date with origin/main)
+- Verification: 24/24 Test Suites Passed (Exit Code 0)
+- Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe` (48.05 MB)
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
-- 23 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, and Custom Web Alarm Audio / YouTube Links.
+- 24 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, and Selective Fanpage Management & Inactive Alarm Locking.
 - Last Status: 100% Pass — Mechanical Exit Code 0.
 

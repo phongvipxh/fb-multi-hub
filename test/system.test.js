@@ -2145,8 +2145,77 @@ const testServer = app.listen(0, async () => {
     assert.strictEqual(getHostData.host.custom_sound_url, uploadData.sound_url);
     console.log('  ✓ Lưu trữ cấu hình link YouTube và tệp âm thanh tùy chỉnh vào Host Profile thành công 100%');
 
+    // [24] Kiểm tra Cơ Chế Chọn Lọc Fanpage Quản Lý (Active/Inactive) & Khóa Chặt Báo Thức
+    console.log('\n[24] Kiểm tra Cơ Chế Chọn Lọc Fanpage Quản Lý (Active/Inactive) & Khóa Chặt Báo Thức...');
+
+    // 24.1 Test PATCH /api/pages/:id/toggle (Bật / Tắt Quản Lý trên từng Page)
+    const allPagesBefore = db.getAllPages();
+    assert(allPagesBefore && allPagesBefore.length > 0, 'Cần có ít nhất 1 page trong database để test');
+    const targetPage = allPagesBefore[0];
+    const targetPageId = targetPage.id;
+
+    // Toggle to Inactive (is_active = 0)
+    const toggleOffRes = await fetch(`${baseUrl}/api/pages/${targetPageId}/toggle`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: 0 })
+    });
+    assert.strictEqual(toggleOffRes.status, 200);
+    const toggleOffData = await toggleOffRes.json();
+    assert.strictEqual(toggleOffData.ok, true);
+    assert.strictEqual(toggleOffData.is_active, 0);
+
+    const checkDbOff = db.getAllPages().find(p => p.id === targetPageId);
+    assert.strictEqual(checkDbOff.is_active, 0, 'Database phải cập nhật is_active = 0');
+    console.log('  ✓ API PATCH /api/pages/:id/toggle chuyển trạng thái sang TẠM DỪNG (is_active = 0) thành công');
+
+    // 24.2 Verify getUnrepliedConversationsForSafetyAlarm excludes inactive pages
+    // Create an unreplied conversation on this inactive page with cutoff in the past
+    db.saveMessage({
+      mid: 'mid_inactive_test_' + Date.now(),
+      page_id: targetPage.page_id,
+      sender_id: 'cust_inactive_test',
+      sender_name: 'Khách Test Inactive',
+      text: 'Tin nhắn trên page đã tắt quản lý',
+      timestamp: Date.now() - 3600000 // 1 hour ago
+    });
+    db.markConversationUnseen(targetPage.page_id, 'cust_inactive_test');
+
+    const overdueConvs = db.getUnrepliedConversationsForSafetyAlarm(10);
+    const foundOnInactive = overdueConvs.find(c => c.page_id === targetPage.page_id && c.sender_id === 'cust_inactive_test');
+    assert.strictEqual(foundOnInactive, undefined, 'Cuộc hội thoại trên page is_active = 0 tuyệt đối KHÔNG được lọt vào Safety Alarm');
+    console.log('  ✓ Safety Alarm Engine loại trừ 100% các Fanpage đã Tắt Quản Lý (is_active = 0)');
+
+    // Toggle back to Active (is_active = 1)
+    const toggleOnRes = await fetch(`${baseUrl}/api/pages/${targetPageId}/toggle`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: 1 })
+    });
+    assert.strictEqual(toggleOnRes.status, 200);
+    const toggleOnData = await toggleOnRes.json();
+    assert.strictEqual(toggleOnData.ok, true);
+    assert.strictEqual(toggleOnData.is_active, 1);
+    console.log('  ✓ API PATCH /api/pages/:id/toggle bật lại Quản Lý (is_active = 1) thành công');
+
+    // 24.3 Test POST /api/token-sources/:id/manage-pages (Bulk Selection per Account)
+    const tokenSources = db.getAllTokenSources();
+    if (tokenSources && tokenSources.length > 0) {
+      const sourceRecord = tokenSources[0];
+      const manageRes = await fetch(`${baseUrl}/api/token-sources/${sourceRecord.id}/manage-pages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active_page_ids: [targetPage.page_id] })
+      });
+      assert.strictEqual(manageRes.status, 200);
+      const manageData = await manageRes.json();
+      assert.strictEqual(manageData.ok, true);
+      assert.strictEqual(manageData.active_count, 1);
+      console.log('  ✓ API POST /api/token-sources/:id/manage-pages cập nhật lựa chọn nhiều Fanpage thành công');
+    }
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 23 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, CHUÔNG BÁO TÙY CHỈNH & YOUTUBE ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 24 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, QUẢN LÝ FANPAGE & AN TOÀN BÁO THỨC ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();

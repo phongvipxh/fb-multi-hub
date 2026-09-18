@@ -526,10 +526,24 @@
             </div>
           </div>
 
-          <div class="card-section-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div class="card-section-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
-              <h4 style="margin: 0; font-size: 15px; color: var(--text-primary);">📄 Các Fanpage Đang Hoạt Động Trên Tool:</h4>
-              <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0 0;">Danh sách tất cả Fanpage thuộc các tài khoản đã kết nối ở trên</p>
+              <h4 style="margin: 0; font-size: 15px; color: var(--text-primary);">📄 Danh Sách Fanpage Facebook:</h4>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0 0;">Bật / tắt quản lý cho từng Page. Chỉ các Page "Đang Quản Lý" mới quét tin và kêu chuông báo thức.</p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span id="pagesOverviewStatsBadge" class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11.5px; padding: 4px 10px; font-weight: 600;">0 Đang Quản Lý</span>
+            </div>
+          </div>
+
+          <div class="pages-filter-bar" id="pagesFilterBar">
+            <div class="pages-filter-pills">
+              <button type="button" class="page-filter-btn active" data-page-status="all">🔘 Tất Cả (<span id="countFilterAll">0</span>)</button>
+              <button type="button" class="page-filter-btn" data-page-status="active">🟢 Đang Quản Lý (<span id="countFilterActive">0</span>)</button>
+              <button type="button" class="page-filter-btn" data-page-status="inactive">⏸️ Tạm Dừng (<span id="countFilterInactive">0</span>)</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" id="pagesSearchInput" class="form-control form-control-sm" placeholder="🔍 Tìm Fanpage theo tên / ID..." style="width: 240px; font-size: 12px; padding: 5px 10px;">
             </div>
           </div>
 
@@ -2012,6 +2026,53 @@
 
       <div class="modal-footer">
         <button id="closeFbSequentialFooterBtn" class="btn btn-secondary">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Chọn & Quản Lý Fanpage Theo Tài Khoản Facebook -->
+  <div id="manageAccountPagesModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-dialog-lg" style="max-width: 600px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="manageAccountModalTitle" style="display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 0; color: #f8fafc;">
+            <span>⚙️</span> Chọn Fanpage Quản Lý Trên Tool
+          </h3>
+          <p id="manageAccountModalSubtitle" style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">
+            Tài khoản: Facebook
+          </p>
+        </div>
+        <button type="button" class="modal-close" data-modal="manageAccountPagesModal">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px;">
+        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #93c5fd; line-height: 1.5;">
+          💡 <strong>Quyền riêng tư &amp; Chống báo động rác:</strong> Chỉ những Fanpage được <strong>tích chọn (Bật)</strong> dưới đây mới được Tool nạp tin nhắn và phát chuông báo thức. Những Fanpage bỏ tích sẽ được <strong>Tạm Dừng</strong> hoàn toàn (không quét tin &amp; không kêu chuông).
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 4px;">
+          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Danh Sách Fanpage Thuộc Tài Khoản:</span>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" id="btnSelectAllAccountPages" class="btn btn-xs btn-secondary" style="font-size: 11px;">☑️ Chọn Tất Cả</button>
+            <button type="button" id="btnDeselectAllAccountPages" class="btn btn-xs btn-secondary" style="font-size: 11px;">⬜ Bỏ Chọn Tất Cả</button>
+          </div>
+        </div>
+
+        <div class="account-pages-list" id="accountPagesListModal">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-top: 1px solid var(--border-color);">
+        <span id="selectedPagesCountText" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">
+          Đang chọn: 0 Fanpage
+        </span>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" data-modal="manageAccountPagesModal">Đóng</button>
+          <button type="button" id="btnSaveAccountPagesSelection" class="btn btn-primary" style="font-weight: 700;">
+            💾 Lưu Lựa Chọn Này
+          </button>
+        </div>
       </div>
     </div>
   </div>

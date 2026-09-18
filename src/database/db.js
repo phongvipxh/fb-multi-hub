@@ -879,8 +879,25 @@ const deletePage = (id) => {
   return db.prepare('DELETE FROM pages WHERE id = ?').run(id);
 };
 
-const togglePageActive = (id, isActive) => {
+const togglePageActive = (id, isActive = null) => {
+  if (isActive === null || isActive === undefined) {
+    return db.prepare('UPDATE pages SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?').run(id);
+  }
   return db.prepare('UPDATE pages SET is_active = ? WHERE id = ?').run(isActive ? 1 : 0, id);
+};
+
+const setTokenSourcePagesActive = (tokenSourceId, activePageIds = []) => {
+  const pages = db.prepare('SELECT id, page_id FROM pages WHERE token_source_id = ?').all(tokenSourceId);
+  const stmt = db.prepare('UPDATE pages SET is_active = ? WHERE id = ?');
+  const activeSet = new Set((activePageIds || []).map(String));
+  const updateMany = db.transaction(() => {
+    for (const p of pages) {
+      const activeVal = activeSet.has(String(p.page_id)) ? 1 : 0;
+      stmt.run(activeVal, p.id);
+    }
+  });
+  updateMany();
+  return db.prepare('SELECT * FROM pages WHERE token_source_id = ?').all(tokenSourceId);
 };
 
 const updatePageCustomDetails = (id, { color_tag, account_label, name } = {}) => {
@@ -1064,6 +1081,7 @@ const getUnrepliedConversationsForSafetyAlarm = (delayMinutes = 10) => {
       AND c.safety_alarm_triggered = 0
       AND c.last_message_time > 0
       AND c.last_message_time <= ?
+      AND p.is_active = 1
   `).all(cutoff);
 };
 
@@ -1289,19 +1307,21 @@ const getTokenSourceById = (id) => {
 const getTokenSourcesWithPages = () => {
   const sources = getAllTokenSources();
   const allPages = db.prepare(`
-    SELECT id, page_id, name, avatar_url, token_status, is_permanent, token_source_id, account_label, color_tag
+    SELECT id, page_id, name, avatar_url, token_status, is_permanent, token_source_id, account_label, color_tag, is_active
     FROM pages
     ORDER BY name ASC
   `).all();
 
   return sources.map(ts => {
     const matchedPages = allPages.filter(p => p.token_source_id === ts.id);
+    const activePagesCount = matchedPages.filter(p => p.is_active === 1).length;
     return {
       ...ts,
       has_app_secret: Boolean(ts.app_secret),
       app_secret_masked: ts.app_secret ? (ts.app_secret.substring(0, 4) + '••••••••' + ts.app_secret.slice(-4)) : '',
       pages: matchedPages,
-      current_pages_count: matchedPages.length
+      current_pages_count: matchedPages.length,
+      active_pages_count: activePagesCount
     };
   });
 };
@@ -1555,6 +1575,7 @@ module.exports = {
   assignPageOwner,
   deletePage,
   togglePageActive,
+  setTokenSourcePagesActive,
   updatePageCustomDetails,
   getPageShifts,
   getAllShifts,

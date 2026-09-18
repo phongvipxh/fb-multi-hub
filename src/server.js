@@ -27,6 +27,8 @@ const {
   updatePageTokenHealth,
   assignPageOwner,
   deletePage,
+  togglePageActive,
+  setTokenSourcePagesActive,
   updatePageCustomDetails,
   getPageShifts,
   getAllShifts,
@@ -555,6 +557,12 @@ app.post('/webhook', (req, res) => {
           timestamp: msg.timestamp
         };
         broadcastSSE('new_message', eventData);
+
+        // If page is inactive (not managed on tool), skip all alerts & alarms
+        if (page && page.is_active === 0) {
+          console.log(`[Webhook] Fanpage "${pageName}" (ID: ${msg.pageId}) đang TẠM DỪNG QUẢN LÝ (is_active = 0). Bỏ qua toàn bộ chuông báo thức & thông báo.`);
+          continue;
+        }
 
         // 3. Dispatch Discord Webhook Notification (Guaranteed delivery to all configured channels)
         await dispatchDiscordAlert({
@@ -2495,9 +2503,32 @@ app.post('/api/pages/:id/subscribe', async (req, res) => {
 
 app.patch('/api/pages/:id/toggle', (req, res) => {
   try {
-    const { is_active } = req.body;
+    const { is_active } = req.body || {};
     togglePageActive(req.params.id, is_active);
-    res.json({ ok: true, message: 'Đã cập nhật trạng thái hoạt động của trang!' });
+    const updated = db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+    const statusText = updated && updated.is_active === 1 ? 'ĐANG QUẢN LÝ (Nhận tin & Báo động)' : 'TẠM DỪNG (Không kêu chuông)';
+    res.json({
+      ok: true,
+      message: `Đã chuyển Fanpage "${updated?.name || req.params.id}" sang trạng thái: ${statusText}!`,
+      page: updated,
+      is_active: updated ? updated.is_active : (is_active ? 1 : 0)
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/token-sources/:id/manage-pages', (req, res) => {
+  try {
+    const sourceId = Number(req.params.id);
+    const { active_page_ids = [] } = req.body || {};
+    const updatedPages = setTokenSourcePagesActive(sourceId, active_page_ids);
+    res.json({
+      ok: true,
+      message: `Đã cập nhật danh sách Fanpage quản lý: ${active_page_ids.length} trang đang bật!`,
+      pages: updatedPages,
+      active_count: active_page_ids.length
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
