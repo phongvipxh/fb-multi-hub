@@ -2603,6 +2603,13 @@ document.addEventListener('DOMContentLoaded', () => {
         renderConnectedAccountsList(data.tokenSources);
       } catch (e) {}
 
+      // Update Main Connected Accounts Table on View 2
+      try {
+        renderMainConnectedAccountsTable(data.tokenSources);
+      } catch (e) {
+        console.warn('Error rendering main connected accounts table:', e);
+      }
+
       // 1. Populate Dropdown in Add Page Modal
       if (select) {
         select.innerHTML = '<option value="">-- Chọn nguồn tài khoản đã lưu --</option>' +
@@ -3154,7 +3161,246 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  async function openFacebookLoginSequentialModal() {
+  // -------------------------------------------------------------
+  // Render Main Connected Accounts Table on View 2
+  // -------------------------------------------------------------
+  function renderMainConnectedAccountsTable(tokenSources) {
+    const tbody = document.getElementById('connectedAccountsTableBody');
+    const badge = document.getElementById('accountsOverviewCountBadge');
+    if (!tbody) return;
+
+    const list = Array.isArray(tokenSources) ? tokenSources : (savedTokenSourcesCache || []);
+
+    // 1. Update Header Badge
+    if (badge) {
+      const totalPages = list.reduce((sum, s) => sum + (s.current_pages_count || (s.pages && s.pages.length) || s.pages_count || 0), 0);
+      badge.textContent = `${list.length} Tài Khoản • ${totalPages} Fanpage`;
+    }
+
+    // 2. Render Empty State or Account Rows
+    if (list.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--text-muted); background: rgba(15, 23, 42, 0.35);">
+            <div style="font-size: 32px; margin-bottom: 8px;">👥</div>
+            <strong style="color: #cbd5e1; font-size: 14.5px;">Chưa có tài khoản Facebook nào được kết nối.</strong>
+            <div style="margin-top: 6px; font-size: 12.5px; color: var(--text-secondary);">
+              Bấm nút <strong>"➕ Thêm Tài Khoản Mới"</strong> ngay bên dưới để kết nối tự động cực nhanh!
+            </div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = list.map(ts => {
+      const isPerm = ts.is_permanent === 1;
+      const pageCount = ts.current_pages_count || (ts.pages && ts.pages.length) || ts.pages_count || 0;
+      const pagesList = Array.isArray(ts.pages) ? ts.pages : [];
+
+      const avatarHtml = ts.avatar_url ? `
+        <img src="${escapeHtml(ts.avatar_url)}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #3b82f6; flex-shrink: 0;" alt="${escapeHtml(ts.name)}">
+      ` : `
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #1877f2, #3b82f6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">
+          ${escapeHtml((ts.name || 'FB').charAt(0).toUpperCase())}
+        </div>
+      `;
+
+      return `
+        <tr data-account-id="${ts.id}">
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              ${avatarHtml}
+              <div>
+                <div style="font-weight: 700; color: #f1f5f9; font-size: 13.5px; display: flex; align-items: center; gap: 6px;">
+                  <span>${escapeHtml(ts.name)}</span>
+                  ${ts.fb_user_id ? `<span class="badge-tag" style="background: rgba(24, 119, 242, 0.2); color: #60a5fa; font-size: 10px; padding: 1px 6px;">Facebook</span>` : ''}
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                  Kết nối: ${new Date(ts.created_at || Date.now()).toLocaleDateString('vi-VN')}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td>
+            ${ts.fb_user_id ? `<code style="color: #cbd5e1; font-size: 11.5px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">${escapeHtml(ts.fb_user_id)}</code>` : '<span style="color: var(--text-muted); font-size: 12px;">--</span>'}
+          </td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <span style="font-weight: 600; color: #60a5fa; font-size: 12.5px;">
+                📄 ${pageCount} Fanpage
+              </span>
+              ${pagesList.length > 0 ? `
+                <div style="display: flex; gap: 4px; flex-wrap: wrap; max-width: 250px;">
+                  ${pagesList.slice(0, 3).map(p => `
+                    <span class="badge-tag" style="background: rgba(30, 41, 59, 0.8); color: #cbd5e1; font-size: 10.5px; padding: 1px 6px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(p.name)}">
+                      ${escapeHtml(p.name)}
+                    </span>
+                  `).join('')}
+                  ${pagesList.length > 3 ? `<span class="badge-tag" style="background: rgba(30, 41, 59, 0.8); color: #64748b; font-size: 10px; padding: 1px 5px;">+${pagesList.length - 3}</span>` : ''}
+                </div>
+              ` : '<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">Chưa có Fanpage</span>'}
+            </div>
+          </td>
+          <td>
+            ${isPerm ? `
+              <span class="token-source-badge-permanent" style="white-space: nowrap !important; flex-shrink: 0 !important; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px;">
+                🛡️ Vĩnh Viễn
+              </span>
+            ` : `
+              <span class="token-source-badge-standard" style="white-space: nowrap !important; flex-shrink: 0 !important; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px;">
+                🕒 Dài Hạn
+              </span>
+            `}
+          </td>
+          <td>
+            ${ts.app_id ? `
+              <code style="color: #93c5fd; background: rgba(59,130,246,0.12); padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 11.5px;">${escapeHtml(ts.app_id)}</code>
+            ` : `
+              <span style="color: var(--text-muted); font-size: 11.5px; font-style: italic;">Cổng Mặc Định</span>
+            `}
+            ${ts.has_app_secret ? '<span title="Đã lưu App Secret" style="margin-left: 4px; color: #10b981; font-size: 12px;">🔒</span>' : ''}
+          </td>
+          <td style="text-align: right;">
+            <div style="display: inline-flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
+              <button type="button" class="btn btn-xs btn-primary btn-main-table-reauth" data-id="${ts.id}" data-appid="${escapeHtml(ts.app_id || '')}" data-name="${escapeHtml(ts.name)}" title="Đăng nhập lại / gia hạn Token cho tài khoản này" style="font-weight: 600; padding: 4px 8px; gap: 4px;">
+                <span>🔄</span> Đăng Nhập Lại
+              </button>
+              <button type="button" class="btn btn-xs btn-secondary btn-main-table-edit" data-id="${ts.id}" title="Cấu hình App ID & Secret cho tài khoản này" style="padding: 4px 8px; gap: 4px; font-size: 11px;">
+                <span>⚙️</span> Sửa App
+              </button>
+              <button type="button" class="btn btn-xs btn-danger btn-main-table-delete" data-id="${ts.id}" data-name="${escapeHtml(ts.name)}" title="Ngắt kết nối tài khoản này" style="padding: 4px 7px;">
+                <span>🗑️</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Attach listeners
+    tbody.querySelectorAll('.btn-main-table-reauth').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const accId = btn.dataset.id;
+        const appId = btn.dataset.appid || '';
+        const accName = btn.dataset.name || '';
+        const width = 650;
+        const height = 750;
+        const left = Math.max(0, Math.round((window.screen.width - width) / 2));
+        const top = Math.max(0, Math.round((window.screen.height - height) / 2));
+        const popupUrl = `/auth/facebook?popup=1&reauth=1&account_id=${encodeURIComponent(accId)}&app_id=${encodeURIComponent(appId)}&account_name=${encodeURIComponent(accName)}`;
+        const popup = window.open(popupUrl, 'fb_oauth_popup', `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,resizable=yes`);
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+          window.location.href = popupUrl.replace('popup=1&', '');
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-main-table-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openEditAccountAppModal(Number(btn.dataset.id));
+      });
+    });
+
+    tbody.querySelectorAll('.btn-main-table-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const accId = btn.dataset.id;
+        const accName = btn.dataset.name || 'tài khoản này';
+        if (!confirm(`Bạn có chắc chắn muốn ngắt kết nối tài khoản Facebook "${accName}"?\n(Các Fanpage đã kết nối vẫn được bảo toàn dữ liệu)`)) {
+          return;
+        }
+        try {
+          const res = await fetch(`/api/token-sources/${accId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.ok) {
+            showToast(`Đã ngắt kết nối tài khoản "${accName}" thành công!`, 'success');
+            loadTokenSources();
+            loadPages();
+          } else {
+            showToast('Lỗi khi xóa tài khoản: ' + data.error, 'error');
+          }
+        } catch (err) {
+          showToast('Lỗi mạng: ' + err.message, 'error');
+        }
+      });
+    });
+  }
+
+  // -------------------------------------------------------------
+  // Open Add New Account Modal (Clean, Auto-focused Flow)
+  // -------------------------------------------------------------
+  async function openAddNewAccountModal() {
+    currentEditingAccountId = null;
+    const labelInput = document.getElementById('seqAccountLabelInput');
+    const appIdInput = document.getElementById('seqFbAppIdInput');
+    const secretInput = document.getElementById('seqFbAppSecretInput');
+    const tokenInput = document.getElementById('seqTokenInput');
+    const titleEl = document.getElementById('seqFormSectionTitle');
+    const modalTitleEl = document.getElementById('seqModalTitle');
+    const subTitleEl = document.getElementById('seqModalSubtitle');
+    const resetBtn = document.getElementById('btnResetSeqForm');
+    const connSection = document.getElementById('connectedAccountsSection');
+    const drawer = document.getElementById('seqAppCredentialsDrawerContent');
+    const drawerBtnText = document.getElementById('toggleAppCredentialsText');
+
+    if (labelInput) labelInput.value = '';
+    if (appIdInput) appIdInput.value = '';
+    if (secretInput) {
+      secretInput.value = '';
+      secretInput.placeholder = 'Chuỗi mã bí mật (e8fe1eea...)';
+    }
+    if (tokenInput) tokenInput.value = '';
+    if (titleEl) titleEl.textContent = 'Kết Nối Tài Khoản Facebook Mới';
+    if (modalTitleEl) modalTitleEl.textContent = 'Kết Nối Tài Khoản Facebook';
+    if (subTitleEl) subTitleEl.textContent = 'Đăng nhập 1-Click hoặc dán Token để tự động nhận diện tên & kích hoạt Fanpage';
+    if (resetBtn) resetBtn.style.display = 'none';
+    if (connSection) connSection.style.display = 'none';
+    if (drawer) drawer.style.display = 'none';
+    if (drawerBtnText) drawerBtnText.textContent = 'Hiện Cấu Hình Nâng Cao ▾';
+
+    await openFacebookLoginSequentialModal(true);
+  }
+
+  // -------------------------------------------------------------
+  // Open Edit Account App Credentials Modal
+  // -------------------------------------------------------------
+  async function openEditAccountAppModal(accId) {
+    currentEditingAccountId = accId;
+    const acc = (savedTokenSourcesCache || []).find(s => s.id === accId);
+    if (!acc) return;
+
+    const labelInput = document.getElementById('seqAccountLabelInput');
+    const appIdInput = document.getElementById('seqFbAppIdInput');
+    const secretInput = document.getElementById('seqFbAppSecretInput');
+    const tokenInput = document.getElementById('seqTokenInput');
+    const titleEl = document.getElementById('seqFormSectionTitle');
+    const modalTitleEl = document.getElementById('seqModalTitle');
+    const subTitleEl = document.getElementById('seqModalSubtitle');
+    const resetBtn = document.getElementById('btnResetSeqForm');
+    const connSection = document.getElementById('connectedAccountsSection');
+    const drawer = document.getElementById('seqAppCredentialsDrawerContent');
+    const drawerBtnText = document.getElementById('toggleAppCredentialsText');
+
+    if (labelInput) labelInput.value = acc.name || '';
+    if (appIdInput) appIdInput.value = acc.app_id || '';
+    if (secretInput) {
+      secretInput.value = '';
+      secretInput.placeholder = acc.has_app_secret ? '•••••••••••••••• (Đã lưu bí mật, nhập nếu muốn đổi)' : 'Chuỗi mã bí mật (e8fe1eea...)';
+    }
+    if (tokenInput) tokenInput.value = '';
+    if (titleEl) titleEl.innerHTML = `✏️ Sửa Cấu Hình App Cho: <span style="color: #f1f5f9;">"${escapeHtml(acc.name)}"</span>`;
+    if (modalTitleEl) modalTitleEl.textContent = 'Cấu Hình App Cho Tài Khoản';
+    if (subTitleEl) subTitleEl.textContent = `Tùy chỉnh App ID & App Secret riêng cho tài khoản "${acc.name}"`;
+    if (resetBtn) resetBtn.style.display = 'inline-flex';
+    if (connSection) connSection.style.display = 'none';
+    if (drawer) drawer.style.display = 'block';
+    if (drawerBtnText) drawerBtnText.textContent = 'Thu Gọn Cấu Hình ▴';
+
+    await openFacebookLoginSequentialModal(true);
+    if (drawer) drawer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  async function openFacebookLoginSequentialModal(skipFieldReset = false) {
     try {
       // 1. Load Token Sources (Connected Accounts)
       const tokenRes = await fetch('/api/token-sources');
@@ -3162,6 +3408,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tokenData.ok && tokenData.tokenSources) {
         savedTokenSourcesCache = tokenData.tokenSources;
         renderConnectedAccountsList(tokenData.tokenSources);
+        renderMainConnectedAccountsTable(tokenData.tokenSources);
       }
 
       // 2. Load General App Config & Redirect URIs
@@ -3174,7 +3421,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const badge = document.getElementById('fbAppConfigStatusBadge');
         const uriEl = document.getElementById('seqRedirectUriText');
 
-        if (!currentEditingAccountId) {
+        if (!currentEditingAccountId && !skipFieldReset) {
           if (appIdInput && !appIdInput.value) appIdInput.value = data.appId || '';
           if (appSecretInput && !appSecretInput.value) {
             appSecretInput.value = '';
@@ -3206,12 +3453,31 @@ document.addEventListener('DOMContentLoaded', () => {
     openModal('facebookLoginSequentialModal');
   }
 
-  // Open Sequential Modal from Header Buttons
+  // Open Sequential Modal from Main View 2 Add Button
+  document.getElementById('btnAddNewAccountMain')?.addEventListener('click', () => {
+    openAddNewAccountModal();
+  });
+
+  // Open Sequential Modal from Header Buttons (backward compatibility)
   document.getElementById('btnFacebookOAuthLogin')?.addEventListener('click', () => {
-    openFacebookLoginSequentialModal();
+    openAddNewAccountModal();
   });
   document.getElementById('openFbAppConfigBtn')?.addEventListener('click', () => {
-    openFacebookLoginSequentialModal();
+    openAddNewAccountModal();
+  });
+
+  // Toggle Advanced App Credentials Drawer in Modal
+  document.getElementById('btnToggleAppCredentialsDrawer')?.addEventListener('click', () => {
+    const drawer = document.getElementById('seqAppCredentialsDrawerContent');
+    const textSpan = document.getElementById('toggleAppCredentialsText');
+    if (!drawer) return;
+    if (drawer.style.display === 'none') {
+      drawer.style.display = 'block';
+      if (textSpan) textSpan.textContent = 'Thu Gọn Cấu Hình ▴';
+    } else {
+      drawer.style.display = 'none';
+      if (textSpan) textSpan.textContent = 'Hiện Cấu Hình Nâng Cao ▾';
+    }
   });
 
   // Modal Close Buttons
@@ -3224,21 +3490,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Scroll to Add New Account Button
   document.getElementById('btnScrollToAddNewAccount')?.addEventListener('click', () => {
-    // Reset editing state to new account mode
-    currentEditingAccountId = null;
-    const labelInput = document.getElementById('seqAccountLabelInput');
-    const appIdInput = document.getElementById('seqFbAppIdInput');
-    const secretInput = document.getElementById('seqFbAppSecretInput');
-    const titleEl = document.getElementById('seqFormSectionTitle');
-    const resetBtn = document.getElementById('btnResetSeqForm');
-
-    if (labelInput) { labelInput.value = ''; labelInput.focus(); }
-    if (appIdInput) appIdInput.value = '';
-    if (secretInput) { secretInput.value = ''; secretInput.placeholder = 'Chuỗi mã bí mật (e8fe1eea...)'; }
-    if (titleEl) titleEl.textContent = 'BƯỚC 1: Cấu Hình App ID & Secret Cho Tài Khoản';
-    if (resetBtn) resetBtn.style.display = 'none';
-
-    document.getElementById('connectNewAccountSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    openAddNewAccountModal();
   });
 
   // Reset Form Button
@@ -3456,7 +3708,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Execute Step 2B: Direct Token Scan & Identification
+  // Execute Step 2B: Direct Token Scan & 1-Step Auto Connection
   document.getElementById('btnSeqExecuteTokenScan')?.addEventListener('click', async () => {
     const token = document.getElementById('seqTokenInput')?.value.trim();
     const appId = document.getElementById('seqFbAppIdInput')?.value.trim();
@@ -3464,13 +3716,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const accountLabel = document.getElementById('seqAccountLabelInput')?.value.trim();
 
     if (!token) {
-      showToast('Vui lòng dán mã Token Facebook để nhận diện tài khoản!', 'error');
+      showToast('Vui lòng dán mã Token Facebook để kết nối!', 'error');
       return;
     }
 
     const scanBtn = document.getElementById('btnSeqExecuteTokenScan');
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<span>⏳ Đang nhận diện tài khoản...</span>';
+    scanBtn.innerHTML = '<span>⏳ Đang kết nối & kích hoạt tự động...</span>';
 
     try {
       // If appId provided, save it as well
@@ -3489,7 +3741,8 @@ document.addEventListener('DOMContentLoaded', () => {
           token,
           app_id: appId,
           app_secret: appSecret,
-          account_label: accountLabel
+          account_label: accountLabel,
+          auto_import: true
         })
       });
       const data = await res.json();
@@ -3500,19 +3753,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const userDisplayName = data.userName || accountLabel || 'Tài khoản Facebook';
-      showToast(`🎉 Đã nhận diện: "${userDisplayName}" (${data.pages.length} Fanpage)!`, 'success');
+      const count = data.auto_imported_count || data.pages.length || 0;
+      showToast(`🎉 Tự động kết nối thành công: "${userDisplayName}" (${count} Fanpage đã kích hoạt)!`, 'success');
+
+      // Clear token input
+      const tokenInput = document.getElementById('seqTokenInput');
+      if (tokenInput) tokenInput.value = '';
 
       closeModal('facebookLoginSequentialModal');
-      openModal('addPageModal');
-      activeScanTokenSourceId = data.token_source_id || 0;
-      renderDiscoveredPagesChecklist(data.pages);
       loadTokenSources();
+      loadPages();
+      loadConversations();
 
     } catch (err) {
-      showToast('Lỗi khi quét token: ' + err.message, 'error');
+      showToast('Lỗi khi kết nối token: ' + err.message, 'error');
     } finally {
       scanBtn.disabled = false;
-      scanBtn.innerHTML = '<span>⚡</span> Quét &amp; Nhận Diện Tài Khoản Từ Token';
+      scanBtn.innerHTML = '<span>⚡</span> Kết Nối Tự Động Từ Token';
     }
   });
 

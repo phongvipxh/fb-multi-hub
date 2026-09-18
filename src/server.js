@@ -1698,12 +1698,53 @@ app.post('/api/pages/fetch-from-token', async (req, res) => {
         pages_count: result.pages ? result.pages.length : 0
       });
       if (savedSource) tokenSourceId = savedSource.id;
+    } else if (result.userName) {
+      const savedSource = saveOrUpdateTokenSource({
+        name: result.userName,
+        app_id: '',
+        app_secret: '',
+        user_token: token.trim(),
+        long_lived_token: result.longLivedToken || token.trim(),
+        token_type: 'USER_TOKEN',
+        is_permanent: 0,
+        pages_count: result.pages ? result.pages.length : 0
+      });
+      if (savedSource) tokenSourceId = savedSource.id;
+    }
+
+    // Auto-import pages into database and subscribe webhooks if auto_import is enabled
+    let autoImportedCount = 0;
+    if (req.body && req.body.auto_import && Array.isArray(result.pages) && result.pages.length > 0) {
+      for (const p of result.pages) {
+        let subscribedAt = '';
+        try {
+          await subscribePageWebhook(p.page_id, p.access_token);
+          subscribedAt = new Date().toISOString();
+        } catch (subErr) {
+          console.warn(`[Auto-Import Token] Subscribe warning for ${p.page_id}: ${subErr.message}`);
+        }
+        saveOrUpdatePage({
+          page_id: p.page_id,
+          name: p.name,
+          access_token: p.access_token,
+          user_id: 1,
+          account_label: account_label?.trim() || result.userName || '',
+          color_tag: '#3b82f6',
+          token_status: 'VALID',
+          avatar_url: p.avatar_url || '',
+          subscribed_at: subscribedAt,
+          token_source_id: tokenSourceId,
+          is_permanent: p.is_permanent ? 1 : (result.isPermanent ? 1 : 0)
+        });
+        autoImportedCount++;
+      }
     }
 
     res.json({
       ok: true,
       ...result,
-      token_source_id: tokenSourceId
+      token_source_id: tokenSourceId,
+      auto_imported_count: autoImportedCount
     });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });

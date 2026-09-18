@@ -468,52 +468,75 @@
         <section id="view-pages" class="app-view">
           <div class="view-header-bar">
             <div>
-              <h3>Danh Sách Fanpage Của Bạn</h3>
-              <p class="view-desc">Quản lý các Fanpage kết nối, theo dõi tình trạng Token sống/chết và quét thêm Page từ Facebook Token.</p>
+              <h3>Quản Lý Tài Khoản &amp; Fanpage Facebook</h3>
+              <p class="view-desc">Quản lý các tài khoản Facebook kết nối, tự động gia hạn Token và theo dõi toàn bộ Fanpage.</p>
             </div>
             <div class="view-header-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button id="btnFacebookOAuthLogin" class="btn" style="background: #1877f2; color: #fff; font-weight: 700; box-shadow: 0 4px 14px rgba(24, 119, 242, 0.4); gap: 6px;">
-                <span style="font-size: 15px;">🔵</span> Đăng Nhập Facebook &amp; Kết Nối (1-Click)
-              </button>
-              <button id="btnDirectTokenQuickAdd" class="btn btn-secondary" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border-color: rgba(16, 185, 129, 0.4); font-weight: 600; gap: 6px;" title="Kết nối nhanh bằng Token Facebook, không cần tạo Facebook App">
-                <span>🔑</span> Dán Token Nhanh (Không Cần App ID)
-              </button>
-              <button id="openFbAppConfigBtn" class="btn btn-secondary" title="Cài đặt App ID, App Secret và xem Redirect URIs">
-                <span>⚙️</span> Cài Đặt Facebook App
-              </button>
               <button id="runHealthCheckBtn" class="btn btn-secondary">
                 <span>🔍</span> Kiểm Tra Sức Khỏe Token
               </button>
-              <button id="openAddPageModalBtn" class="btn btn-secondary">
-                <span>➕</span> Thêm Thủ Công (Token)
-              </button>
             </div>
           </div>
 
-          <!-- Kho Nguồn Token Đã Lưu (Multi-Source Token Repository) -->
-          <div class="card-section" style="margin-bottom: 20px;">
+          <!-- SECTION 1: BẢNG TẤT CẢ TÀI KHOẢN FACEBOOK HIỆN CÓ -->
+          <div class="card-section" style="margin-bottom: 24px;">
             <div class="card-section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
                 <h4 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-                  <span>📂</span> Kho Nguồn Mã Token Đã Lưu (Đa Tài Khoản Facebook)
+                  <span>👥</span> Bảng Tài Khoản Facebook Đang Kết Nối (Multi-Account)
                 </h4>
                 <p class="card-desc" style="margin-top: 4px;">
-                  1 Tool quản lý đồng thời nhiều Page từ nhiều nick FB khác nhau. Các mã Token đã thêm được bảo lưu an toàn tại đây để tái sử dụng.
+                  Tất cả các tài khoản Facebook hiện đang kết nối với hệ thống. Mỗi tài khoản tự động duy trì Token và quản lý các Fanpage tương ứng.
                 </p>
               </div>
-              <button id="btnOpenTokenGuideFromPages" class="btn btn-sm btn-secondary" style="gap: 6px;">
-                <span>📖</span> Hướng Dẫn Lấy App ID & Token
-              </button>
-            </div>
-            <div id="tokenSourcesContainer" style="margin-top: 14px;">
-              <div id="tokenSourcesList" class="token-sources-grid">
-                <!-- Dynamically populated token sources -->
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="accountsOverviewCountBadge" class="badge-tag" style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; font-size: 11.5px; padding: 4px 10px; font-weight: 600;">0 Tài Khoản</span>
               </div>
+            </div>
+
+            <!-- Bảng danh sách tài khoản hiện có -->
+            <div class="table-responsive" style="margin-top: 12px;">
+              <table class="data-table" id="connectedAccountsMainTable">
+                <thead>
+                  <tr>
+                    <th>Tài Khoản Facebook</th>
+                    <th>Facebook User ID</th>
+                    <th>Fanpage Quản Lý</th>
+                    <th>Sức Khỏe Token</th>
+                    <th>Cổng Meta App</th>
+                    <th style="text-align: right; width: 230px;">Hành Động</th>
+                  </tr>
+                </thead>
+                <tbody id="connectedAccountsTableBody">
+                  <!-- Rendered dynamically by app.js -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- NÚT THÊM TÀI KHOẢN MỚI Ở NGAY BÊN DƯỚI BẢNG -->
+            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <button id="btnAddNewAccountMain" class="btn btn-primary" style="padding: 10px 22px; font-weight: 700; font-size: 14px; gap: 8px; box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);">
+                <span style="font-size: 16px;">➕</span> Thêm Tài Khoản Mới
+              </button>
+
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button id="btnOpenTokenGuideFromPages" class="btn btn-sm btn-secondary" style="gap: 6px;">
+                  <span>📖</span> Hướng Dẫn App &amp; Token
+                </button>
+              </div>
+            </div>
+
+            <!-- Hidden container for backward compatibility with legacy scripts -->
+            <div id="tokenSourcesContainer" style="display: none;">
+              <div id="tokenSourcesList"></div>
             </div>
           </div>
 
-          <div class="card-section-header" style="margin-bottom: 12px;">
-            <h4 style="margin: 0; font-size: 15px; color: var(--text-primary);">📄 Các Fanpage Đang Hoạt Động Trên Tool:</h4>
+          <div class="card-section-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="margin: 0; font-size: 15px; color: var(--text-primary);">📄 Các Fanpage Đang Hoạt Động Trên Tool:</h4>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0 0;">Danh sách tất cả Fanpage thuộc các tài khoản đã kết nối ở trên</p>
+            </div>
           </div>
 
           <div class="pages-grid" id="pagesGrid">
@@ -1736,9 +1759,9 @@
       <div class="modal-header">
         <div>
           <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #60a5fa;">
-            <span>🔵</span> Quản Lý Đa Tài Khoản Facebook (Multi-Account)
+            <span>🔵</span> <span id="seqModalTitle">Kết Nối Tài Khoản Facebook</span>
           </h3>
-          <p class="modal-subtitle">Quản lý các tài khoản Facebook đã kết nối • Mỗi tài khoản sở hữu App ID &amp; Secret riêng biệt</p>
+          <p class="modal-subtitle" id="seqModalSubtitle">Đăng nhập 1-Click hoặc dán Token để tự động nhận diện tên &amp; kích hoạt Fanpage</p>
         </div>
         <button id="closeFbSequentialModalBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
       </div>
@@ -1747,8 +1770,8 @@
         <!-- REAL-TIME OAUTH RESULT & DIAGNOSTIC FALLBACK PANE -->
         <div id="fbOAuthFallbackPane" style="display: none; border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; border: 1px solid transparent;"></div>
 
-        <!-- SECTION 1: CONNECTED ACCOUNTS LIST (MULTI-ACCOUNT OVERVIEW) -->
-        <div id="connectedAccountsSection" style="background: rgba(15, 23, 42, 0.7); border: 1.5px solid rgba(59, 130, 246, 0.35); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+        <!-- SECTION 1: CONNECTED ACCOUNTS LIST (MULTI-ACCOUNT OVERVIEW - Default hidden in Add mode) -->
+        <div id="connectedAccountsSection" style="display: none; background: rgba(15, 23, 42, 0.7); border: 1.5px solid rgba(59, 130, 246, 0.35); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="background: linear-gradient(135deg, #1877f2, #3b82f6); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">👥</span>
@@ -1779,7 +1802,7 @@
               <span style="background: #3b82f6; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">➕</span>
               <div>
                 <strong style="color: #60a5fa; font-size: 14px;" id="seqFormSectionTitle">Kết Nối Tài Khoản Facebook Mới</strong>
-                <div style="font-size: 11.5px; color: var(--text-muted);">Đăng nhập nhận diện tên tài khoản trước &bull; Tùy chọn gán App ID &amp; Secret riêng</div>
+                <div style="font-size: 11.5px; color: var(--text-muted);">Tự động nhận diện tên &amp; Fanpage &bull; Tùy chọn cấu hình nâng cao App ID &amp; Secret riêng</div>
               </div>
             </div>
             <span id="fbAppConfigStatusBadge" class="badge-tag" style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 11px;">⚠️ Chưa cấu hình</span>
@@ -1789,7 +1812,7 @@
           <div style="background: rgba(24, 119, 242, 0.09); border: 1.5px solid rgba(24, 119, 242, 0.35); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
               <strong style="color: #60a5fa; font-size: 13.5px;">Cách 1: Đăng Nhập Facebook Trực Tiếp (1-Click)</strong>
-              <span class="badge-tag" style="background: #1877f2; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px;">ƯU TIÊN • NHẬN DIỆN TÊN TỰ ĐỘNG</span>
+              <span class="badge-tag" style="background: #1877f2; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px;">ƯU TIÊN • AUTO 100%</span>
             </div>
             <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--text-secondary); line-height: 1.55;">
               Cửa sổ Facebook mở lên &rarr; bạn bấm <strong>"Tiếp tục dưới tên..."</strong> &rarr; Hệ thống <strong>tự động nhận diện Tên Facebook, Avatar và quét toàn bộ Fanpage</strong>! Sau khi đăng nhập, bạn có thể gán App ID &amp; Secret riêng cho tài khoản bất cứ lúc nào.
@@ -1802,38 +1825,44 @@
           <!-- OPTION B: DIRECT TOKEN IDENTIFICATION (100% NO APP ID NEEDED UPFRONT) -->
           <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
-              <strong style="color: var(--text-primary); font-size: 13px;">Cách 2: Dán Token Facebook Trực Tiếp (Nhận Diện Tức Thì)</strong>
-              <span class="badge-tag" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 10px;">100% Không Cần App ID Trước</span>
+              <strong style="color: var(--text-primary); font-size: 13px;">Cách 2: Dán Token Facebook (Kết Nối Tự Động 1 Bước)</strong>
+              <span class="badge-tag" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 10px;">⚡ Tự Động Lưu &amp; Kích Hoạt Page</span>
             </div>
             <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
-              Dán mã User Token ngắn hạn từ <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color: #34d399; text-decoration: underline;">Graph API Explorer ↗</a> &rarr; Tool <strong>nhận diện ngay Tên Nick &amp; Fanpage</strong> &rarr; Sau đó bạn mới nhập App ID &amp; Secret bên dưới để đổi sang Token Vĩnh Viễn!
+              Dán mã User Token từ <a href="https://developers.facebook.com/tools/explorer/" target="_blank" style="color: #34d399; text-decoration: underline;">Graph API Explorer ↗</a> &rarr; Tool <strong>tự động lấy tên nick, lưu tài khoản và kích hoạt toàn bộ Fanpage trong 1 bước duy nhất</strong>!
             </p>
             <div class="form-group" style="margin-bottom: 8px;">
-              <textarea id="seqTokenInput" class="form-control" rows="2" placeholder="Dán mã Token (EAA...) vào đây để nhận diện tài khoản..."></textarea>
+              <textarea id="seqTokenInput" class="form-control" rows="2" placeholder="Dán mã Token (EAA...) vào đây để kết nối tự động..."></textarea>
             </div>
             <div style="display: flex; justify-content: flex-end;">
-              <button type="button" id="btnSeqExecuteTokenScan" class="btn btn-secondary btn-sm" style="white-space: nowrap; font-weight: 600; gap: 6px;">
-                <span>⚡</span> Quét &amp; Nhận Diện Tài Khoản Từ Token
+              <button type="button" id="btnSeqExecuteTokenScan" class="btn btn-primary btn-sm" style="white-space: nowrap; font-weight: 700; gap: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3); background: #10b981; border-color: #10b981; color: #0f172a;">
+                <span>⚡</span> Kết Nối Tự Động Từ Token
               </button>
             </div>
           </div>
 
           <!-- SECTION 2C: APP CREDENTIALS DRAWER / CONFIGURATION -->
           <div style="background: rgba(10, 16, 30, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 7px;">
                 <span style="font-size: 15px;">⚙️</span>
-                <strong style="color: #cbd5e1; font-size: 13px;">Thiết Lập App ID &amp; App Secret (Để Duy Trì Kết Nối Vĩnh Viễn)</strong>
+                <strong style="color: #cbd5e1; font-size: 13px;">Thiết Lập App ID &amp; App Secret (Nâng Cao / Duy Trì Vĩnh Viễn)</strong>
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" id="btnToggleAppCredentialsDrawer" class="btn btn-xs btn-secondary" style="font-size: 11px; padding: 3px 8px; gap: 4px; color: #93c5fd; border-color: rgba(96, 165, 250, 0.3);">
+                  <span>⚙️</span> <span id="toggleAppCredentialsText">Hiện Cấu Hình Nâng Cao ▾</span>
+                </button>
                 <button type="button" id="btnToggleSeqGuide" class="btn btn-xs btn-secondary" style="font-size: 11px; padding: 3px 8px; gap: 4px; color: #93c5fd; border-color: rgba(96, 165, 250, 0.3);">
-                  <span>📖</span> <span id="toggleSeqGuideText">Hiện Hướng Dẫn Chi Tiết</span>
+                  <span>📖</span> <span id="toggleSeqGuideText">Hiện Hướng Dẫn</span>
                 </button>
               </div>
             </div>
-            <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px 0; line-height: 1.5;">
-              Mỗi nick có thể dùng App riêng hoặc dùng chung 1 App Cổng Chung. Khi tài khoản có App ID &amp; Secret, mọi Token Fanpage sẽ được <strong>duy trì vĩnh viễn không bao giờ hết hạn</strong>.
-            </p>
+
+            <!-- COLLAPSIBLE CONTENT CONTAINER (Mặc định ẩn) -->
+            <div id="seqAppCredentialsDrawerContent" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.08);">
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px 0; line-height: 1.5;">
+                Mỗi nick có thể dùng App riêng hoặc dùng chung 1 App Cổng Chung. Khi tài khoản có App ID &amp; Secret, mọi Token Fanpage sẽ được <strong>duy trì vĩnh viễn không bao giờ hết hạn</strong>.
+              </p>
 
             <!-- Quick App Reuse Selector if multiple accounts exist -->
             <div id="reuseAppConfigRow" style="display: none; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -1985,6 +2014,7 @@
                 </button>
               </div>
               <code id="seqRedirectUriText" style="display: block; color: #34d399; font-size: 11px; margin-top: 4px; word-break: break-all;">http://localhost:3000/auth/facebook/callback</code>
+            </div>
             </div>
           </div>
 
