@@ -225,6 +225,18 @@ if (!convColumns.includes('customer_seen_watermark')) {
 if (!convColumns.includes('safety_alarm_triggered')) {
   db.exec('ALTER TABLE conversations ADD COLUMN safety_alarm_triggered INTEGER DEFAULT 0');
 }
+if (!convColumns.includes('phone')) {
+  db.exec("ALTER TABLE conversations ADD COLUMN phone TEXT DEFAULT ''");
+}
+if (!convColumns.includes('address')) {
+  db.exec("ALTER TABLE conversations ADD COLUMN address TEXT DEFAULT ''");
+}
+if (!convColumns.includes('tags')) {
+  db.exec("ALTER TABLE conversations ADD COLUMN tags TEXT DEFAULT '[]'");
+}
+if (!convColumns.includes('customer_notes')) {
+  db.exec("ALTER TABLE conversations ADD COLUMN customer_notes TEXT DEFAULT ''");
+}
 
 // Migration helper: add seen columns to messages
 const msgColumns = db.prepare('PRAGMA table_info(messages)').all().map(c => c.name);
@@ -235,14 +247,63 @@ if (!msgColumns.includes('seen_at')) {
   db.exec('ALTER TABLE messages ADD COLUMN seen_at INTEGER DEFAULT 0');
 }
 
-// High-Performance Query Optimization Indexes
+// Initialize CRM Tables (Customer Tags & Internal Notes)
 db.exec(`
+  CREATE TABLE IF NOT EXISTS customer_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    color TEXT DEFAULT '#3b82f6',
+    bg_color TEXT DEFAULT 'rgba(59,130,246,0.15)',
+    is_system INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS customer_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    page_id TEXT NOT NULL,
+    sender_id TEXT NOT NULL,
+    author_name TEXT DEFAULT 'Nhân viên',
+    content TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_messages_lookup ON messages(page_id, sender_id, timestamp);
   CREATE INDEX IF NOT EXISTS idx_messages_mid ON messages(mid);
   CREATE INDEX IF NOT EXISTS idx_conversations_lookup ON conversations(page_id, sender_id);
   CREATE INDEX IF NOT EXISTS idx_conversations_order ON conversations(last_message_time DESC);
   CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(is_replied, is_seen);
+  CREATE INDEX IF NOT EXISTS idx_customer_notes_lookup ON customer_notes(page_id, sender_id, created_at DESC);
 `);
+
+// Migration: Ensure is_system column exists in customer_tags
+try {
+  db.exec('ALTER TABLE customer_tags ADD COLUMN is_system INTEGER DEFAULT 0');
+} catch (e) {
+  // Column already exists
+}
+
+// Seed default customer tags if empty
+const existingTagsCount = db.prepare('SELECT COUNT(*) as count FROM customer_tags').get().count;
+if (existingTagsCount === 0) {
+  const insertTag = db.prepare('INSERT OR IGNORE INTO customer_tags (name, color, bg_color, is_system) VALUES (?, ?, ?, 1)');
+  const defaultTags = [
+    ['Khách VIP', '#f59e0b', 'rgba(245, 158, 11, 0.15)'],
+    ['Đã Chốt Đơn', '#10b981', 'rgba(16, 185, 129, 0.15)'],
+    ['Cần Tư Vấn', '#3b82f6', 'rgba(59, 130, 246, 0.15)'],
+    ['Đã Cọc', '#8b5cf6', 'rgba(139, 92, 246, 0.15)'],
+    ['Khách Bom Hàng', '#ef4444', 'rgba(239, 68, 68, 0.15)'],
+    ['Đang Phân Vân', '#64748b', 'rgba(100, 116, 139, 0.15)']
+  ];
+  for (const [name, color, bg] of defaultTags) {
+    insertTag.run(name, color, bg);
+  }
+}
+
+// Ensure default system tags are marked with is_system = 1
+db.prepare(`
+  UPDATE customer_tags SET is_system = 1
+  WHERE name IN ('Khách VIP', 'Đã Chốt Đơn', 'Cần Tư Vấn', 'Đã Cọc', 'Khách Bom Hàng', 'Đang Phân Vân')
+`).run();
 
 // Seed default admin user if no users exist
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
@@ -1017,23 +1078,42 @@ const getConversations = ({ userId = null, pageId = null, search = '', unreplied
       c.sender_name LIKE ?
       OR c.last_message_text LIKE ?
       OR c.sender_id LIKE ?
+      OR c.phone LIKE ?
+      OR c.address LIKE ?
+      OR c.tags LIKE ?
       OR EXISTS (
         SELECT 1 FROM messages m
         WHERE m.page_id = c.page_id AND m.sender_id = c.sender_id AND m.text LIKE ?
       )
     )`;
     const searchPattern = `%${search.trim()}%`;
-    params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
   }
 
   query += ` ORDER BY c.last_message_time DESC LIMIT ?`;
   params.push(limit);
 
-  return db.prepare(query).all(...params);
+  const rows = db.prepare(query).all(...params);
+  return rows.map(r => {
+    try {
+      r.tags = typeof r.tags === 'string' ? JSON.parse(r.tags || '[]') : (r.tags || []);
+    } catch (e) {
+      r.tags = [];
+    }
+    return r;
+  });
 };
 
 const getConversation = (pageId, senderId) => {
-  return db.prepare('SELECT * FROM conversations WHERE page_id = ? AND sender_id = ?').get(pageId, senderId);
+  const c = db.prepare('SELECT * FROM conversations WHERE page_id = ? AND sender_id = ?').get(pageId, senderId);
+  if (c) {
+    try {
+      c.tags = typeof c.tags === 'string' ? JSON.parse(c.tags || '[]') : (c.tags || []);
+    } catch (e) {
+      c.tags = [];
+    }
+  }
+  return c;
 };
 
 const getConversationMessages = (pageId, senderId, limit = 100) => {
@@ -1273,6 +1353,97 @@ const deleteTokenSource = (id) => {
   return db.prepare('DELETE FROM token_sources WHERE id = ?').run(id);
 };
 
+// ==============================================================================
+// CRM & CUSTOMER PROFILES (TAGS & INTERNAL NOTES)
+// ==============================================================================
+const getAllTags = () => {
+  return db.prepare('SELECT * FROM customer_tags ORDER BY id ASC').all();
+};
+
+const createTag = ({ name, color = '#3b82f6', bg_color = 'rgba(59,130,246,0.15)' }) => {
+  if (!name || !name.trim()) throw new Error('Tên thẻ tag không được để trống');
+  const trimmed = name.trim();
+  const res = db.prepare('INSERT INTO customer_tags (name, color, bg_color) VALUES (?, ?, ?)').run(trimmed, color, bg_color);
+  return db.prepare('SELECT * FROM customer_tags WHERE id = ?').get(res.lastInsertRowid);
+};
+
+const deleteTag = (id) => {
+  return db.prepare('DELETE FROM customer_tags WHERE id = ?').run(id);
+};
+
+const getCustomerNotes = (pageId, senderId) => {
+  return db.prepare('SELECT * FROM customer_notes WHERE page_id = ? AND sender_id = ? ORDER BY created_at DESC').all(pageId, senderId);
+};
+
+const addCustomerNote = ({ page_id, sender_id, author_name = 'Nhân viên', content }) => {
+  if (!content || !content.trim()) throw new Error('Nội dung ghi chú không được để trống');
+  const now = Date.now();
+  const res = db.prepare(`
+    INSERT INTO customer_notes (page_id, sender_id, author_name, content, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(page_id, sender_id, author_name, content.trim(), now);
+  return db.prepare('SELECT * FROM customer_notes WHERE id = ?').get(res.lastInsertRowid);
+};
+
+const deleteCustomerNote = (id) => {
+  return db.prepare('DELETE FROM customer_notes WHERE id = ?').run(id);
+};
+
+const getCustomerCrm = (pageId, senderId) => {
+  const conv = db.prepare('SELECT * FROM conversations WHERE page_id = ? AND sender_id = ?').get(pageId, senderId);
+  const notes = getCustomerNotes(pageId, senderId);
+  if (!conv) {
+    return {
+      page_id: pageId,
+      sender_id: senderId,
+      phone: '',
+      address: '',
+      tags: [],
+      notes: notes
+    };
+  }
+  let parsedTags = [];
+  try {
+    parsedTags = typeof conv.tags === 'string' ? JSON.parse(conv.tags || '[]') : (conv.tags || []);
+  } catch (e) {
+    parsedTags = [];
+  }
+  return {
+    page_id: conv.page_id,
+    sender_id: conv.sender_id,
+    sender_name: conv.sender_name,
+    phone: conv.phone || '',
+    address: conv.address || '',
+    tags: parsedTags,
+    notes
+  };
+};
+
+const updateCustomerCrm = (pageId, senderId, { phone, address, tags }) => {
+  const updates = [];
+  const params = [];
+
+  if (phone !== undefined) {
+    updates.push('phone = ?');
+    params.push(String(phone).trim());
+  }
+  if (address !== undefined) {
+    updates.push('address = ?');
+    params.push(String(address).trim());
+  }
+  if (tags !== undefined) {
+    updates.push('tags = ?');
+    params.push(typeof tags === 'string' ? tags : JSON.stringify(tags));
+  }
+
+  if (updates.length > 0) {
+    params.push(pageId, senderId);
+    db.prepare(`UPDATE conversations SET ${updates.join(', ')} WHERE page_id = ? AND sender_id = ?`).run(...params);
+  }
+
+  return getCustomerCrm(pageId, senderId);
+};
+
 module.exports = {
   db,
   getSettings,
@@ -1327,5 +1498,13 @@ module.exports = {
   deleteTokenSource,
   getFacebookAppConfig,
   saveFacebookAppConfig,
-  getZonedHoursAndMinutes
+  getZonedHoursAndMinutes,
+  getAllTags,
+  createTag,
+  deleteTag,
+  getCustomerNotes,
+  addCustomerNote,
+  deleteCustomerNote,
+  getCustomerCrm,
+  updateCustomerCrm
 };

@@ -1150,6 +1150,41 @@ document.addEventListener('DOMContentLoaded', () => {
       updateHeaderTunnelBadge('');
     });
 
+    sseSource.addEventListener('crm_updated', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        console.log('[SSE] Cập nhật CRM:', data);
+        const conv = (window.conversationsCache || []).find(c => c.page_id === data.page_id && c.sender_id === data.sender_id);
+        if (conv && data.crm) {
+          conv.phone = data.crm.phone || '';
+          conv.address = data.crm.address || '';
+          conv.tags = data.crm.tags || [];
+        }
+        loadConversations();
+        if (activeConversation &&
+            activeConversation.page_id === data.page_id &&
+            activeConversation.sender_id === data.sender_id) {
+          renderCrmSidebar(data.crm);
+        }
+      } catch (err) {
+        console.warn('[SSE] crm_updated error:', err);
+      }
+    });
+
+    sseSource.addEventListener('crm_note_added', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        console.log('[SSE] Ghi chú nội bộ mới:', data);
+        if (activeConversation &&
+            activeConversation.page_id === data.page_id &&
+            activeConversation.sender_id === data.sender_id) {
+          loadCustomerCrm(data.page_id, data.sender_id);
+        }
+      } catch (err) {
+        console.warn('[SSE] crm_note_added error:', err);
+      }
+    });
+
     sseSource.onerror = () => {
       console.warn('[SSE] Mất kết nối, tự động kết nối lại sau 3s...');
       sseSource.close();
@@ -1218,6 +1253,16 @@ document.addEventListener('DOMContentLoaded', () => {
           seenBadgeHtml = '<span class="seen-indicator unseen">🔵 Chưa xem</span>';
         }
 
+        let tagsPillsHtml = '';
+        if (Array.isArray(c.tags) && c.tags.length > 0) {
+          tagsPillsHtml = c.tags.map(t => {
+            const name = typeof t === 'string' ? t : (t.name || '');
+            const color = (typeof t === 'object' && t.color) ? t.color : '#ffffff';
+            const bg = (typeof t === 'object' && t.bg_color) ? t.bg_color : '#3b82f6';
+            return `<span class="conv-tag-pill" style="color:${escapeHtml(color)}; background-color:${escapeHtml(bg)};" title="Thẻ: ${escapeHtml(name)}">🏷️ ${escapeHtml(name)}</span>`;
+          }).join('');
+        }
+
         return `
           <div class="conversation-item ${isActive ? 'active' : ''}" data-page-id="${c.page_id}" data-sender-id="${c.sender_id}">
             <div class="conv-avatar" style="background: linear-gradient(135deg, ${pageColor}, #8b5cf6);">${escapeHtml(c.sender_name || 'Khách').charAt(0).toUpperCase()}</div>
@@ -1233,6 +1278,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </span>
                 ${seenBadgeHtml}
                 ${!isReplied ? '<span class="status-indicator" style="color: #ef4444;">🔴 Chưa trả lời</span>' : ''}
+                ${tagsPillsHtml}
               </div>
             </div>
           </div>
@@ -1329,6 +1375,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loadMessages(pageId, senderId);
+    loadCustomerCrm(pageId, senderId);
+    if (isCrmSidebarOpen) {
+      document.querySelector('.chat-split-container')?.classList.add('has-crm');
+      document.getElementById('toggleCrmBtn')?.classList.add('active');
+    }
   }
 
   async function loadMessages(pageId, senderId) {
@@ -1581,6 +1632,10 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         timeline.scrollTop = timeline.scrollHeight;
       }, 100);
+
+      if (typeof checkAndSuggestDetectedPhone === 'function') {
+        checkAndSuggestDetectedPhone(activeCustomerCrm?.phone);
+      }
     } catch (err) {
       console.error('Error loading messages:', err);
     }
@@ -4000,6 +4055,466 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Date(timestamp).toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' });
   }
 
+  // -------------------------------------------------------------
+  // CRM & Customer Tags Management (Pancake.vn / Fchat.vn style)
+  // -------------------------------------------------------------
+  let allSystemTags = [];
+  let activeCustomerCrm = null;
+  let isCrmSidebarOpen = true;
+
+  async function loadAllSystemTags() {
+    try {
+      const res = await fetch('/api/tags');
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.tags)) {
+        allSystemTags = data.tags;
+        renderManageTagsList();
+        if (activeCustomerCrm) {
+          renderCrmTagsQuickPick();
+        }
+      }
+    } catch (err) {
+      console.warn('Error loading system tags:', err);
+    }
+  }
+
+  async function loadCustomerCrm(pageId, senderId) {
+    const emptyState = document.getElementById('crmEmptyState');
+    const contentWrap = document.getElementById('crmContentWrap');
+    if (!emptyState || !contentWrap) return;
+
+    try {
+      const res = await fetch(`/api/conversations/${pageId}/${senderId}/crm`);
+      const data = await res.json();
+      if (!data.ok || !data.crm) {
+        emptyState.style.display = 'flex';
+        contentWrap.style.display = 'none';
+        return;
+      }
+
+      activeCustomerCrm = data.crm;
+      emptyState.style.display = 'none';
+      contentWrap.style.display = 'flex';
+      renderCrmSidebar(data.crm);
+    } catch (err) {
+      console.error('Error loading customer CRM:', err);
+    }
+  }
+
+  function renderCrmSidebar(crm) {
+    if (!crm) return;
+
+    // 1. Customer Identity
+    const conv = (window.conversationsCache || []).find(c => c.page_id === crm.page_id && c.sender_id === crm.sender_id);
+    const customerName = crm.sender_name || conv?.sender_name || 'Khách hàng';
+    const pageName = conv?.page_name || crm.page_id;
+    const pageColor = conv?.page_color || '#3b82f6';
+
+    const nameEl = document.getElementById('crmCustomerName');
+    if (nameEl) nameEl.textContent = customerName;
+
+    const pageBadgeEl = document.getElementById('crmCustomerPageBadge');
+    if (pageBadgeEl) pageBadgeEl.textContent = `Fanpage: ${pageName}`;
+
+    const avatarEl = document.getElementById('crmAvatar');
+    if (avatarEl) {
+      avatarEl.textContent = customerName.charAt(0).toUpperCase();
+      avatarEl.style.background = `linear-gradient(135deg, ${pageColor}, #8b5cf6)`;
+    }
+
+    // 2. Contact Fields
+    const phoneInput = document.getElementById('crmPhoneInput');
+    if (phoneInput) phoneInput.value = crm.phone || '';
+
+    const addressInput = document.getElementById('crmAddressInput');
+    if (addressInput) addressInput.value = crm.address || '';
+
+    const callLink = document.getElementById('crmCallPhoneLink');
+    if (callLink) {
+      if (crm.phone && crm.phone.trim()) {
+        callLink.href = `tel:${crm.phone.trim()}`;
+        callLink.style.display = 'inline-flex';
+      } else {
+        callLink.style.display = 'none';
+      }
+    }
+
+    // 3. Render Tags
+    renderCrmCustomerTags(crm.tags || []);
+    renderCrmTagsQuickPick();
+
+    // 4. Render Notes
+    renderCrmNotesTimeline(crm.notes || []);
+
+    // 5. Auto detect phone from conversation cache or timeline
+    checkAndSuggestDetectedPhone(crm.phone);
+  }
+
+  function checkAndSuggestDetectedPhone(currentPhone) {
+    const alertEl = document.getElementById('crmDetectedPhoneAlert');
+    const valEl = document.getElementById('crmDetectedPhoneVal');
+    if (!alertEl || !valEl) return;
+
+    // Scan messages in timeline or cache
+    const timeline = document.getElementById('chatMessagesTimeline');
+    if (!timeline) return;
+
+    const textContent = timeline.innerText || '';
+    const phoneMatch = textContent.match(/(?:(?:\+84|84|0)[3|5|7|8|9][0-9]{8})\b/);
+    if (phoneMatch && phoneMatch[0]) {
+      const detected = phoneMatch[0];
+      const cleanCurrent = (currentPhone || '').replace(/\D/g, '');
+      const cleanDetected = detected.replace(/\D/g, '');
+      if (cleanDetected && cleanDetected !== cleanCurrent) {
+        valEl.textContent = detected;
+        alertEl.style.display = 'flex';
+        return;
+      }
+    }
+    alertEl.style.display = 'none';
+  }
+
+  function renderCrmCustomerTags(tags) {
+    const listEl = document.getElementById('crmCustomerTagsList');
+    if (!listEl) return;
+
+    if (!tags || tags.length === 0) {
+      listEl.innerHTML = '<span class="crm-tag-empty">Chưa gắn thẻ nào</span>';
+      return;
+    }
+
+    listEl.innerHTML = tags.map(t => {
+      const name = typeof t === 'string' ? t : (t.name || '');
+      const color = (typeof t === 'object' && t.color) ? t.color : '#ffffff';
+      const bg = (typeof t === 'object' && t.bg_color) ? t.bg_color : '#3b82f6';
+
+      return `
+        <span class="crm-tag-chip" style="color: ${escapeHtml(color)}; background-color: ${escapeHtml(bg)};">
+          <span>${escapeHtml(name)}</span>
+          <span class="crm-tag-remove" data-tag-name="${escapeHtml(name)}" title="Gỡ thẻ">✕</span>
+        </span>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.crm-tag-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tagName = btn.dataset.tagName;
+        toggleTagForActiveCustomer(tagName, false);
+      });
+    });
+  }
+
+  function renderCrmTagsQuickPick() {
+    const container = document.getElementById('crmTagsQuickPick');
+    if (!container) return;
+
+    const assignedNames = new Set((activeCustomerCrm?.tags || []).map(t => typeof t === 'string' ? t : t.name));
+
+    container.innerHTML = allSystemTags.map(tag => {
+      const isAssigned = assignedNames.has(tag.name);
+      const style = isAssigned
+        ? `background-color: ${tag.bg_color}; color: ${tag.color}; border-color: ${tag.bg_color};`
+        : '';
+
+      return `
+        <button type="button" class="crm-tag-pick-btn ${isAssigned ? 'active' : ''}" style="${style}" data-tag-name="${escapeHtml(tag.name)}">
+          ${isAssigned ? '✓ ' : '+ '}${escapeHtml(tag.name)}
+        </button>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.crm-tag-pick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tagName = btn.dataset.tagName;
+        const willAssign = !btn.classList.contains('active');
+        toggleTagForActiveCustomer(tagName, willAssign);
+      });
+    });
+  }
+
+  async function toggleTagForActiveCustomer(tagName, shouldAdd) {
+    if (!activeCustomerCrm) return;
+
+    let currentTags = Array.isArray(activeCustomerCrm.tags) ? [...activeCustomerCrm.tags] : [];
+    if (shouldAdd) {
+      if (!currentTags.some(t => (typeof t === 'string' ? t : t.name) === tagName)) {
+        const foundSys = allSystemTags.find(s => s.name === tagName);
+        const tagObj = foundSys
+          ? { name: foundSys.name, color: foundSys.color, bg_color: foundSys.bg_color }
+          : { name: tagName, color: '#ffffff', bg_color: '#3b82f6' };
+        currentTags.push(tagObj);
+      }
+    } else {
+      currentTags = currentTags.filter(t => (typeof t === 'string' ? t : t.name) !== tagName);
+    }
+
+    try {
+      const res = await fetch(`/api/conversations/${activeCustomerCrm.page_id}/${activeCustomerCrm.sender_id}/crm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: currentTags })
+      });
+      const data = await res.json();
+      if (data.ok && data.crm) {
+        activeCustomerCrm = data.crm;
+        renderCrmCustomerTags(data.crm.tags);
+        renderCrmTagsQuickPick();
+        loadConversations();
+        showToast(`Đã ${shouldAdd ? 'gắn' : 'gỡ'} nhãn "${tagName}"`, 'success');
+      }
+    } catch (err) {
+      console.error('Error toggling tag:', err);
+      showToast('Lỗi cập nhật nhãn!', 'error');
+    }
+  }
+
+  function renderCrmNotesTimeline(notes) {
+    const timelineEl = document.getElementById('crmNotesTimeline');
+    const countBadge = document.getElementById('crmNotesCountBadge');
+    if (!timelineEl) return;
+
+    const safeNotes = notes || [];
+    if (countBadge) countBadge.textContent = safeNotes.length;
+
+    if (safeNotes.length === 0) {
+      timelineEl.innerHTML = '<div style="text-align:center; padding:12px; color:var(--text-muted); font-size:11px;">Chưa có ghi chú nội bộ nào cho khách hàng này.</div>';
+      return;
+    }
+
+    timelineEl.innerHTML = safeNotes.map(n => {
+      const timeStr = formatRelativeTime(n.created_at);
+      return `
+        <div class="crm-note-item" data-note-id="${n.id}">
+          <div class="crm-note-header">
+            <span class="crm-note-author">👤 ${escapeHtml(n.author_name || 'Nhân viên')}</span>
+            <div class="crm-note-meta-right">
+              <span class="crm-note-time">${timeStr}</span>
+              <button type="button" class="crm-note-delete-btn" data-id="${n.id}" title="Xóa ghi chú">✕</button>
+            </div>
+          </div>
+          <div class="crm-note-text">${escapeHtml(n.content)}</div>
+        </div>
+      `;
+    }).join('');
+
+    timelineEl.querySelectorAll('.crm-note-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const noteId = btn.dataset.id;
+        if (!noteId) return;
+        try {
+          const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.ok) {
+            showToast('Đã xóa ghi chú!', 'info');
+            if (activeCustomerCrm) {
+              loadCustomerCrm(activeCustomerCrm.page_id, activeCustomerCrm.sender_id);
+            }
+          }
+        } catch (err) {
+          console.error('Error deleting note:', err);
+        }
+      });
+    });
+  }
+
+  function renderManageTagsList() {
+    const listEl = document.getElementById('manageTagsList');
+    if (!listEl) return;
+
+    if (allSystemTags.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center; padding:10px; color:var(--text-muted); font-size:12px;">Chưa có nhãn nào.</div>';
+      return;
+    }
+
+    listEl.innerHTML = allSystemTags.map(tag => {
+      return `
+        <div class="manage-tag-item">
+          <div class="manage-tag-meta">
+            <span class="crm-tag-chip" style="color: ${escapeHtml(tag.color)}; background-color: ${escapeHtml(tag.bg_color)};">
+              ${escapeHtml(tag.name)}
+            </span>
+            ${tag.is_system === 1 ? '<span class="manage-tag-system-badge">Hệ thống</span>' : ''}
+          </div>
+          ${tag.is_system === 0 ? `<button type="button" class="btn btn-xxs btn-danger delete-sys-tag-btn" data-id="${tag.id}">Xóa</button>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.delete-sys-tag-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const tagId = btn.dataset.id;
+        if (!tagId) return;
+        try {
+          const res = await fetch(`/api/tags/${tagId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.ok) {
+            showToast('Đã xóa thẻ tag!', 'info');
+            loadAllSystemTags();
+          }
+        } catch (err) {
+          console.error('Error deleting tag:', err);
+        }
+      });
+    });
+  }
+
+  function initCrmSidebarEvents() {
+    const container = document.querySelector('.chat-split-container');
+    const toggleBtn = document.getElementById('toggleCrmBtn');
+    const closeBtn = document.getElementById('closeCrmSidebarBtn');
+
+    if (toggleBtn && container) {
+      toggleBtn.addEventListener('click', () => {
+        isCrmSidebarOpen = !isCrmSidebarOpen;
+        if (isCrmSidebarOpen) {
+          container.classList.add('has-crm');
+          toggleBtn.classList.add('active');
+        } else {
+          container.classList.remove('has-crm');
+          toggleBtn.classList.remove('active');
+        }
+      });
+    }
+
+    if (closeBtn && container && toggleBtn) {
+      closeBtn.addEventListener('click', () => {
+        isCrmSidebarOpen = false;
+        container.classList.remove('has-crm');
+        toggleBtn.classList.remove('active');
+      });
+    }
+
+    // Save Contact
+    document.getElementById('saveCrmContactBtn')?.addEventListener('click', async () => {
+      if (!activeCustomerCrm) return;
+      const phone = document.getElementById('crmPhoneInput')?.value.trim();
+      const address = document.getElementById('crmAddressInput')?.value.trim();
+
+      try {
+        const res = await fetch(`/api/conversations/${activeCustomerCrm.page_id}/${activeCustomerCrm.sender_id}/crm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, address })
+        });
+        const data = await res.json();
+        if (data.ok && data.crm) {
+          activeCustomerCrm = data.crm;
+          renderCrmSidebar(data.crm);
+          showToast('Đã lưu thông tin liên hệ khách hàng!', 'success');
+        }
+      } catch (err) {
+        showToast('Lỗi lưu thông tin liên hệ!', 'error');
+      }
+    });
+
+    // Apply Detected Phone
+    document.getElementById('crmApplyDetectedPhoneBtn')?.addEventListener('click', async () => {
+      if (!activeCustomerCrm) return;
+      const detectedVal = document.getElementById('crmDetectedPhoneVal')?.textContent.trim();
+      if (!detectedVal) return;
+
+      const phoneInput = document.getElementById('crmPhoneInput');
+      if (phoneInput) phoneInput.value = detectedVal;
+      const alertEl = document.getElementById('crmDetectedPhoneAlert');
+      if (alertEl) alertEl.style.display = 'none';
+
+      // Auto-save
+      document.getElementById('saveCrmContactBtn')?.click();
+    });
+
+    // Add Internal Note
+    document.getElementById('addCrmNoteBtn')?.addEventListener('click', async () => {
+      if (!activeCustomerCrm) return;
+      const noteInput = document.getElementById('crmNoteInput');
+      const authorInput = document.getElementById('crmNoteAuthorInput');
+      const content = noteInput?.value.trim();
+      const author_name = authorInput?.value.trim();
+
+      if (!content) {
+        showToast('Vui lòng nhập nội dung ghi chú!', 'warning');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/conversations/${activeCustomerCrm.page_id}/${activeCustomerCrm.sender_id}/notes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, author_name })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          if (noteInput) noteInput.value = '';
+          loadCustomerCrm(activeCustomerCrm.page_id, activeCustomerCrm.sender_id);
+          showToast('Đã lưu ghi chú nội bộ!', 'success');
+        } else {
+          showToast(data.error || 'Lỗi lưu ghi chú', 'error');
+        }
+      } catch (err) {
+        showToast('Lỗi kết nối khi lưu ghi chú', 'error');
+      }
+    });
+
+    // Open/Close Manage Tags Modal
+    document.getElementById('openManageTagsModalBtn')?.addEventListener('click', () => {
+      openModal('manageTagsModal');
+      renderManageTagsList();
+    });
+    document.getElementById('closeManageTagsModalBtn')?.addEventListener('click', () => {
+      closeModal('manageTagsModal');
+    });
+    document.getElementById('closeManageTagsFooterBtn')?.addEventListener('click', () => {
+      closeModal('manageTagsModal');
+    });
+
+    // Tag color picker live preview
+    const nameInput = document.getElementById('newTagNameInput');
+    const colorInput = document.getElementById('newTagColorInput');
+    const bgColorInput = document.getElementById('newTagBgColorInput');
+    const previewBadge = document.getElementById('newTagPreviewBadge');
+
+    function updateNewTagPreview() {
+      if (!previewBadge) return;
+      previewBadge.textContent = nameInput?.value.trim() || 'Xem trước';
+      if (colorInput) previewBadge.style.color = colorInput.value;
+      if (bgColorInput) previewBadge.style.backgroundColor = bgColorInput.value;
+    }
+    nameInput?.addEventListener('input', updateNewTagPreview);
+    colorInput?.addEventListener('input', updateNewTagPreview);
+    bgColorInput?.addEventListener('input', updateNewTagPreview);
+
+    // Create New Tag Submit
+    document.getElementById('submitCreateTagBtn')?.addEventListener('click', async () => {
+      const name = nameInput?.value.trim();
+      const color = colorInput?.value || '#ffffff';
+      const bg_color = bgColorInput?.value || '#3b82f6';
+
+      if (!name) {
+        showToast('Vui lòng nhập tên nhãn!', 'warning');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, color, bg_color })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showToast(`Đã tạo nhãn "${name}"!`, 'success');
+          if (nameInput) nameInput.value = '';
+          updateNewTagPreview();
+          await loadAllSystemTags();
+        } else {
+          showToast(data.error || 'Lỗi tạo nhãn', 'error');
+        }
+      } catch (err) {
+        showToast('Lỗi kết nối khi tạo nhãn', 'error');
+      }
+    });
+  }
+
   // Initialize App
   requestNotificationPermission();
   loadHostProfile();
@@ -4007,6 +4522,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadConversations();
   loadQuickRepliesTable();
   initSSE();
+  loadAllSystemTags();
+  initCrmSidebarEvents();
   loadStatus();
   setInterval(loadStatus, 15000);
 });

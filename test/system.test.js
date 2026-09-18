@@ -1777,8 +1777,141 @@ const testServer = app.listen(0, async () => {
     assert(typeof reconnectData.url === 'string' && reconnectData.url.startsWith('https://'), 'Phải trả về public URL mới');
     console.log('  ✓ API POST /api/tunnel/reconnect tự động tái khởi động Tunnel thích ứng địa chỉ mạng mới thành công');
 
+    // [21] Test Customer Tags, Internal Staff Notes & Mini CRM Sidebar (Pancake & Fchat inspired)
+    console.log('\n[21] Kiểm tra Tính Năng Thẻ Phân Loại (Tags), Ghi Chú Nội Bộ (Notes) & Mini CRM Khách Hàng...');
+
+    // 21.1 Kiểm tra GET /api/tags: Phải có sẵn 6 thẻ mặc định của hệ thống
+    const getTagsRes = await fetch(`${baseUrl}/api/tags`);
+    assert.strictEqual(getTagsRes.status, 200, 'GET /api/tags phải trả về HTTP 200');
+    const getTagsData = await getTagsRes.json();
+    assert.strictEqual(getTagsData.ok, true);
+    assert(Array.isArray(getTagsData.tags) && getTagsData.tags.length >= 6, 'Phải có ít nhất 6 thẻ mặc định');
+    const vipTag = getTagsData.tags.find(t => t.name === 'Khách VIP');
+    assert(vipTag !== undefined, 'Phải có thẻ Khách VIP');
+    assert.strictEqual(vipTag.is_system, 1, 'Thẻ Khách VIP phải là thẻ hệ thống');
+    console.log('  ✓ GET /api/tags trả về đầy đủ 6 thẻ nhãn mặc định hệ thống (Khách VIP, Đã Chốt Đơn, Bom Hàng...)');
+
+    // 21.2 Kiểm tra POST /api/tags: Tạo thẻ nhãn tùy chỉnh mới
+    const createTagRes = await fetch(`${baseUrl}/api/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Đại Lý Cấp 1',
+        color: '#ffffff',
+        bg_color: '#06b6d4'
+      })
+    });
+    assert.strictEqual(createTagRes.status, 200, 'POST /api/tags phải trả về HTTP 200');
+    const createTagData = await createTagRes.json();
+    assert.strictEqual(createTagData.ok, true);
+    assert.strictEqual(createTagData.tag.name, 'Đại Lý Cấp 1');
+    assert.strictEqual(createTagData.tag.bg_color, '#06b6d4');
+    assert.strictEqual(createTagData.tag.is_system, 0, 'Thẻ tự tạo phải có is_system = 0');
+    const customTagId = createTagData.tag.id;
+    console.log('  ✓ POST /api/tags tạo thẻ tùy chỉnh người dùng thành công (ID:', customTagId, ')');
+
+    // 21.3 Tạo dữ liệu cuộc hội thoại để test CRM
+    const crmPageId = 'page_crm_test_01';
+    const crmSenderId = 'cust_crm_user_01';
+    db.saveOrUpdatePage({
+      page_id: crmPageId,
+      name: 'Shop Mỹ Phẩm CRM Test',
+      access_token: 'EAA_CRM_TEST_TOKEN',
+      user_id: userA.id,
+      is_active: 1
+    });
+
+    db.saveMessage({
+      mid: 'm_crm_msg_01',
+      page_id: crmPageId,
+      sender_id: crmSenderId,
+      sender_name: 'Nguyễn Văn Khách Hàng',
+      text: 'Shop ơi gửi về 123 Đường Cầu Giấy Hà Nội giúp mình nhé, SĐT 0987654321',
+      timestamp: Date.now(),
+      is_echo: 0
+    });
+
+    // 21.4 Kiểm tra POST /api/conversations/:pageId/:senderId/crm: Cập nhật SĐT, địa chỉ và nhãn
+    const updateCrmRes = await fetch(`${baseUrl}/api/conversations/${crmPageId}/${crmSenderId}/crm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: '0987654321',
+        address: '123 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội',
+        tags: [
+          { name: 'Khách VIP', color: '#ffffff', bg_color: '#8b5cf6' },
+          { name: 'Đại Lý Cấp 1', color: '#ffffff', bg_color: '#06b6d4' }
+        ]
+      })
+    });
+    assert.strictEqual(updateCrmRes.status, 200, 'POST CRM phải trả về HTTP 200');
+    const updateCrmData = await updateCrmRes.json();
+    assert.strictEqual(updateCrmData.ok, true);
+    assert.strictEqual(updateCrmData.crm.phone, '0987654321');
+    assert.strictEqual(updateCrmData.crm.address, '123 Đường Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội');
+    assert.strictEqual(updateCrmData.crm.tags.length, 2);
+    console.log('  ✓ POST /api/conversations/:pageId/:senderId/crm cập nhật SĐT, địa chỉ và gắn nhãn thành công');
+
+    // 21.5 Kiểm tra GET /api/conversations/:pageId/:senderId/crm
+    const getCrmRes = await fetch(`${baseUrl}/api/conversations/${crmPageId}/${crmSenderId}/crm`);
+    assert.strictEqual(getCrmRes.status, 200, 'GET CRM phải trả về HTTP 200');
+    const getCrmData = await getCrmRes.json();
+    assert.strictEqual(getCrmData.ok, true);
+    assert.strictEqual(getCrmData.crm.phone, '0987654321');
+    assert.strictEqual(getCrmData.crm.tags[0].name, 'Khách VIP');
+    console.log('  ✓ GET /api/conversations/:pageId/:senderId/crm truy xuất hồ sơ mini CRM chuẩn xác');
+
+    // 21.6 Kiểm tra POST /api/conversations/:pageId/:senderId/notes: Thêm ghi chú nội bộ của nhân viên
+    const addNoteRes = await fetch(`${baseUrl}/api/conversations/${crmPageId}/${crmSenderId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        author_name: 'Lan CSKH',
+        content: 'Khách dặn giao giờ hành chính, đóng gói bọc xốp cẩn thận giúp khách'
+      })
+    });
+    assert.strictEqual(addNoteRes.status, 200, 'POST Note phải trả về HTTP 200');
+    const addNoteData = await addNoteRes.json();
+    assert.strictEqual(addNoteData.ok, true);
+    assert.strictEqual(addNoteData.note.author_name, 'Lan CSKH');
+    assert.strictEqual(addNoteData.note.content, 'Khách dặn giao giờ hành chính, đóng gói bọc xốp cẩn thận giúp khách');
+    const noteId = addNoteData.note.id;
+    console.log('  ✓ POST /api/conversations/:pageId/:senderId/notes lưu ghi chú nội bộ độc lập (ẩn với khách) thành công (ID:', noteId, ')');
+
+    // 21.7 Kiểm tra lại GET CRM: Phải có 1 note trong timeline
+    const getCrmWithNotesRes = await fetch(`${baseUrl}/api/conversations/${crmPageId}/${crmSenderId}/crm`);
+    const getCrmWithNotesData = await getCrmWithNotesRes.json();
+    assert.strictEqual(getCrmWithNotesData.crm.notes.length, 1);
+    assert.strictEqual(getCrmWithNotesData.crm.notes[0].id, noteId);
+    console.log('  ✓ GET CRM trả về danh sách ghi chú theo dòng thời gian chuẩn xác');
+
+    // 21.8 Kiểm tra DELETE /api/notes/:id: Xóa ghi chú nội bộ
+    const deleteNoteRes = await fetch(`${baseUrl}/api/notes/${noteId}`, { method: 'DELETE' });
+    assert.strictEqual(deleteNoteRes.status, 200, 'DELETE Note phải trả về HTTP 200');
+    const afterDeleteCrm = db.getCustomerCrm(crmPageId, crmSenderId);
+    assert.strictEqual(afterDeleteCrm.notes.length, 0, 'Ghi chú phải bị xóa hoàn toàn');
+    console.log('  ✓ DELETE /api/notes/:id xóa ghi chú nội bộ thành công');
+
+    // 21.9 Kiểm tra tìm kiếm hội thoại đa tiêu chí (SĐT, Địa chỉ, Thẻ nhãn)
+    const convByPhone = db.getConversations({ search: '0987654321' });
+    assert(convByPhone.some(c => c.sender_id === crmSenderId), 'Tìm kiếm theo SĐT phải trả về đúng hội thoại');
+
+    const convByAddress = db.getConversations({ search: 'Cầu Giấy' });
+    assert(convByAddress.some(c => c.sender_id === crmSenderId), 'Tìm kiếm theo Địa chỉ phải trả về đúng hội thoại');
+
+    const convByTag = db.getConversations({ search: 'Đại Lý Cấp 1' });
+    assert(convByTag.some(c => c.sender_id === crmSenderId), 'Tìm kiếm theo Tên Thẻ Nhãn phải trả về đúng hội thoại');
+    console.log('  ✓ Tìm kiếm hộp thư đa trường thông minh: Khớp chính xác theo SĐT, Địa chỉ giao hàng và Thẻ nhãn');
+
+    // 21.10 Xóa thẻ tùy chỉnh đã tạo: DELETE /api/tags/:id
+    const deleteTagRes = await fetch(`${baseUrl}/api/tags/${customTagId}`, { method: 'DELETE' });
+    assert.strictEqual(deleteTagRes.status, 200, 'DELETE Tag phải trả về HTTP 200');
+    const tagsAfterDelete = db.getAllTags();
+    assert(!tagsAfterDelete.some(t => t.id === customTagId), 'Thẻ tự tạo phải bị xóa khỏi danh sách');
+    console.log('  ✓ DELETE /api/tags/:id xóa thẻ tùy chỉnh thành công');
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 20 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH & KHẢ NĂNG THÍCH ỨNG VPN ĐA QUỐC GIA ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 21 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, VPN ĐA QUỐC GIA & MINI CRM ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();

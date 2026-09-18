@@ -61,6 +61,14 @@ const {
   deleteTokenSource,
   getFacebookAppConfig,
   saveFacebookAppConfig,
+  getAllTags,
+  createTag,
+  deleteTag,
+  getCustomerNotes,
+  addCustomerNote,
+  deleteCustomerNote,
+  getCustomerCrm,
+  updateCustomerCrm,
   db
 } = require('./database/db');
 
@@ -1245,6 +1253,113 @@ app.post('/api/conversations/:pageId/:senderId/mark-unseen', (req, res) => {
     res.json({ ok: true, is_seen: 0, unread_count: 1, message: 'Đã đánh dấu chưa xem!' });
   } catch (err) {
     console.error('[Mark Unseen] Error:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// Customer CRM, Tags & Internal Notes APIs
+// -------------------------------------------------------------
+
+// Get Customer CRM profile, tags and notes
+app.get('/api/conversations/:pageId/:senderId/crm', (req, res) => {
+  try {
+    const { pageId, senderId } = req.params;
+    const crm = getCustomerCrm(pageId, senderId);
+    res.json({ ok: true, crm });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Update Customer CRM profile (phone, address, tags)
+app.post('/api/conversations/:pageId/:senderId/crm', (req, res) => {
+  try {
+    const { pageId, senderId } = req.params;
+    const { phone, address, tags } = req.body || {};
+    const updated = updateCustomerCrm(pageId, senderId, { phone, address, tags });
+
+    broadcastSSE('crm_updated', {
+      page_id: pageId,
+      sender_id: senderId,
+      crm: updated
+    });
+
+    res.json({ ok: true, message: 'Đã cập nhật hồ sơ khách hàng thành công!', crm: updated });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Add Internal Staff Note
+app.post('/api/conversations/:pageId/:senderId/notes', (req, res) => {
+  try {
+    const { pageId, senderId } = req.params;
+    const { content, author_name } = req.body || {};
+    if (!content || !content.trim()) {
+      return res.status(400).json({ ok: false, error: 'Nội dung ghi chú không được để trống!' });
+    }
+
+    const host = getHostProfile();
+    const effectiveAuthor = (author_name && author_name.trim()) || host?.name || 'Nhân viên';
+
+    const newNote = addCustomerNote({
+      page_id: pageId,
+      sender_id: senderId,
+      author_name: effectiveAuthor,
+      content: content.trim()
+    });
+
+    broadcastSSE('crm_note_added', {
+      page_id: pageId,
+      sender_id: senderId,
+      note: newNote
+    });
+
+    res.json({ ok: true, message: 'Đã thêm ghi chú nội bộ!', note: newNote });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Delete Internal Staff Note
+app.delete('/api/notes/:id', (req, res) => {
+  try {
+    deleteCustomerNote(req.params.id);
+    res.json({ ok: true, message: 'Đã xóa ghi chú!' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Tags Catalogue Management
+app.get('/api/tags', (req, res) => {
+  try {
+    const tags = getAllTags();
+    res.json({ ok: true, tags });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/tags', (req, res) => {
+  try {
+    const { name, color, bg_color } = req.body || {};
+    if (!name || !name.trim()) {
+      return res.status(400).json({ ok: false, error: 'Tên thẻ tag không được để trống!' });
+    }
+    const tag = createTag({ name: name.trim(), color, bg_color });
+    res.json({ ok: true, message: 'Đã tạo thẻ tag thành công!', tag });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.delete('/api/tags/:id', (req, res) => {
+  try {
+    deleteTag(req.params.id);
+    res.json({ ok: true, message: 'Đã xóa thẻ tag!' });
+  } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
 });

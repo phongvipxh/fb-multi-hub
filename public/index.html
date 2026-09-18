@@ -215,6 +215,9 @@
                 </div>
 
                 <div class="chat-header-actions">
+                  <button id="toggleCrmBtn" class="btn btn-sm btn-outline-crm active" title="Bật / Ẩn Mini CRM & Thông tin khách hàng">
+                    👤 Hồ Sơ & CRM
+                  </button>
                   <button id="markUnseenBtn" class="btn btn-sm btn-secondary" title="Đánh dấu cuộc hội thoại này là chưa xem để xử lý sau">
                     👁️ Đánh dấu chưa xem
                   </button>
@@ -336,6 +339,113 @@
                 </div>
               </div>
             </div>
+
+            <!-- 3rd Column: Mini CRM Sidebar (Pancake.vn / Fchat.vn style) -->
+            <aside class="chat-crm-sidebar" id="chatCrmSidebar">
+              <div class="crm-sidebar-header">
+                <div class="crm-header-title">
+                  <span class="crm-icon">👤</span>
+                  <span>Hồ Sơ Khách Hàng</span>
+                </div>
+                <button type="button" id="closeCrmSidebarBtn" class="crm-close-btn" title="Đóng bảng CRM">✕</button>
+              </div>
+
+              <div class="crm-sidebar-body" id="crmSidebarBody">
+                <div class="crm-empty-state" id="crmEmptyState">
+                  <div class="crm-empty-icon">📋</div>
+                  <p>Chọn cuộc trò chuyện để xem hồ sơ khách, SĐT và ghi chú nội bộ.</p>
+                </div>
+
+                <div class="crm-content-wrap" id="crmContentWrap" style="display: none;">
+                  <!-- Customer Header Card -->
+                  <div class="crm-card crm-customer-card">
+                    <div class="crm-avatar" id="crmAvatar">👤</div>
+                    <div class="crm-user-details">
+                      <strong class="crm-user-name" id="crmCustomerName">Khách hàng</strong>
+                      <span class="crm-page-badge" id="crmCustomerPageBadge">Fanpage</span>
+                    </div>
+                  </div>
+
+                  <!-- Contact Info Section -->
+                  <div class="crm-card">
+                    <div class="crm-card-header">
+                      <span class="crm-card-title">📞 Thông Tin Liên Hệ</span>
+                      <button type="button" id="saveCrmContactBtn" class="btn btn-xs btn-primary crm-save-btn">Lưu 💾</button>
+                    </div>
+                    <div class="crm-card-body">
+                      <!-- Phone Detection Notification Alert -->
+                      <div id="crmDetectedPhoneAlert" class="crm-detected-alert" style="display: none;">
+                        <div class="crm-detected-text">
+                          <span>💡 Tìm thấy SĐT:</span>
+                          <strong id="crmDetectedPhoneVal">0987654321</strong>
+                        </div>
+                        <button type="button" id="crmApplyDetectedPhoneBtn" class="btn btn-xxs btn-success">Dùng SĐT này</button>
+                      </div>
+
+                      <div class="crm-form-group">
+                        <label for="crmPhoneInput">Số điện thoại:</label>
+                        <div class="crm-phone-row">
+                          <input type="tel" id="crmPhoneInput" class="form-control form-control-sm" placeholder="Nhập SĐT (09xx, 08xx...)">
+                          <a id="crmCallPhoneLink" href="#" class="btn btn-xs btn-call" title="Bấm để gọi" style="display: none;">📞</a>
+                        </div>
+                      </div>
+
+                      <div class="crm-form-group">
+                        <label for="crmAddressInput">Địa chỉ giao hàng:</label>
+                        <textarea id="crmAddressInput" class="form-control form-control-sm" rows="2" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành phố..."></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Customer Tags Section -->
+                  <div class="crm-card">
+                    <div class="crm-card-header">
+                      <span class="crm-card-title">🏷️ Nhãn Phân Loại</span>
+                      <button type="button" id="openManageTagsModalBtn" class="btn btn-xs btn-secondary" title="Tùy chỉnh danh sách thẻ">+ Tạo Nhãn</button>
+                    </div>
+                    <div class="crm-card-body">
+                      <!-- Assigned tags for active customer -->
+                      <div class="crm-assigned-tags-label">Đang gắn thẻ:</div>
+                      <div class="crm-tags-list" id="crmCustomerTagsList">
+                        <span class="crm-tag-empty">Chưa gắn thẻ nào</span>
+                      </div>
+
+                      <!-- Quick toggle chips for all available tags -->
+                      <div class="crm-assigned-tags-label" style="margin-top: 10px;">Bấm để gắn nhanh:</div>
+                      <div class="crm-tags-quick-pick" id="crmTagsQuickPick">
+                        <!-- Populated dynamically with all tags -->
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Internal Staff Notes Section (Hidden from customers) -->
+                  <div class="crm-card">
+                    <div class="crm-card-header">
+                      <div class="crm-title-with-badge">
+                        <span class="crm-card-title">📝 Ghi Chú Nội Bộ</span>
+                        <span class="crm-notes-badge" id="crmNotesCountBadge">0</span>
+                      </div>
+                      <span class="crm-staff-hint">🔒 Chỉ nhân viên thấy</span>
+                    </div>
+                    <div class="crm-card-body">
+                      <!-- Add Note Form -->
+                      <div class="crm-note-composer">
+                        <input type="text" id="crmNoteAuthorInput" class="form-control form-control-xs mb-1" placeholder="Tên nhân viên (VD: Lan CSKH, Huy Sales)">
+                        <div class="crm-note-input-row">
+                          <textarea id="crmNoteInput" class="form-control form-control-sm" rows="2" placeholder="Ghi chú: Đã dặn ship giờ hành chính, size XL..."></textarea>
+                          <button type="button" id="addCrmNoteBtn" class="btn btn-sm btn-primary">Lưu Note</button>
+                        </div>
+                      </div>
+
+                      <!-- Notes Timeline -->
+                      <div class="crm-notes-timeline" id="crmNotesTimeline">
+                        <!-- Populated dynamically -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -1483,6 +1593,55 @@
       <div class="modal-footer">
         <button id="cancelFbAppConfigBtn" class="btn btn-secondary">Hủy</button>
         <button id="saveFbAppConfigBtn" class="btn btn-primary">💾 Lưu Cấu Hình App</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 8: Manage / Create Customer Tag Modal -->
+  <div id="manageTagsModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">🏷️ Quản Lý &amp; Tạo Nhãn Khách Hàng</h3>
+          <p class="modal-subtitle">Gắn nhãn phân loại (VIP, Đã chốt đơn, Bom hàng, Cần tư vấn...)</p>
+        </div>
+        <button id="closeManageTagsModalBtn" class="btn-modal-close" aria-label="Đóng">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Create new tag form -->
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+          <h4 style="font-size: 13px; margin-bottom: 8px; color: var(--text-primary);">Tạo Nhãn Mới</h4>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-weight: 600; font-size: 12px;">Tên nhãn:</label>
+            <input type="text" id="newTagNameInput" class="form-control" placeholder="Ví dụ: Đại lý cấp 1, Đang khiếu nại...">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label style="font-weight: 600; font-size: 12px;">Màu chữ:</label>
+              <input type="color" id="newTagColorInput" class="form-control" value="#ffffff" style="height: 36px; padding: 2px; cursor: pointer;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label style="font-weight: 600; font-size: 12px;">Màu nền:</label>
+              <input type="color" id="newTagBgColorInput" class="form-control" value="#3b82f6" style="height: 36px; padding: 2px; cursor: pointer;">
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 11px; color: var(--text-muted);">Xem trước: </span>
+              <span id="newTagPreviewBadge" class="crm-tag-chip" style="color: #ffffff; background-color: #3b82f6;">Xem trước</span>
+            </div>
+            <button type="button" id="submitCreateTagBtn" class="btn btn-sm btn-primary">Thêm Nhãn</button>
+          </div>
+        </div>
+
+        <!-- Existing tags list -->
+        <h4 style="font-size: 13px; margin-bottom: 8px; color: var(--text-primary);">Danh Sách Nhãn Hiện Có</h4>
+        <div id="manageTagsList" class="manage-tags-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="closeManageTagsFooterBtn" class="btn btn-secondary">Đóng</button>
       </div>
     </div>
   </div>
