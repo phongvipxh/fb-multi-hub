@@ -2147,16 +2147,125 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Slash Commands Quick Reply Popover State
+  let slashSelectedIdx = 0;
+  let activeSlashMatches = [];
+
+  function closeSlashPopover() {
+    const pop = document.getElementById('slashReplyPopover');
+    if (pop) pop.style.display = 'none';
+    activeSlashMatches = [];
+    slashSelectedIdx = 0;
+  }
+
+  function renderSlashPopover(matches) {
+    const pop = document.getElementById('slashReplyPopover');
+    const list = document.getElementById('slashRepliesList');
+    if (!pop || !list) return;
+
+    activeSlashMatches = matches;
+    slashSelectedIdx = Math.min(slashSelectedIdx, matches.length - 1);
+    if (slashSelectedIdx < 0) slashSelectedIdx = 0;
+
+    list.innerHTML = matches.map((m, idx) => `
+      <div class="slash-reply-item ${idx === slashSelectedIdx ? 'active' : ''}" data-idx="${idx}">
+        <div class="slash-reply-item-header">
+          <span class="slash-reply-item-title">${escapeHtml(m.title)}</span>
+          <span class="slash-reply-item-shortcut">/${escapeHtml(m.shortcut || m.title.toLowerCase().replace(/[^a-z0-9]/g, ''))}</span>
+        </div>
+        <div class="slash-reply-item-snippet">${escapeHtml(m.content)}</div>
+      </div>
+    `).join('');
+
+    pop.style.display = 'block';
+
+    list.querySelectorAll('.slash-reply-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const idx = parseInt(item.dataset.idx, 10);
+        applySlashReply(matches[idx]);
+      });
+      item.addEventListener('mouseenter', () => {
+        list.querySelectorAll('.slash-reply-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        slashSelectedIdx = parseInt(item.dataset.idx, 10);
+      });
+    });
+  }
+
+  function applySlashReply(item) {
+    if (!item) return;
+    const textarea = document.getElementById('chatReplyInput');
+    if (!textarea) return;
+
+    const val = textarea.value;
+    const cursor = textarea.selectionStart || val.length;
+    const textBefore = val.slice(0, cursor);
+    const slashPos = textBefore.lastIndexOf('/');
+    if (slashPos !== -1) {
+      const textAfter = val.slice(cursor);
+      textarea.value = val.slice(0, slashPos) + item.content + textAfter;
+      textarea.selectionStart = textarea.selectionEnd = slashPos + item.content.length;
+    } else {
+      textarea.value = item.content;
+    }
+
+    closeSlashPopover();
+    textarea.focus();
+    autoResizeTextarea(textarea);
+    updateCharCounter();
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function checkSlashCommand() {
+    const textarea = document.getElementById('chatReplyInput');
+    if (!textarea) return;
+
+    const val = textarea.value;
+    const cursor = textarea.selectionStart || 0;
+    const textBefore = val.slice(0, cursor);
+    const slashPos = textBefore.lastIndexOf('/');
+
+    if (slashPos === -1 || (slashPos > 0 && !/\s/.test(textBefore[slashPos - 1]))) {
+      closeSlashPopover();
+      return;
+    }
+
+    const query = textBefore.slice(slashPos + 1).toLowerCase().trim();
+    // Filter quickRepliesList
+    const matches = (quickRepliesList || []).filter(qr => {
+      if (!query) return true;
+      const titleMatch = (qr.title || '').toLowerCase().includes(query);
+      const contentMatch = (qr.content || '').toLowerCase().includes(query);
+      const shortcut = (qr.shortcut || qr.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const shortcutMatch = shortcut.includes(query);
+      return titleMatch || contentMatch || shortcutMatch;
+    }).slice(0, 8);
+
+    if (matches.length > 0) {
+      renderSlashPopover(matches);
+    } else {
+      closeSlashPopover();
+    }
+  }
+
   // Textarea input & keyboard shortcuts
   const chatTextarea = document.getElementById('chatReplyInput');
   chatTextarea?.addEventListener('input', () => {
     autoResizeTextarea(chatTextarea);
     updateCharCounter();
     emitMyTypingPing();
+    checkSlashCommand();
   });
   chatTextarea?.addEventListener('focus', ensureActiveChatMarkedSeen);
   chatTextarea?.addEventListener('click', ensureActiveChatMarkedSeen);
   document.getElementById('chatMessagesTimeline')?.addEventListener('click', ensureActiveChatMarkedSeen);
+
+  document.addEventListener('click', (e) => {
+    const pop = document.getElementById('slashReplyPopover');
+    if (pop && pop.style.display !== 'none' && !pop.contains(e.target) && e.target !== chatTextarea) {
+      closeSlashPopover();
+    }
+  });
 
   document.getElementById('dismissCollisionBannerBtn')?.addEventListener('click', () => {
     const banner = document.getElementById('agentCollisionBanner');
@@ -2164,6 +2273,31 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   chatTextarea?.addEventListener('keydown', (e) => {
+    const pop = document.getElementById('slashReplyPopover');
+    const isPopOpen = pop && pop.style.display !== 'none' && activeSlashMatches.length > 0;
+
+    if (isPopOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        slashSelectedIdx = (slashSelectedIdx + 1) % activeSlashMatches.length;
+        renderSlashPopover(activeSlashMatches);
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        slashSelectedIdx = (slashSelectedIdx - 1 + activeSlashMatches.length) % activeSlashMatches.length;
+        renderSlashPopover(activeSlashMatches);
+        return;
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applySlashReply(activeSlashMatches[slashSelectedIdx]);
+        return;
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeSlashPopover();
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendReply();
@@ -3816,77 +3950,125 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Start Tunnel
-  document.getElementById('startTunnelBtn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('startTunnelBtn');
-    btn.disabled = true;
-    btn.textContent = '⏳ Đang khởi tạo...';
+  // Start Tunnel (usable from header and settings view)
+  async function handleStartTunnel() {
+    const headerBtn = document.getElementById('headerStartTunnelBtn');
+    const viewBtn = document.getElementById('startTunnelBtn');
+
+    if (headerBtn) {
+      headerBtn.disabled = true;
+      headerBtn.textContent = '⏳ Đang bật...';
+    }
+    if (viewBtn) {
+      viewBtn.disabled = true;
+      viewBtn.textContent = '⏳ Đang khởi tạo...';
+    }
+
+    showToast('Đang khởi tạo Cloudflare Tunnel công khai...', 'info');
 
     try {
       const res = await fetch('/api/tunnel/start', { method: 'POST' });
       const data = await res.json();
-      if (data.ok) {
-        showToast('Đã tạo Public Tunnel thành công: ' + data.url, 'success');
+      if (data.ok && data.url) {
+        showToast('Đã khởi tạo Cloudflare Tunnel thành công: ' + data.url, 'success');
+        updateHeaderTunnelBadge(data.url);
         loadSystemSettings();
       } else {
-        showToast('Lỗi tạo tunnel: ' + data.error, 'error');
+        showToast('Lỗi khởi tạo tunnel: ' + (data.error || 'Không xác định'), 'error');
       }
     } catch (err) {
       showToast('Lỗi: ' + err.message, 'error');
     } finally {
-      btn.disabled = false;
-      btn.textContent = '🚀 Kích Hoạt Public Tunnel (1 Click)';
+      if (headerBtn) {
+        headerBtn.disabled = false;
+        headerBtn.textContent = '⚡ Bật Tunnel';
+      }
+      if (viewBtn) {
+        viewBtn.disabled = false;
+        viewBtn.textContent = '⚡ Bật Cloudflare Tunnel';
+      }
     }
-  });
+  }
 
-  // Stop Tunnel
-  document.getElementById('stopTunnelBtn')?.addEventListener('click', async () => {
+  // Stop Tunnel (usable from header and settings view)
+  async function handleStopTunnel() {
+    const headerBtn = document.getElementById('headerStopTunnelBtn');
+    const viewBtn = document.getElementById('stopTunnelBtn');
+
+    if (headerBtn) {
+      headerBtn.disabled = true;
+      headerBtn.textContent = '⏳...';
+    }
+    if (viewBtn) {
+      viewBtn.disabled = true;
+      viewBtn.textContent = '⏳ Đang dừng...';
+    }
+
     try {
-      await fetch('/api/tunnel/stop', { method: 'POST' });
-      showToast('Đã tắt Tunnel.', 'info');
+      const res = await fetch('/api/tunnel/stop', { method: 'POST' });
+      const data = await res.json();
+      showToast(data.message || 'Đã tắt Tunnel. Tool tiếp tục chạy ở chế độ Local.', 'info');
+      updateHeaderTunnelBadge('');
       loadSystemSettings();
-    } catch (err) {}
-  });
+    } catch (err) {
+      showToast('Lỗi khi dừng tunnel: ' + err.message, 'error');
+    } finally {
+      if (headerBtn) {
+        headerBtn.disabled = false;
+        headerBtn.textContent = '⏹️ Tắt Tunnel';
+      }
+      if (viewBtn) {
+        viewBtn.disabled = false;
+        viewBtn.textContent = '⏹️ Tắt Tunnel';
+      }
+    }
+  }
 
-  // Reconnect Tunnel (VPN / Network Location Change)
+  // Reconnect / Reset Tunnel (Get a brand new URL TryCloudflare)
   async function handleReconnectTunnel() {
     const mainBtn = document.getElementById('reconnectTunnelBtn');
     const headerBtn = document.getElementById('reconnectHeaderTunnelBtn');
 
     if (mainBtn) {
       mainBtn.disabled = true;
-      mainBtn.textContent = '⏳ Đang tái kết nối...';
+      mainBtn.textContent = '⏳ Đang đổi link...';
     }
     if (headerBtn) {
       headerBtn.disabled = true;
-      headerBtn.textContent = '⏳...';
+      headerBtn.textContent = '⏳ Đang đổi link...';
     }
 
-    showToast('Đang làm mới kết nối Cloudflare Tunnel theo mạng máy tính...', 'info');
+    showToast('Đang tạo link Cloudflare Tunnel mới (thích ứng mạng/VPN)...', 'info');
 
     try {
-      const res = await fetch('/api/tunnel/reconnect', { method: 'POST' });
+      const res = await fetch('/api/tunnel/reset', { method: 'POST' });
       const data = await res.json();
       if (data.ok && data.url) {
-        showToast('Đã làm mới kết nối thành công! Public URL: ' + data.url, 'success');
+        showToast('Đã cấp link mới thành công! Public URL: ' + data.url, 'success');
         updateHeaderTunnelBadge(data.url);
         loadSystemSettings();
       } else {
-        showToast('Lỗi làm mới tunnel: ' + (data.error || 'Không xác định'), 'error');
+        showToast('Lỗi cấp link mới: ' + (data.error || 'Không xác định'), 'error');
       }
     } catch (err) {
       showToast('Lỗi kết nối: ' + err.message, 'error');
     } finally {
       if (mainBtn) {
         mainBtn.disabled = false;
-        mainBtn.textContent = '🔄 Làm Mới Kết Nối Tunnel';
+        mainBtn.textContent = '🔄 Đổi Link Mới';
       }
       if (headerBtn) {
         headerBtn.disabled = false;
-        headerBtn.textContent = '🔄 Làm Mới';
+        headerBtn.textContent = '🔄 Đổi Link Mới';
       }
     }
   }
+
+  document.getElementById('startTunnelBtn')?.addEventListener('click', handleStartTunnel);
+  document.getElementById('headerStartTunnelBtn')?.addEventListener('click', handleStartTunnel);
+
+  document.getElementById('stopTunnelBtn')?.addEventListener('click', handleStopTunnel);
+  document.getElementById('headerStopTunnelBtn')?.addEventListener('click', handleStopTunnel);
 
   document.getElementById('reconnectTunnelBtn')?.addEventListener('click', handleReconnectTunnel);
   document.getElementById('reconnectHeaderTunnelBtn')?.addEventListener('click', handleReconnectTunnel);
@@ -3952,29 +4134,81 @@ document.addEventListener('DOMContentLoaded', () => {
   // -------------------------------------------------------------
   function updateHeaderTunnelBadge(publicUrl) {
     const badge = document.getElementById('headerTunnelBadge');
+    const title = document.getElementById('headerTunnelTitle');
     const urlText = document.getElementById('headerTunnelUrlText');
+    const headerStartBtn = document.getElementById('headerStartTunnelBtn');
+    const copyHeaderBtn = document.getElementById('copyHeaderWebhookBtn');
+    const headerResetBtn = document.getElementById('reconnectHeaderTunnelBtn');
+    const headerStopBtn = document.getElementById('headerStopTunnelBtn');
+
     const webhookInput = document.getElementById('publicWebhookUrlInput');
     const startBtn = document.getElementById('startTunnelBtn');
     const stopBtn = document.getElementById('stopTunnelBtn');
+    const reconnectBtn = document.getElementById('reconnectTunnelBtn');
+    const viewTitle = document.getElementById('viewTunnelStatusTitle');
+    const viewSubtitle = document.getElementById('viewTunnelStatusSubtitle');
+    const viewDot = document.getElementById('viewTunnelStatusDot');
 
     if (publicUrl && publicUrl.startsWith('http')) {
-      if (badge) badge.style.display = 'flex';
+      // Header controls: Active state
+      if (badge) {
+        badge.style.display = 'flex';
+        badge.classList.remove('inactive');
+        badge.classList.add('active');
+      }
+      if (title) title.textContent = 'Cloudflare:';
       if (urlText) {
         urlText.textContent = publicUrl.replace(/^https?:\/\//, '');
         urlText.title = publicUrl;
+        urlText.style.display = 'inline-block';
       }
+      if (headerStartBtn) headerStartBtn.style.display = 'none';
+      if (copyHeaderBtn) copyHeaderBtn.style.display = 'inline-flex';
+      if (headerResetBtn) headerResetBtn.style.display = 'inline-flex';
+      if (headerStopBtn) headerStopBtn.style.display = 'inline-flex';
+
+      // View 6 controls: Active state
       if (webhookInput) webhookInput.value = `${publicUrl}/webhook`;
       if (startBtn) startBtn.style.display = 'none';
+      if (reconnectBtn) reconnectBtn.style.display = 'inline-flex';
       if (stopBtn) stopBtn.style.display = 'inline-flex';
-    } else {
-      if (badge) badge.style.display = 'none';
-      if (urlText) {
-        urlText.textContent = 'Đang kết nối...';
-        urlText.title = '';
+      if (viewTitle) viewTitle.textContent = 'Cloudflare Tunnel đang HOẠT ĐỘNG (Meta Webhook Trực Tiếp)';
+      if (viewSubtitle) viewSubtitle.textContent = `URL: ${publicUrl} — Meta đẩy tin nhắn webhook tức thì với độ trễ 0s.`;
+      if (viewDot) {
+        viewDot.style.background = '#10b981';
+        viewDot.style.boxShadow = '0 0 0 0 rgba(16, 185, 129, 0.7)';
+        viewDot.style.animation = 'tunnelPulse 2s infinite cubic-bezier(0.66, 0, 0, 1)';
       }
+    } else {
+      // Header controls: Inactive (Local mode)
+      if (badge) {
+        badge.style.display = 'flex';
+        badge.classList.remove('active');
+        badge.classList.add('inactive');
+      }
+      if (title) title.textContent = 'Chế độ Local (Tunnel: Tắt)';
+      if (urlText) {
+        urlText.textContent = '';
+        urlText.title = '';
+        urlText.style.display = 'none';
+      }
+      if (headerStartBtn) headerStartBtn.style.display = 'inline-flex';
+      if (copyHeaderBtn) copyHeaderBtn.style.display = 'none';
+      if (headerResetBtn) headerResetBtn.style.display = 'none';
+      if (headerStopBtn) headerStopBtn.style.display = 'none';
+
+      // View 6 controls: Inactive state
       if (webhookInput) webhookInput.value = 'Chưa kích hoạt tunnel...';
       if (startBtn) startBtn.style.display = 'inline-flex';
+      if (reconnectBtn) reconnectBtn.style.display = 'none';
       if (stopBtn) stopBtn.style.display = 'none';
+      if (viewTitle) viewTitle.textContent = 'Chế độ Local (Tunnel đang TẮT)';
+      if (viewSubtitle) viewSubtitle.textContent = 'Hệ thống vẫn nhận tin nhắn khách hàng 100% tự động qua Fast Polling (2.5 giây) bằng Page Token trực tiếp từ Meta.';
+      if (viewDot) {
+        viewDot.style.background = '#64748b';
+        viewDot.style.boxShadow = 'none';
+        viewDot.style.animation = 'none';
+      }
     }
   }
 

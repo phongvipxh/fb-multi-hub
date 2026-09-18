@@ -132,12 +132,14 @@
           <span class="view-breadcrumb" id="currentViewBreadcrumb">Hội thoại trực tiếp & Lịch sử trao đổi đa Fanpage</span>
         </div>
         <div class="header-right">
-          <div id="headerTunnelBadge" class="header-tunnel-badge" style="display: none;">
+          <div id="headerTunnelBadge" class="header-tunnel-badge inactive">
             <span class="tunnel-pulse-dot"></span>
-            <span class="tunnel-title">Cloudflare:</span>
-            <span id="headerTunnelUrlText" class="tunnel-url-text" title="">Đang kết nối...</span>
-            <button id="copyHeaderWebhookBtn" class="btn btn-xs btn-copy-tunnel" title="Sao chép URL Webhook Meta cho Cloudflare">📋 Copy Webhook</button>
-            <button id="reconnectHeaderTunnelBtn" class="btn btn-xs" style="padding: 2px 8px; font-size: 11px; margin-left: 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25); background: rgba(0,0,0,0.2); color: #fff; cursor: pointer;" title="Làm mới kết nối Tunnel ngay lập tức (khi bạn vừa đổi VPN hoặc mạng trên máy tính)">🔄 Làm Mới</button>
+            <span class="tunnel-title" id="headerTunnelTitle">Chế độ Local (Tunnel: Tắt)</span>
+            <span id="headerTunnelUrlText" class="tunnel-url-text" style="display: none;"></span>
+            <button id="headerStartTunnelBtn" class="btn btn-xs btn-header-tunnel" title="Bật Cloudflare Tunnel để nhận Meta Webhook tức thì">⚡ Bật Tunnel</button>
+            <button id="copyHeaderWebhookBtn" class="btn btn-xs btn-copy-tunnel" style="display: none;" title="Sao chép URL Webhook Meta cho Cloudflare">📋 Copy Webhook</button>
+            <button id="reconnectHeaderTunnelBtn" class="btn btn-xs btn-header-tunnel" style="display: none;" title="Chủ động đổi link Cloudflare mới (reset URL TryCloudflare)">🔄 Đổi Link Mới</button>
+            <button id="headerStopTunnelBtn" class="btn btn-xs btn-header-tunnel btn-header-tunnel-stop" style="display: none;" title="Tắt Cloudflare Tunnel (chuyển về chế độ Local)">⏹️ Tắt Tunnel</button>
           </div>
           <span class="header-clock" id="headerLiveClock"></span>
         </div>
@@ -269,6 +271,17 @@
                   </div>
                   <div class="emoji-grid" id="emojiGrid">
                     <!-- Populated by JS -->
+                  </div>
+                </div>
+
+                <!-- Floating Slash Command Quick Reply Popover -->
+                <div id="slashReplyPopover" class="slash-reply-popover" style="display: none;">
+                  <div class="slash-popover-header">
+                    <span class="slash-popover-title">⚡ Mẫu câu trả lời nhanh (Gõ <code>/</code> để tìm)</span>
+                    <span class="slash-popover-hint">↑↓ Chọn • Enter chèn • Esc đóng</span>
+                  </div>
+                  <div class="slash-replies-list" id="slashRepliesList">
+                    <!-- Populated dynamically by JS -->
                   </div>
                 </div>
 
@@ -1042,10 +1055,19 @@
                 </div>
               </div>
 
-              <div class="btn-group" style="gap: 8px; flex-wrap: wrap;">
-                <button id="startTunnelBtn" class="btn btn-primary">🚀 Kích Hoạt Public Tunnel (Cloudflare)</button>
-                <button id="stopTunnelBtn" class="btn btn-secondary" style="display:none;">Dừng Tunnel</button>
-                <button id="reconnectTunnelBtn" class="btn btn-secondary" title="Làm mới kết nối Cloudflare Tunnel (chỉ cần dùng nếu bạn vừa đổi vị trí trên phần mềm VPN máy tính và muốn đồng bộ tức thì)">🔄 Làm Mới Kết Nối Tunnel</button>
+              <div class="tunnel-status-card" id="viewTunnelStatusCard" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; margin: 14px 0;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span class="tunnel-pulse-dot" id="viewTunnelStatusDot"></span>
+                  <div>
+                    <div style="font-weight: 600; font-size: 13px;" id="viewTunnelStatusTitle">Chế độ Local (Tunnel: Đang TẮT)</div>
+                    <div style="font-size: 11px; color: var(--text-muted);" id="viewTunnelStatusSubtitle">Tool vẫn tự động nhận tin nhắn khách hàng 100% qua Fast Polling (2.5 giây) bằng Page Token.</div>
+                  </div>
+                </div>
+                <div class="btn-group" style="gap: 8px; flex-wrap: wrap;">
+                  <button id="startTunnelBtn" class="btn btn-primary btn-sm">⚡ Bật Cloudflare Tunnel</button>
+                  <button id="reconnectTunnelBtn" class="btn btn-secondary btn-sm" style="display:none;" title="Chủ động ngắt tunnel và sinh ra 1 đường link TryCloudflare hoàn toàn mới">🔄 Đổi Link Mới</button>
+                  <button id="stopTunnelBtn" class="btn btn-danger btn-sm" style="display:none;" title="Tắt Cloudflare Tunnel và chuyển về chạy thuần Local">⏹️ Tắt Tunnel</button>
+                </div>
               </div>
 
               <div class="info-callout" style="margin-top: 14px; background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 12px 14px; border-radius: 6px;">

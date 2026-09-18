@@ -202,16 +202,32 @@ let activeTunnel = null;
 let currentPublicUrl = getSetting('public_url') || '';
 let shouldKeepTunnelAlive = true;
 
+function getCloudflaredPath() {
+  const localBin = path.join(__dirname, '../bin/cloudflared.exe');
+  if (fs.existsSync(localBin)) return localBin;
+
+  // Check system PATH
+  try {
+    const { execSync } = require('child_process');
+    const cmd = process.platform === 'win32' ? 'where.exe cloudflared' : 'which cloudflared';
+    const output = execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
+    const candidate = output.split(/\r?\n/)[0]?.trim();
+    if (candidate && fs.existsSync(candidate)) return candidate;
+  } catch (e) {}
+
+  return null;
+}
+
 async function startCloudflareTunnel(port = PORT) {
-  const cloudflaredPath = path.join(__dirname, '../bin/cloudflared.exe');
-  if (!fs.existsSync(cloudflaredPath)) {
-    throw new Error('Không tìm thấy bin/cloudflared.exe!');
+  const cloudflaredPath = getCloudflaredPath();
+  if (!cloudflaredPath) {
+    throw new Error('Không tìm thấy cloudflared trên hệ thống hoặc trong bin/cloudflared.exe!');
   }
 
   shouldKeepTunnelAlive = true;
 
   if (process.env.NODE_ENV === 'test' || process.env.MOCK_TUNNEL === '1') {
-    currentPublicUrl = `https://mock-tunnel-${port}.trycloudflare.com`;
+    currentPublicUrl = `https://mock-tunnel-${port}-${Date.now()}.trycloudflare.com`;
     updateSetting('public_url', currentPublicUrl);
     broadcastSSE('tunnel_started', {
       publicUrl: currentPublicUrl,
@@ -322,12 +338,15 @@ let tunnelHealthFailCount = 0;
 async function restartCloudflareTunnel(port = PORT) {
   if (isRestartingTunnel) return currentPublicUrl;
   isRestartingTunnel = true;
-  console.log(`[Cloudflare Tunnel] Đang tái kết nối Tunnel (Tự động thích ứng mạng / VPN mới)...`);
+  console.log(`[Cloudflare Tunnel] Đang tái kết nối Tunnel (Tự động thích ứng mạng / VPN mới / Link mới)...`);
   try {
+    shouldKeepTunnelAlive = false;
     if (activeTunnelProcess) {
       try { activeTunnelProcess.kill(); } catch (e) {}
       activeTunnelProcess = null;
     }
+    await new Promise(r => setTimeout(r, 600));
+    shouldKeepTunnelAlive = true;
     const newUrl = await startCloudflareTunnel(port);
     tunnelHealthFailCount = 0;
     return newUrl;
@@ -2513,7 +2532,7 @@ app.get('/api/supabase-schema', (req, res) => {
 
 app.post('/api/tunnel/start', async (req, res) => {
   try {
-    if (activeTunnelProcess && currentPublicUrl) {
+    if (activeTunnelProcess && currentPublicUrl && req.query.force !== 'true' && req.body?.force !== true) {
       return res.json({
         ok: true,
         message: 'Cloudflare Tunnel đang hoạt động!',
@@ -2522,8 +2541,8 @@ app.post('/api/tunnel/start', async (req, res) => {
       });
     }
 
-    const cloudflaredPath = path.join(__dirname, '../bin/cloudflared.exe');
-    if (fs.existsSync(cloudflaredPath)) {
+    const cloudflaredPath = getCloudflaredPath();
+    if (cloudflaredPath || process.env.NODE_ENV === 'test' || process.env.MOCK_TUNNEL === '1') {
       const url = await startCloudflareTunnel(PORT);
       return res.json({
         ok: true,
@@ -2543,6 +2562,7 @@ app.post('/api/tunnel/start', async (req, res) => {
       activeTunnel = null;
       currentPublicUrl = '';
       updateSetting('public_url', '');
+      broadcastSSE('tunnel_stopped', {});
     });
 
     res.json({
@@ -2558,7 +2578,7 @@ app.post('/api/tunnel/start', async (req, res) => {
 
 app.post('/api/tunnel/stop', (req, res) => {
   stopAllTunnels();
-  res.json({ ok: true, message: 'Đã đóng tunnel.' });
+  res.json({ ok: true, message: 'Đã tắt Cloudflare Tunnel. Tool tiếp tục chạy ở chế độ Local (Fast Polling 2.5s).' });
 });
 
 // Health check endpoint for Tunnel Watchdog and monitoring
@@ -2574,13 +2594,27 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 1-Click reconnect endpoint for VPN / Network changes
+// 1-Click reconnect & reset endpoint to generate a fresh Cloudflare link
 app.post('/api/tunnel/reconnect', async (req, res) => {
   try {
     const newUrl = await restartCloudflareTunnel(PORT);
     res.json({
       ok: true,
       message: 'Đã kết nối lại Cloudflare Tunnel qua máy chủ tối ưu theo mạng/VPN hiện tại!',
+      url: newUrl,
+      webhookUrl: `${newUrl}/webhook`
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/tunnel/reset', async (req, res) => {
+  try {
+    const newUrl = await restartCloudflareTunnel(PORT);
+    res.json({
+      ok: true,
+      message: 'Đã tạo liên kết Cloudflare Tunnel mới thành công!',
       url: newUrl,
       webhookUrl: `${newUrl}/webhook`
     });

@@ -527,6 +527,51 @@ html, body {
   transform: translateY(-1px);
 }
 
+.header-tunnel-badge.inactive {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.header-tunnel-badge.inactive .tunnel-pulse-dot {
+  background: #64748b;
+  box-shadow: none;
+  animation: none;
+}
+
+.header-tunnel-badge.inactive .tunnel-title {
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.btn-header-tunnel {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+
+.btn-header-tunnel:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-header-tunnel-stop {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.btn-header-tunnel-stop:hover {
+  background: rgba(239, 68, 68, 0.4);
+  color: #fff;
+}
+
 /* Views Viewport */
 .views-viewport {
   flex: 1 1 0;
@@ -1744,6 +1789,96 @@ html, body {
 .emoji-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: scale(1.2);
+}
+
+/* Floating Slash Command Quick Reply Popover */
+.slash-reply-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 12px;
+  width: 360px;
+  max-width: 90vw;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  z-index: 120;
+  display: none;
+  animation: fadeIn 0.15s ease;
+}
+
+.slash-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding: 4px 6px 6px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 11px;
+}
+
+.slash-popover-title {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.slash-popover-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.slash-replies-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slash-reply-item {
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid transparent;
+}
+
+.slash-reply-item:hover, .slash-reply-item.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.slash-reply-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.slash-reply-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.slash-reply-item-shortcut {
+  font-size: 10px;
+  font-family: monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #93c5fd;
+}
+
+.slash-reply-item-snippet {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Empty states */

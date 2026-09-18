@@ -63,7 +63,7 @@ VERIFY_TOKEN=fb_tool_verify_secret_2026
 }
 
 # ==============================================================================
-# BƯỚC 1: KIỂM TRA & TỰ ĐỘNG CÀI ĐẶT NODE.JS (PORTABLE LTS) NẾU THIẾU
+# BƯỚC 1: KIỂM TRA MÔI TRƯỜNG NODE.JS (CHẤP NHẬN BẤT KỲ BẢN NÀO >= V18)
 # ==============================================================================
 $NodeCmd = Get-Command "node" -ErrorAction SilentlyContinue
 $NodePortableDir = Join-Path $BinDir "node"
@@ -73,21 +73,35 @@ $NeedInstallNode = $true
 
 if ($NodeCmd) {
     try {
-        $nodeVersion = & node -v
-        Write-Pass "1/4" "Môi trường Node.js hệ thống: ĐÃ SẴN SÀNG ($nodeVersion)"
-        $NeedInstallNode = $false
+        $nodeVerOutput = & node -v
+        if ($nodeVerOutput -match 'v(\d+)\.') {
+            $majorVer = [int]$matches[1]
+            if ($majorVer -ge 18) {
+                Write-Pass "1/4" "Môi trường Node.js hệ thống: ĐÃ SẴN SÀNG ($nodeVerOutput - Tương thích tốt!)"
+                $NeedInstallNode = $false
+            } else {
+                Write-Info "Phát hiện Node.js hệ thống ($nodeVerOutput) là phiên bản cũ (< v18). Cần Node >= 18 để chạy tool."
+            }
+        }
     } catch {}
-} elseif (Test-Path $NodePortableExe) {
+}
+
+if ($NeedInstallNode -and (Test-Path $NodePortableExe)) {
     $env:PATH = "$NodePortableDir;$env:PATH"
     try {
-        $nodeVersion = & "$NodePortableExe" -v
-        Write-Pass "1/4" "Môi trường Node.js Portable: ĐÃ SẴN SÀNG ($nodeVersion)"
-        $NeedInstallNode = $false
+        $nodeVerOutput = & "$NodePortableExe" -v
+        if ($nodeVerOutput -match 'v(\d+)\.') {
+            $majorVer = [int]$matches[1]
+            if ($majorVer -ge 18) {
+                Write-Pass "1/4" "Môi trường Node.js Portable: ĐÃ SẴN SÀNG ($nodeVerOutput)"
+                $NeedInstallNode = $false
+            }
+        }
     } catch {}
 }
 
 if ($NeedInstallNode) {
-    Write-Step "1/4" "Chưa phát hiện Node.js trên máy! Đang tự động tải bộ cài đặt Node.js Portable chính thức..."
+    Write-Step "1/4" "Chưa phát hiện Node.js (>= v18) trên máy! Đang tự động tải bộ cài đặt Node.js Portable chính thức..."
     $NodeZipUrl = "https://nodejs.org/dist/v20.18.0/node-v20.18.0-win-x64.zip"
     $NodeZipPath = Join-Path $BinDir "node-v20.zip"
     $NodeExtractTemp = Join-Path $BinDir "node_temp"
@@ -139,9 +153,13 @@ if ($NeedInstallNode) {
 # ==============================================================================
 # BƯỚC 2: KIỂM TRA & TỰ ĐỘNG TẢI CLOUDFLARE TUNNEL (CLOUDFLARED) NẾU THIẾU
 # ==============================================================================
+$SystemCloudflared = Get-Command "cloudflared" -ErrorAction SilentlyContinue
 $CloudflaredExe = Join-Path $BinDir "cloudflared.exe"
-if ((Test-Path $CloudflaredExe) -and ((Get-Item $CloudflaredExe).Length -gt 10000000)) {
-    Write-Pass "2/4" "Cloudflare Tunnel (TryCloudflare Binary): ĐÃ SẴN SÀNG"
+
+if ($SystemCloudflared) {
+    Write-Pass "2/4" "Cloudflare Tunnel (Sẵn có trên hệ thống PATH: $($SystemCloudflared.Source)): ĐÃ SẴN SÀNG"
+} elseif ((Test-Path $CloudflaredExe) -and ((Get-Item $CloudflaredExe).Length -gt 10000000)) {
+    Write-Pass "2/4" "Cloudflare Tunnel (TryCloudflare Binary bin/cloudflared.exe): ĐÃ SẴN SÀNG"
 } else {
     Write-Step "2/4" "Chưa có Cloudflare Tunnel Binary! Đang tự động tải bản mới nhất từ GitHub..."
     $CloudflaredUrl = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
@@ -157,38 +175,47 @@ if ((Test-Path $CloudflaredExe) -and ((Get-Item $CloudflaredExe).Length -gt 1000
     if (Test-Path $CloudflaredExe) {
         Write-Pass "2/4" "Đã tải Cloudflare Tunnel thành công!"
     } else {
-        Write-Fail "Không thể tải cloudflared.exe. Tool vẫn chạy được ở chế độ Local."
+        Write-Fail "Không thể tải cloudflared.exe. Tool vẫn chạy bình thường ở chế độ Local (Fast Polling 2.5s)."
     }
 }
 
 # ==============================================================================
-# BƯỚC 3: KIỂM TRA & TỰ ĐỘNG CÀI ĐẶT THƯ VIỆN DỰ ÁN (NODE_MODULES) NẾU THIẾU
+# BƯỚC 3: KIỂM TRA THƯ VIỆN DỰ ÁN & TƯƠNG THÍCH ABI NATIVE MODULES
 # ==============================================================================
 $ExpressDir = Join-Path $ScriptDir "node_modules\express"
 $SqliteDir = Join-Path $ScriptDir "node_modules\better-sqlite3"
 
-if ((Test-Path $ExpressDir) -and (Test-Path $SqliteDir)) {
-    Write-Pass "3/4" "Thư viện dự án (node_modules): ĐÃ SẴN SÀNG"
-} else {
-    Write-Step "3/4" "Chưa phát hiện đủ thư viện dự án! Đang tự động cài đặt qua npm (khoảng 30 giây)..."
-    Write-Info "Đang chạy: npm install --no-audit --no-fund..."
-    
-    # Tìm npm
-    $npmCmd = Get-Command "npm" -ErrorAction SilentlyContinue
-    if (-not $npmCmd -and (Test-Path (Join-Path $NodePortableDir "npm.cmd"))) {
-        $npmExe = Join-Path $NodePortableDir "npm.cmd"
-        & "$npmExe" install --no-audit --no-fund
-    } else {
-        & npm install --no-audit --no-fund
-    }
+# Tìm npm
+$npmCmd = Get-Command "npm" -ErrorAction SilentlyContinue
+$npmExecutable = "npm"
+if (-not $npmCmd -and (Test-Path (Join-Path $NodePortableDir "npm.cmd"))) {
+    $npmExecutable = Join-Path $NodePortableDir "npm.cmd"
+}
 
-    if ((Test-Path $ExpressDir) -and (Test-Path $SqliteDir)) {
-        Write-Pass "3/4" "Cài đặt toàn bộ thư viện dự án thành công!"
-    } else {
+if (-not (Test-Path $ExpressDir) -or -not (Test-Path $SqliteDir)) {
+    Write-Step "3/4" "Chưa phát hiện đủ thư viện dự án! Đang tự động cài đặt qua npm (khoảng 30 giây)..."
+    Write-Info "Đang chạy: $npmExecutable install --no-audit --no-fund..."
+    
+    & $npmExecutable install --no-audit --no-fund
+
+    if (-not (Test-Path $ExpressDir) -or -not (Test-Path $SqliteDir)) {
         Write-Fail "Quá trình npm install gặp lỗi. Vui lòng kiểm tra lại quyền thư mục hoặc mạng!"
         exit 1
     }
+    Write-Pass "3/4" "Cài đặt toàn bộ thư viện dự án thành công!"
+} else {
+    Write-Pass "3/4" "Thư viện dự án (node_modules): ĐÃ SẴN SÀNG"
 }
+
+# Kiểm tra tương thích ABI của native module better-sqlite3 (tránh lỗi khi chuyển đổi giữa các bản Node)
+try {
+    $abiCheck = & node -e "try { require('better-sqlite3'); console.log('ABI_OK'); } catch (e) { console.log('ABI_FAIL:' + e.message); }"
+    if ($abiCheck -notmatch "ABI_OK") {
+        Write-Step "3/4" "Phát hiện khác biệt phiên bản Node.js (ABI mismatch). Đang tự động thích ứng better-sqlite3..."
+        & $npmExecutable rebuild better-sqlite3
+        Write-Pass "3/4" "Đã biên dịch lại better-sqlite3 tương thích 100% với Node.js hiện tại!"
+    }
+} catch {}
 
 # ==============================================================================
 # BƯỚC 4: KIỂM TRA TOÀN DIỆN & TỰ ĐỘNG KHỞI ĐỘNG PHẦN MỀM

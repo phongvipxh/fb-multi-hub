@@ -54,10 +54,24 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Auto-phone detection: scans customer messages for phone numbers (`09xx`, `08xx`...) and offers 1-click apply to CRM contact profile.
   - Direct click-to-call `📞` launcher.
   - Multi-field search matching customer name, message text, phone number, address, and tag name.
+- Proactive Cloudflare Tunnel Controls & Self-Hosted Local Mode:
+  - Header & View 6 controls: Proactive Toggle ON / OFF and Reset (Đổi link mới - generates a fresh TryCloudflare link on demand).
+  - Pure Local Mode: When Tunnel is OFF, tool runs 100% locally with zero open ports, continuously receiving messages via Fast Polling (2.5s) using permanent Page Access Tokens directly from Meta Graph API.
+  - Tunnel Mode: When Tunnel is ON, enables zero-latency Meta Webhooks.
+- Messaging Efficiency & Hands-On-Keyboard Slash Commands (`/`):
+  - Typing `/` in the chat input automatically triggers a floating autocomplete popover.
+  - Real-time filtering by shortcut (`/chao`, `/gia`, `/sdt`, `/stk`) or keyword.
+  - Full keyboard navigation: `↑` / `↓` to cycle items, `Enter` / `Tab` to insert, `Esc` to dismiss.
+- Flexible Bootstrapper & Universal Environment Runner (`setup_and_start.ps1`):
+  - Accepts any system Node.js version with major >= 18 (e.g. Node 18, 20, 22, 23...).
+  - Checks system PATH for `cloudflared` before downloading `bin/cloudflared.exe`.
+  - Automatic ABI compatibility check for `better-sqlite3` (`node -e "require('better-sqlite3')"`), auto-rebuilding native bindings if transferred between different Node versions.
 
 ## 4. Repository & Deployment
 - GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub` (Private)
 - Current Branch: `main`
+- Verification: 22/22 Test Suites Passed (Exit Code 0)
+
 - Latest Commit: `3955f41` (Up to date with origin/main)
 
 ## 5. Test Suite Telemetry

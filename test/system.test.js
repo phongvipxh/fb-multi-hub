@@ -1910,8 +1910,61 @@ const testServer = app.listen(0, async () => {
     assert(!tagsAfterDelete.some(t => t.id === customTagId), 'Thẻ tự tạo phải bị xóa khỏi danh sách');
     console.log('  ✓ DELETE /api/tags/:id xóa thẻ tùy chỉnh thành công');
 
+    // [22] Kiểm tra Chủ Động Bật / Tắt / Reset Link Cloudflare Tunnel & Tối Ưu Vận Hành Tin Nhắn
+    console.log('\n[22] Kiểm tra Chủ Động Bật / Tắt / Reset Link Cloudflare Tunnel & Tối Ưu Vận Hành Tin Nhắn...');
+
+    // 22.1 Test POST /api/tunnel/start
+    const startTunnelRes = await fetch(`${baseUrl}/api/tunnel/start`, { method: 'POST' });
+    assert.strictEqual(startTunnelRes.status, 200);
+    const startTunnelData = await startTunnelRes.json();
+    assert.strictEqual(startTunnelData.ok, true);
+    assert(startTunnelData.url.includes('trycloudflare.com'), 'Phải tạo public URL trycloudflare');
+    assert.strictEqual(startTunnelData.webhookUrl, `${startTunnelData.url}/webhook`);
+    console.log('  ✓ POST /api/tunnel/start kích hoạt Cloudflare Tunnel công khai thành công');
+
+    // 22.2 Test POST /api/tunnel/reset (Chủ động tạo link mới hoàn toàn)
+    const resetTunnelRes = await fetch(`${baseUrl}/api/tunnel/reset`, { method: 'POST' });
+    assert.strictEqual(resetTunnelRes.status, 200);
+    const resetTunnelData = await resetTunnelRes.json();
+    assert.strictEqual(resetTunnelData.ok, true);
+    assert(resetTunnelData.url.includes('trycloudflare.com'), 'Reset phải sinh ra link trycloudflare mới');
+    assert.notStrictEqual(resetTunnelData.url, startTunnelData.url, 'Link mới phải khác link cũ khi reset');
+    console.log('  ✓ POST /api/tunnel/reset cấp link TryCloudflare mới thành công (URL:', resetTunnelData.url, ')');
+
+    // 22.3 Test POST /api/tunnel/stop (Tắt tunnel, quay về chế độ Local)
+    const stopTunnelRes = await fetch(`${baseUrl}/api/tunnel/stop`, { method: 'POST' });
+    assert.strictEqual(stopTunnelRes.status, 200);
+    const stopTunnelData = await stopTunnelRes.json();
+    assert.strictEqual(stopTunnelData.ok, true);
+
+    const checkSettingRes = await fetch(`${baseUrl}/api/settings`);
+    const checkSettingData = await checkSettingRes.json();
+    assert.strictEqual(checkSettingData.settings.public_url, '', 'Khi tắt tunnel, public_url phải được xóa trắng về rỗng');
+    console.log('  ✓ POST /api/tunnel/stop tắt Tunnel thành công, chuyển về chế độ thuần Local');
+
+    // 22.4 Test Mẫu câu trả lời nhanh & Phím tắt Slash Commands (/)
+    const qrList = db.getQuickReplies();
+    assert(qrList.length >= 3, 'Phải có sẵn các mẫu câu trả lời nhanh');
+    assert(qrList.some(q => q.title.includes('Chào hỏi')), 'Phải có mẫu chào hỏi');
+    console.log('  ✓ Hệ thống mẫu câu trả lời nhanh (Quick Replies) sẵn sàng cho Slash Commands (/)');
+
+    // 22.5 Thêm mẫu câu mới và kiểm tra truy xuất
+    const newQrRes = await fetch(`${baseUrl}/api/quick-replies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Tài khoản ngân hàng',
+        content: 'Dạ shop xin gửi thông tin chuyển khoản: MB Bank - STK: 99998888 - Chủ TK: NGUYEN TUAN PHONG ạ!'
+      })
+    });
+    assert.strictEqual(newQrRes.status, 200);
+    const newQrData = await newQrRes.json();
+    assert.strictEqual(newQrData.ok, true);
+    assert.strictEqual(newQrData.reply.title, 'Tài khoản ngân hàng');
+    console.log('  ✓ POST /api/quick-replies tạo mẫu câu phản hồi nhanh tức thì thành công');
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 21 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, VPN ĐA QUỐC GIA & MINI CRM ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 22 BÀI TEST HỆ THỐNG, FACEBOOK OAUTH, VPN ĐA QUỐC GIA, MINI CRM & CLOUDFLARE TUNNEL ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();
