@@ -1956,14 +1956,32 @@
           </div>
         </div>
 
+        <!-- THÔNG BÁO TẠM KHÓA BƯỚC 2 KHI CHƯA XONG BƯỚC 1 -->
+        <div id="step2LockedNotice" style="display: none; background: rgba(30, 41, 59, 0.45); border: 1.5px dashed rgba(148, 163, 184, 0.3); border-radius: 10px; padding: 18px; margin-bottom: 16px; text-align: center;">
+          <div style="font-size: 30px; margin-bottom: 6px;">🔒</div>
+          <strong style="color: #94a3b8; font-size: 14.5px; display: block; margin-bottom: 6px;">Bước 2: Kết Nối Tài Khoản Facebook (Đang tạm khóa)</strong>
+          <p style="margin: 0 0 10px 0; font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; max-width: 540px; margin-left: auto; margin-right: auto;">
+            Để hệ thống tự động quét Fanpage và đăng nhập bảo mật, vui lòng điền đầy đủ <strong>App ID</strong> &amp; <strong>App Secret</strong> ở <strong>Bước 1</strong> bên trên rồi bấm <strong style="color: #60a5fa;">[💾 Lưu Cấu Hình App]</strong> để mở khóa Bước 2.
+          </p>
+          <div style="font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;">
+            <span>⚡ <em>Chỉ có mã Access Token sẵn từ Graph Explorer?</em></span>
+            <button type="button" id="btnForceUnlockStep2ForToken" class="btn btn-xs btn-secondary" style="font-size: 11px; padding: 2px 9px; color: #34d399; border-color: rgba(52, 211, 153, 0.4); gap: 4px;">
+              <span>🔓</span> Mở khóa để dán Token
+            </button>
+          </div>
+        </div>
+
         <!-- BƯỚC 2: KẾT NỐI TÀI KHOẢN FACEBOOK -->
-        <div id="step2ConnectCard" class="sequential-step-card" style="background: rgba(15, 23, 42, 0.75); border: 1.5px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 16px;">
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
-            <span style="background: #10b981; color: #0f172a; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13.5px; font-weight: 700;">2</span>
-            <div>
-              <strong style="color: #34d399; font-size: 14px;">Bước 2: Kết Nối Tài Khoản Facebook</strong>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Chọn 1 trong 2 phương thức kết nối tự động dưới đây:</div>
+        <div id="step2ConnectCard" class="sequential-step-card" style="display: none; background: rgba(15, 23, 42, 0.75); border: 1.5px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 16px; transition: all 0.3s ease;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="background: #10b981; color: #0f172a; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13.5px; font-weight: 700;">2</span>
+              <div>
+                <strong style="color: #34d399; font-size: 14px;">Bước 2: Kết Nối Tài Khoản Facebook</strong>
+                <div style="font-size: 11.5px; color: var(--text-muted);">Chọn 1 trong 2 phương thức kết nối tự động dưới đây:</div>
+              </div>
             </div>
+            <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; font-weight: 600;">🔓 Đã mở khóa</span>
           </div>
 
           <!-- CÁCH 1: 1-CLICK OAUTH LOGIN -->
@@ -2019,6 +2037,6 @@
 
   <!-- YouTube Iframe API -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="app.js?v=20260918_3"></script>
+  <script src="app.js?v=20260919_1"></script>
 </body>
 </html>

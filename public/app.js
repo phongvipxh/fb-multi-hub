@@ -3344,13 +3344,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const drawerBtnText = document.getElementById('toggleAppCredentialsText');
 
     if (labelInput) labelInput.value = '';
-    if (appIdInput) appIdInput.value = '';
-    const inlineAppId = document.getElementById('seqInlineAppIdInput');
-    if (inlineAppId) inlineAppId.value = '';
-    if (secretInput) {
-      secretInput.value = '';
-      secretInput.placeholder = 'Chuỗi mã bí mật (e8fe1eea...)';
-    }
     if (tokenInput) tokenInput.value = '';
     if (titleEl) titleEl.textContent = 'Kết Nối Tài Khoản Facebook Mới';
     if (modalTitleEl) modalTitleEl.textContent = 'Kết Nối Tài Khoản Facebook';
@@ -3360,7 +3353,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (drawer) drawer.style.display = 'none';
     if (drawerBtnText) drawerBtnText.textContent = 'Hiện Cấu Hình Nâng Cao ▾';
 
-    await openFacebookLoginSequentialModal(true);
+    await openFacebookLoginSequentialModal(false);
   }
 
   // -------------------------------------------------------------
@@ -3404,6 +3397,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (drawer) drawer.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  // -------------------------------------------------------------
+  // Helper: Lock / Unlock Step 2 based on Step 1 completion status
+  // -------------------------------------------------------------
+  function updateStep2Visibility(isUnlocked) {
+    const step2Card = document.getElementById('step2ConnectCard');
+    const lockedNotice = document.getElementById('step2LockedNotice');
+    if (!step2Card) return;
+
+    if (isUnlocked) {
+      step2Card.style.display = 'block';
+      if (lockedNotice) lockedNotice.style.display = 'none';
+    } else {
+      step2Card.style.display = 'none';
+      if (lockedNotice) lockedNotice.style.display = 'block';
+    }
+  }
+
   async function openFacebookLoginSequentialModal(skipFieldReset = false) {
     try {
       // 1. Load Token Sources (Connected Accounts)
@@ -3434,8 +3444,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        const activeAppId = (appIdInput && appIdInput.value) || data.appId;
-        const hasSecret = Boolean((appSecretInput && appSecretInput.value) || data.hasAppSecret || data.appSecret);
+        const activeAppId = ((appIdInput && appIdInput.value) || data.appId || '').trim();
+        const hasSecret = Boolean((appSecretInput && appSecretInput.value && appSecretInput.value.trim()) || data.hasAppSecret || data.appSecret);
 
         if (activeAppId && hasSecret) {
           if (oauthBtnText) oauthBtnText.textContent = `Đăng Nhập Facebook Ngay (Cổng App: ${activeAppId})`;
@@ -3459,6 +3469,10 @@ document.addEventListener('DOMContentLoaded', () => {
             badge.textContent = '⚠️ Chưa cấu hình';
           }
         }
+
+        // STEP 2 LOCK / UNLOCK: Chỉ hiển thị Bước 2 sau khi nhập xong Bước 1
+        const isStep1Done = Boolean(activeAppId && hasSecret);
+        updateStep2Visibility(isStep1Done);
 
         if (uriEl) {
           const callbackUri = (data.redirectUris && data.redirectUris[0]) || `${window.location.origin}/auth/facebook/callback`;
@@ -3529,6 +3543,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (secretInput) { secretInput.value = ''; secretInput.placeholder = 'Chuỗi mã bí mật (e8fe1eea...)'; }
     if (titleEl) titleEl.textContent = 'BƯỚC 1: Cấu Hình App ID & Secret Cho Tài Khoản';
     if (resetBtn) resetBtn.style.display = 'none';
+    updateStep2Visibility(false);
+  });
+
+  // Bỏ qua Bước 1 để mở khóa Bước 2 dán Token trực tiếp
+  document.getElementById('btnForceUnlockStep2ForToken')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    updateStep2Visibility(true);
+    const tokenInput = document.getElementById('seqTokenInput');
+    if (tokenInput) {
+      tokenInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      tokenInput.focus();
+    }
+    showToast('Đã mở Bước 2 để bạn dán mã Token Facebook!', 'info');
   });
 
   // Toggle Show/Hide App Secret Password Field
@@ -3722,14 +3749,21 @@ document.addEventListener('DOMContentLoaded', () => {
           oauthBtnText.textContent = `Đăng Nhập Facebook Ngay (Cổng App: ${appId})`;
         }
 
+        // UNLOCK STEP 2: Chỉ hiển thị Bước 2 sau khi nhập xong Bước 1
+        updateStep2Visibility(true);
+        const step2Card = document.getElementById('step2ConnectCard');
+        if (step2Card) {
+          step2Card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         if (msgEl) {
           const nowTime = new Date().toLocaleTimeString('vi-VN');
           msgEl.style.display = 'inline-block';
           msgEl.style.color = '#34d399';
-          msgEl.textContent = `✓ Đã lưu thành công (${nowTime})`;
+          msgEl.textContent = `✓ Đã lưu & Mở khóa Bước 2 (${nowTime})`;
           setTimeout(() => { if (msgEl) msgEl.style.display = 'none'; }, 4000);
         }
-        showToast('Đã lưu cấu hình App ID & App Secret thành công!', 'success');
+        showToast('✅ Đã lưu cấu hình App! Bước 2: Kết Nối Tài Khoản Facebook đã được mở khóa.', 'success');
         loadTokenSources();
       } else {
         if (msgEl) {
