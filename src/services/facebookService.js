@@ -346,6 +346,13 @@ async function sendFacebookMessage(pageAccessToken, recipientPsid, messageText =
       err.isOutside24h = true;
       throw err;
     }
+    if (pageAccessToken.includes('MOCK_ERROR_100_HUMAN_AGENT_UNAPPROVED')) {
+      const err = new Error('Graph API Send Text Error [100]: (#100) Không thể gắn thẻ tin nhắn là "HUMAN_AGENT" khi chưa được phê duyệt trước.');
+      err.code = 100;
+      err.isOutside24h = true;
+      err.isHumanAgentUnapproved = true;
+      throw err;
+    }
     if (pageAccessToken.includes('MOCK_ERROR_10_FALLBACK_TEST')) {
       if (!requestedTag) {
         // Simulate Error 10 first, then fallback to HUMAN_AGENT
@@ -375,6 +382,14 @@ async function sendFacebookMessage(pageAccessToken, recipientPsid, messageText =
     const subcode = Number(data.error.error_subcode);
     const msg = (data.error.message || '').toLowerCase();
     return code === 10 || subcode === 2018001 || subcode === 2018278 || msg.includes('outside of allowed window') || msg.includes('khoảng thời gian cho phép');
+  };
+
+  // Helper to detect Meta Error 100 (unapproved HUMAN_AGENT tag requires App Review)
+  const isHumanAgentUnapprovedError = (data) => {
+    if (!data || !data.error) return false;
+    const code = Number(data.error.code);
+    const msg = (data.error.message || '').toLowerCase();
+    return code === 100 && (msg.includes('human_agent') || msg.includes('chưa được phê duyệt trước') || msg.includes('without prior approval') || msg.includes('prior approval'));
   };
 
   // Helper to execute Meta send call with auto-fallback to HUMAN_AGENT tag
@@ -441,7 +456,8 @@ async function sendFacebookMessage(pageAccessToken, recipientPsid, messageText =
       err.code = resData.error.code;
       err.subcode = resData.error.error_subcode;
       err.fbError = resData.error;
-      err.isOutside24h = isOutside24hError(resData);
+      err.isHumanAgentUnapproved = isHumanAgentUnapprovedError(resData);
+      err.isOutside24h = isOutside24hError(resData) || err.isHumanAgentUnapproved;
       throw err;
     }
 

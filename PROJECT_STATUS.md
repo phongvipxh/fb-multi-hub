@@ -105,15 +105,22 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
     - `[🔘 Tất Cả Fanpage (N)]`: Tổng quan toàn bộ hệ thống.
   - Interactive Smart Table chuẩn Pancake: Cột 1 là Toggle Switch to rõ (`🟢 Đang Bật` / `⚪ Đã Tắt`), cột 2 là Fanpage (Avatar 36px, Tên, ID), cột 3 là Tài khoản Facebook sở hữu, cột 4 là Sức khỏe Token, cột 5 là Lịch trực ca, cột 6 là Dàn nút thao tác (Soi, Ca Trực, Webhook, Xóa).
   - Bộ chuyển đổi chế độ xem View Mode Segmented Control: Linh hoạt chuyển đổi giữa `[📋 Bảng]` (Smart Table) và `[🔲 Thẻ]` (Grid Cards).
-- Meta Messenger 24-Hour Policy Compliance, Message Tags & Intelligent Auto-Fallback:
+- Meta Messenger 24-Hour Policy Compliance, Message Tags & Error 100 Graceful Recovery:
   - Cơ chế tính toán thời gian thực Cửa sổ 24 giờ dựa trên mốc `last_customer_message_time` (chỉ cập nhật khi khách hàng gửi tin nhắn `is_echo === 0`, bảo toàn khi Page phản hồi).
-  - Phân loại 3 cấp độ thời gian thực:
-    - `within_24h` (🟢 Trong 24h): Khách tương tác trong 24 giờ qua, phản hồi tự do qua Graph API không cần thẻ.
-    - `within_7d` (⚠️ Quá 24h - CSKH 7 ngày): Đã quá 24h nhưng dưới 7 ngày, hệ thống tự động gán Thẻ CSKH Người Thật (`HUMAN_AGENT`) hoặc các thẻ tiêu chuẩn (`POST_PURCHASE_UPDATE`, `ACCOUNT_UPDATE`, `CONFIRMED_EVENT_UPDATE`).
-    - `expired_7d` (🛑 Quá 7 ngày): Meta chặn 100% gửi tin qua Graph API đối với mọi phần mềm bên ngoài. Hệ thống hiển thị cảnh báo đỏ và cung cấp nút 1-click `[🌐 Mở Meta Suite]` để nhân viên mở trực tiếp cuộc trò chuyện trên Meta Business Suite tiếp tục hỗ trợ khách.
-  - Cơ chế Auto-Fallback thông minh: Khi gửi tin nhắn thông thường (`RESPONSE`) gặp lỗi Graph API Error `10` (tin nhắn gửi ngoài khoảng thời gian cho phép), server tự động thử lại tức thì với `messaging_type: 'MESSAGE_TAG'` và `tag: 'HUMAN_AGENT'`, giúp nhân viên gửi tin thành công không bị gián đoạn hay phải gõ lại.
-  - Hộp thoại hướng dẫn chính sách `#metaPolicyInfoModal`: Hiển thị rõ ràng quy định của Meta, liên kết mở Meta Business Suite và nút chuyển nhanh sang Thẻ `HUMAN_AGENT`.
-  - Huy hiệu `#chat24hWindowBadge` đếm ngược thời gian thực (ví dụ: `⚠️ Quá 24h (CSKH 7 ngày - Còn 2d 18h)`), có hiệu ứng animation pulse viền vàng và hỗ trợ click mở trực tiếp modal hướng dẫn.
+  - Xử lý triệt để lỗi Graph API Error `100` (`(#100) Không thể gắn thẻ tin nhắn là "HUMAN_AGENT" khi chưa được phê duyệt trước`):
+    - Nguyên nhân cốt lõi: Meta quy định thẻ `HUMAN_AGENT` (CSKH 7 ngày) là tính năng nâng cao bắt buộc phải nộp hồ sơ xét duyệt ứng dụng (**App Review** cho `Human Agent` / `pages_messaging`). Các App tự tạo / tự host chưa qua App Review sẽ bị Meta chặn ngay với mã lỗi 100.
+    - Giải pháp đa tầng:
+      1. Backend (`src/services/facebookService.js` & `src/server.js`): Bắt chính xác mã lỗi 100 (`isHumanAgentUnapproved`), trả về phản hồi chuẩn hóa `errorType: 'HUMAN_AGENT_NOT_APPROVED'` kèm liên kết `metaInboxUrl` và hướng dẫn chi tiết.
+      2. Frontend (`public/app.js`): Không tự động gán thẻ `HUMAN_AGENT` làm mặc định khi quá 24h để tránh phát sinh lỗi 100 cho người dùng; thay vào đó hiển thị dải hướng dẫn tinh gọn và nút 1-click `[🌐 Mở Meta Suite ↗]`.
+      3. Hộp thoại `#metaPolicyInfoModal`: Tái cấu trúc thành 3 khối giải pháp trực quan: Cách 1 (Khuyên dùng 100%) - Mở trực tiếp trên Meta Business Suite (hoàn toàn miễn phí, không bị chặn, không cần App Review); Cách 2 - Gửi thẻ Đơn hàng (`POST_PURCHASE_UPDATE`); Khối lưu ý giải thích rõ yêu cầu App Review nếu muốn dùng thẻ `HUMAN_AGENT`.
+- Tái thiết kế toàn diện Giao diện Hộp Thư Tin Nhắn (Inbox UI Redesign):
+  - Khắc phục triệt để lỗi trùng lặp huy hiệu: Tách biệt rạch ròi giữa Huy hiệu trạng thái (`#activeChatStatusBadge`) và Nút bấm thao tác (`#markRepliedBtn` / `#markUnseenBtn`). Khi đã trả lời (`is_replied === 1`), nút "Đã trả lời" tự động ẩn đi, chỉ hiện nút "Chưa xem" để tránh tạo cảm giác lặp chữ.
+  - Header Chat 2 tầng phân cấp (`.chat-header-tier-top` & `.chat-header-tier-bottom`):
+    - Tầng 1: Avatar (32px) + Tên khách hàng (bold 14.5px, không bị co ép) + Nhóm nút chính (`[👤 CRM]`, `[🌐 Meta Suite ↗]`).
+    - Tầng 2: Huy hiệu Fanpage (`#activeChatPageBadge`) + Trạng thái (`#activeChatStatusBadge`) + Đếm ngược 24h (`#chat24hWindowBadge`) + Nút hành động nghiệp vụ.
+  - Thuật toán gom cụm tin nhắn (Message Bubble Clustering): Các tin nhắn liên tiếp từ cùng một phía trong vòng 5 phút được gom vào cụm liền mạch, chỉ hiển thị tiêu đề người gửi ở tin đầu tiên, giúp tiết kiệm hơn 50% diện tích chiều dọc và mang lại giao diện tinh tế chuẩn Messenger/iMessage.
+  - Tự động chèn thanh ngăn cách ngày tháng (`📅 Hôm nay`, `📅 DD/MM/YYYY`) khi sang ngày mới.
+  - Tinh gọn khung soạn thảo: Toolbar và bottom row luôn nằm trọn trên 1 hàng duy nhất trên mọi độ phân giải.
 - Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
   - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.07 MB).
   - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh.
@@ -126,7 +133,7 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
-- 27 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, Account-Grouped Fanpages with Toggle-All operations, Fanpage Synchronization (Sync Pages / Sync All), and Meta 24-Hour Policy, Message Tags & Intelligent Auto-Fallback.
+- 27 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, Account-Grouped Fanpages with Toggle-All operations, Fanpage Synchronization (Sync Pages / Sync All), and Meta 24-Hour Policy, Message Tags, Auto-Fallback & Error 100 HUMAN_AGENT Unapproved handling.
 - Last Status: 100% Pass — Mechanical Exit Code 0 (27/27 Passed).
 
 

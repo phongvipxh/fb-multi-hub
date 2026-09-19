@@ -1731,8 +1731,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const remHours = Math.floor((remainMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       if (badge) {
         badge.className = 'badge-24h-window badge-24h-warning';
-        badge.innerHTML = `⚠️ Quá 24h (CSKH 7 ngày - Còn ${remDays}d ${remHours}h)`;
-        badge.title = 'Đã quá 24h kể từ tin nhắn cuối của khách. Hệ thống sẽ tự động gửi kèm Thẻ CSKH (HUMAN_AGENT).';
+        badge.innerHTML = `⚠️ Quá 24h (Còn ${remDays}d ${remHours}h)`;
+        badge.title = 'Đã quá 24h kể từ tin nhắn cuối của khách. Nếu app chưa duyệt thẻ CSKH, hãy bấm Mở Meta Suite để trả lời trực tiếp miễn phí.';
       }
       if (banner) {
         banner.style.display = 'flex';
@@ -1740,16 +1740,17 @@ document.addEventListener('DOMContentLoaded', () => {
         banner.style.borderColor = 'rgba(245, 158, 11, 0.3)';
         banner.style.color = '#fde68a';
         if (warningText) {
-          warningText.innerHTML = `⚠️ <strong>Quá 24 giờ:</strong> Hệ thống sẽ tự động áp dụng <strong>Thẻ CSKH (HUMAN_AGENT)</strong> để gửi tin nhắn (Còn ${remDays} ngày ${remHours} giờ).`;
+          warningText.innerHTML = `⚠️ <strong>Quá 24 giờ:</strong> Hãy bấm nút <strong>[Mở Meta Suite ↗]</strong> để nhắn tin trực tiếp miễn phí (không lo bị chặn), hoặc chọn Thẻ phù hợp.`;
         }
       }
+      // Do not auto-assign HUMAN_AGENT because self-hosted apps without App Review will get Error 100
       if (tagSelect && !tagSelect.dataset.userManuallySelected) {
-        tagSelect.value = 'HUMAN_AGENT';
+        tagSelect.value = '';
       }
     } else {
       if (badge) {
         badge.className = 'badge-24h-window badge-24h-expired';
-        badge.innerHTML = '🛑 Quá 7 ngày (Meta chặn gửi API)';
+        badge.innerHTML = '🛑 Quá 7 ngày (Dùng Meta Suite)';
         badge.title = 'Đã quá 7 ngày kể từ tin nhắn cuối của khách. Meta chặn 100% qua API; hãy bấm "Mở Meta Suite" để nhắn trực tiếp trên Facebook.';
       }
       if (banner) {
@@ -1758,11 +1759,11 @@ document.addEventListener('DOMContentLoaded', () => {
         banner.style.borderColor = 'rgba(239, 68, 68, 0.35)';
         banner.style.color = '#fca5a5';
         if (warningText) {
-          warningText.innerHTML = '🛑 <strong>Đã quá 7 ngày:</strong> Meta chặn 100% gửi tin qua API. Hãy bấm nút <strong>"Mở Meta Suite"</strong> bên cạnh để chat trực tiếp trên Facebook!';
+          warningText.innerHTML = '🛑 <strong>Đã quá 7 ngày:</strong> Meta chặn qua API. Hãy bấm nút <strong>[Mở Meta Suite ↗]</strong> bên cạnh để chat trực tiếp trên Facebook!';
         }
       }
       if (tagSelect && !tagSelect.dataset.userManuallySelected) {
-        tagSelect.value = 'HUMAN_AGENT';
+        tagSelect.value = '';
       }
     }
   }
@@ -1816,25 +1817,37 @@ document.addEventListener('DOMContentLoaded', () => {
       update24hPolicyUI(lastCustTime, pageId, senderId);
 
       const statusBadge = document.getElementById('activeChatStatusBadge');
+      const seenBadge = document.getElementById('activeChatSeenBadge');
+      const markRepliedBtn = document.getElementById('markRepliedBtn');
+      const markUnseenBtn = document.getElementById('markUnseenBtn');
+      const isReplied = conv?.is_replied === 1;
+
       if (statusBadge) {
-        const isReplied = conv?.is_replied === 1;
         statusBadge.innerHTML = !isReplied ? '🔴 Chưa trả lời' : '✅ Đã trả lời';
         statusBadge.style.color = !isReplied ? '#ef4444' : '#10b981';
       }
 
-      const seenBadge = document.getElementById('activeChatSeenBadge');
+      // Hide markRepliedBtn if already replied to avoid duplicate "[✅ Đã trả lời]" visual clutter
+      if (markRepliedBtn) {
+        markRepliedBtn.style.display = isReplied ? 'none' : 'inline-flex';
+      }
+      if (markUnseenBtn) {
+        markUnseenBtn.style.display = isReplied ? 'inline-flex' : 'none';
+      }
+
       if (seenBadge) {
-        const isReplied = conv?.is_replied === 1;
-        const isSeen = conv?.is_seen === 1 || (activeConversation && activeConversation.page_id === pageId && activeConversation.sender_id === senderId);
         if (isReplied) {
-          seenBadge.innerHTML = '✅ Đã trả lời';
-          seenBadge.className = 'seen-indicator replied';
-        } else if (isSeen) {
-          seenBadge.innerHTML = '👁️ Đã xem';
-          seenBadge.className = 'seen-indicator seen';
+          seenBadge.style.display = 'none';
         } else {
-          seenBadge.innerHTML = '🔵 Chưa xem';
-          seenBadge.className = 'seen-indicator unseen';
+          const isSeen = conv?.is_seen === 1 || (activeConversation && activeConversation.page_id === pageId && activeConversation.sender_id === senderId);
+          seenBadge.style.display = 'inline-flex';
+          if (isSeen) {
+            seenBadge.innerHTML = '👁️ Đã xem';
+            seenBadge.className = 'seen-indicator seen';
+          } else {
+            seenBadge.innerHTML = '🔵 Chưa xem';
+            seenBadge.className = 'seen-indicator unseen';
+          }
         }
       }
 
@@ -1848,10 +1861,58 @@ document.addEventListener('DOMContentLoaded', () => {
         return (Number(a.id) || 0) - (Number(b.id) || 0);
       });
 
-      timeline.innerHTML = data.messages.map(m => {
+      const renderedItems = [];
+      let lastSenderType = null;
+      let lastTimestamp = 0;
+      let lastDateStr = null;
+
+      for (let i = 0; i < data.messages.length; i++) {
+        const m = data.messages[i];
         const isPageEcho = m.is_echo === 1 || m.sender_id === pageId;
-        const timeStr = new Date(m.timestamp || m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        const currentSenderType = isPageEcho ? 'page' : 'customer';
         const msgTimestamp = Number(m.timestamp) || (m.created_at ? new Date(m.created_at).getTime() : 0);
+        const nextMsg = data.messages[i + 1];
+        const nextSenderType = nextMsg ? ((nextMsg.is_echo === 1 || nextMsg.sender_id === pageId) ? 'page' : 'customer') : null;
+        const nextTimestamp = nextMsg ? (Number(nextMsg.timestamp) || (nextMsg.created_at ? new Date(nextMsg.created_at).getTime() : 0)) : 0;
+
+        // Date Divider
+        const dateObj = new Date(msgTimestamp || Date.now());
+        const dateStr = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        if (dateStr !== lastDateStr) {
+          lastDateStr = dateStr;
+          const todayStr = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const displayDate = dateStr === todayStr ? 'Hôm nay' : dateStr;
+          renderedItems.push(`
+            <div class="chat-date-divider">
+              <span>📅 ${escapeHtml(displayDate)}</span>
+            </div>
+          `);
+        }
+
+        // Clustering: consecutive messages from same sender within 5 minutes
+        const isGroupedWithPrev = currentSenderType === lastSenderType && (msgTimestamp - lastTimestamp) < 300000;
+        const isGroupedWithNext = currentSenderType === nextSenderType && (nextTimestamp - msgTimestamp) < 300000;
+
+        const isFirstInGroup = !isGroupedWithPrev;
+        const isLastInGroup = !isGroupedWithNext;
+
+        let clusterClasses = '';
+        if (isGroupedWithPrev) clusterClasses += ' bubble-grouped';
+        if (isLastInGroup) clusterClasses += ' bubble-last-in-group';
+
+        let senderMetaHtml = '';
+        if (isFirstInGroup) {
+          senderMetaHtml = `
+            <div class="bubble-sender-meta">
+              ${isPageEcho 
+                ? `🏢 <strong>${escapeHtml(pageName)}</strong> (Bạn)` 
+                : `👤 <strong>${escapeHtml(m.sender_name || customerName)}</strong>`
+              }
+            </div>
+          `;
+        }
+
+        const timeStr = new Date(msgTimestamp || Date.now()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         const isCustomerSeen = isPageEcho && customerWatermark > 0 && customerWatermark >= msgTimestamp;
         const customerSeenHtml = isCustomerSeen ? `
           <div class="customer-seen-badge" title="Khách hàng đã xem tin nhắn này trên Messenger">
@@ -2006,21 +2067,21 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
         }).join('') : '';
 
-        return `
-          <div class="chat-bubble ${isPageEcho ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}">
-            <div class="bubble-sender-meta">
-              ${isPageEcho 
-                ? `🏢 <strong>${escapeHtml(pageName)}</strong> (Bạn)` 
-                : `👤 <strong>${escapeHtml(m.sender_name || customerName)}</strong>`
-              }
-            </div>
+        renderedItems.push(`
+          <div class="chat-bubble ${isPageEcho ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}${clusterClasses}">
+            ${senderMetaHtml}
             ${attachmentsHtml}
             ${m.text ? `<div class="chat-bubble-text">${formatMessageContent(m.text)}</div>` : ''}
             <span class="bubble-time">${timeStr}</span>
             ${customerSeenHtml}
           </div>
-        `;
-      }).join('');
+        `);
+
+        lastSenderType = currentSenderType;
+        lastTimestamp = msgTimestamp;
+      }
+
+      timeline.innerHTML = renderedItems.join('');
 
       timeline.scrollTop = timeline.scrollHeight;
       setTimeout(() => {
@@ -2070,10 +2131,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return safe;
   }
 
-  // Filter Pills
-  document.querySelectorAll('.filter-pill').forEach(pill => {
+  // Filter Pills & Tabs
+  document.querySelectorAll('.filter-pill, .filter-tab').forEach(pill => {
     pill.addEventListener('click', () => {
-      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.filter-pill, .filter-tab').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       currentFilter = pill.dataset.filter;
       loadConversations();
@@ -2141,9 +2202,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const seenBadge = document.getElementById('activeChatSeenBadge');
         if (seenBadge) {
-          seenBadge.innerHTML = '✅ Đã trả lời';
-          seenBadge.className = 'seen-indicator replied';
+          seenBadge.style.display = 'none';
         }
+        const markRepliedBtn = document.getElementById('markRepliedBtn');
+        if (markRepliedBtn) markRepliedBtn.style.display = 'none';
+        const markUnseenBtn = document.getElementById('markUnseenBtn');
+        if (markUnseenBtn) markUnseenBtn.style.display = 'inline-flex';
 
         loadConversations();
       }
@@ -2166,10 +2230,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (conv) {
           conv.is_seen = 0;
           conv.seen_at = 0;
+          conv.is_replied = 0;
+        }
+
+        const markRepliedBtn = document.getElementById('markRepliedBtn');
+        if (markRepliedBtn) markRepliedBtn.style.display = 'inline-flex';
+        const markUnseenBtn = document.getElementById('markUnseenBtn');
+        if (markUnseenBtn) markUnseenBtn.style.display = 'none';
+
+        const statusBadge = document.getElementById('activeChatStatusBadge');
+        if (statusBadge) {
+          statusBadge.innerHTML = '🔴 Chưa trả lời';
+          statusBadge.style.color = '#ef4444';
         }
 
         const seenBadge = document.getElementById('activeChatSeenBadge');
         if (seenBadge) {
+          seenBadge.style.display = 'inline-flex';
           seenBadge.innerHTML = '🔵 Chưa xem';
           seenBadge.className = 'seen-indicator unseen';
         }
@@ -2779,14 +2856,24 @@ document.addEventListener('DOMContentLoaded', () => {
           textarea?.focus();
         }, 50);
       } else {
+        const isHumanAgentUnapproved = data.errorCode === 100 || data.errorType === 'HUMAN_AGENT_NOT_APPROVED' || (data.error && (data.error.includes('HUMAN_AGENT') || data.error.includes('chưa được phê duyệt trước') || data.error.includes('without prior approval')));
         const isError10 = data.errorCode === 10 || data.errorType === 'OUTSIDE_24H_WINDOW' || (data.error && (data.error.includes('[10]') || data.error.includes('khoảng thời gian cho phép') || data.error.includes('outside of allowed window')));
-        if (isError10) {
+
+        if (isHumanAgentUnapproved || isError10) {
           const modalDetail = document.getElementById('metaPolicyModalErrorDetail');
           const modalGoMeta = document.getElementById('btnModalGoMetaSuite');
           const metaUrl = data.metaInboxUrl || `https://business.facebook.com/latest/inbox/all?asset_id=${activeConversation.page_id}`;
           
           if (modalDetail) {
-            modalDetail.textContent = data.detailedError || data.error || 'Khách hàng đã quá 24 giờ không nhắn tin. Meta chặn gửi tin nhắn thông thường theo chính sách 24-Hour Policy.';
+            if (isHumanAgentUnapproved) {
+              modalDetail.innerHTML = `<span style="color: #fbbf24; font-weight: 700;">⚠️ Meta từ chối Thẻ CSKH (Error 100):</span><br>` +
+                (data.detailedError || data.error || 'Facebook App chưa được Meta phê duyệt quyền HUMAN_AGENT (yêu cầu App Review).') +
+                `<br><br><span style="color: #93c5fd;">👉 Hãy bấm nút <strong>[Mở Ngay Meta Suite ↗]</strong> để trả lời khách trực tiếp trên Facebook hoàn toàn miễn phí và không bị chặn.</span>`;
+            } else {
+              modalDetail.innerHTML = `<span style="color: #f87171; font-weight: 700;">⛔ Meta Chặn Gửi Tin Ngoài 24 Giờ (Error 10):</span><br>` +
+                (data.detailedError || data.error || 'Khách hàng đã quá 24 giờ không nhắn tin. Meta chặn gửi tin nhắn thông thường theo chính sách 24-Hour Policy.') +
+                `<br><br><span style="color: #93c5fd;">👉 Hãy bấm nút <strong>[Mở Ngay Meta Suite ↗]</strong> để tiếp tục hỗ trợ khách.</span>`;
+            }
           }
           if (modalGoMeta) modalGoMeta.href = metaUrl;
 
@@ -2795,7 +2882,7 @@ document.addEventListener('DOMContentLoaded', () => {
             retryBtn.onclick = () => {
               closeModal('metaPolicyInfoModal');
               if (tagSelect) {
-                tagSelect.value = 'HUMAN_AGENT';
+                tagSelect.value = 'POST_PURCHASE_UPDATE';
                 tagSelect.dataset.userManuallySelected = 'true';
               }
               executeSendReply(textToSend, attachmentToSend);
@@ -2803,7 +2890,11 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           openModal('metaPolicyInfoModal');
-          showToast('⚠️ Meta chặn gửi tin: Ngoài cửa sổ 24 giờ cho phép!', 'error');
+          if (isHumanAgentUnapproved) {
+            showToast('⚠️ App chưa duyệt Thẻ CSKH (Error 100). Hãy mở Meta Suite để gửi!', 'warning');
+          } else {
+            showToast('⚠️ Meta chặn gửi tin: Ngoài cửa sổ 24 giờ cho phép!', 'error');
+          }
         } else {
           showToast('Lỗi khi gửi tin: ' + data.error, 'error');
         }

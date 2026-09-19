@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FB Multi-Hub | Quản Trị Fanpage & Báo Thức Tự Host</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260919_5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -162,14 +162,19 @@
                   <input type="text" id="conversationSearchInput" class="form-control search-input" placeholder="Tìm tên khách, SĐT (09xx), tin nhắn...">
                 </div>
 
-                <div class="filter-pills">
-                  <button class="filter-pill active" data-filter="all">Tất cả</button>
-                  <button class="filter-pill" data-filter="unreplied">🔴 Chưa trả lời</button>
-                  <button class="filter-pill" data-filter="unseen" title="Lọc tin nhắn mới chưa mở xem">👁️ Chưa xem</button>
-                  <select id="sidebarPageFilter" class="form-select filter-select">
-                    <option value="">Tất cả Page</option>
+                <div class="sidebar-filter-tier-1">
+                  <button class="filter-tab active" data-filter="all">Tất cả</button>
+                  <button class="filter-tab" data-filter="unreplied">🔴 Chưa trả lời</button>
+                  <button class="filter-tab" data-filter="unseen" title="Lọc tin nhắn mới chưa mở xem">👁️ Chưa xem</button>
+                </div>
+
+                <div class="sidebar-filter-tier-2">
+                  <select id="sidebarPageFilter" class="form-select sidebar-page-select">
+                    <option value="">📄 Tất cả Fanpage</option>
                   </select>
-                  <button id="manualSyncInboxBtn" class="btn btn-sm btn-secondary" title="Đồng bộ tin nhắn mới từ Facebook" style="padding: 4px 8px; font-size: 0.8rem; margin-left: auto;">🔄 Đồng bộ</button>
+                  <button id="manualSyncInboxBtn" class="btn btn-xs btn-secondary sync-inbox-btn" title="Đồng bộ tin nhắn mới từ Facebook">
+                    <span>🔄</span> Đồng bộ
+                  </button>
                 </div>
               </div>
 
@@ -193,33 +198,52 @@
               <!-- Safety Alarm is now fully routed to the Single Unified Alarm Bar at the top of the screen -->
 
               <div id="chatDetailHeader" class="chat-detail-header" style="display: none;">
-                <div class="chat-header-user">
-                  <div class="customer-avatar" id="activeChatAvatar">👤</div>
-                  <div>
-                    <h3 id="activeChatName">Chọn khách hàng</h3>
-                    <div class="active-chat-meta">
-                      <span id="activeChatPageBadge" class="page-badge">Fanpage</span>
-                      <span id="activeChatStatusBadge" class="status-indicator">🔴 Chưa trả lời</span>
-                      <span id="activeChatSeenBadge" class="seen-indicator">👁️ Đã xem</span>
-                      <span id="chat24hWindowBadge" class="badge-24h-window badge-24h-active" title="Cửa sổ phản hồi theo chính sách Meta Messenger Platform">🟢 Trong 24h</span>
+                <!-- Tier 1: Customer Identity & Primary Tools -->
+                <div class="chat-header-tier-top">
+                  <div class="chat-header-user-primary">
+                    <div class="customer-avatar" id="activeChatAvatar">👤</div>
+                    <div class="customer-name-wrap">
+                      <h3 id="activeChatName" class="active-chat-customer-name">Chọn khách hàng</h3>
                     </div>
+                  </div>
+                  <div class="chat-header-primary-actions">
+                    <button id="toggleCrmBtn" class="btn btn-xs btn-outline-crm active" title="Bật / Ẩn Mini CRM & Thông tin khách hàng">
+                      <span>👤</span> <span class="btn-text">CRM</span>
+                    </button>
+                    <a id="openMetaInboxBtn" href="#" target="_blank" class="btn btn-xs btn-primary header-meta-btn" title="Mở trực tiếp cuộc trò chuyện này trên Facebook Meta Business Suite">
+                      <span>🌐</span> <span class="btn-text">Meta Suite ↗</span>
+                    </a>
                   </div>
                 </div>
 
-                <div class="chat-header-actions">
-                  <button id="toggleCrmBtn" class="btn btn-sm btn-outline-crm active" title="Bật / Ẩn Mini CRM & Thông tin khách hàng">
-                    👤 Hồ Sơ & CRM
-                  </button>
-                  <button id="markUnseenBtn" class="btn btn-sm btn-secondary" title="Đánh dấu cuộc hội thoại này là chưa xem để xử lý sau">
-                    👁️ Đánh dấu chưa xem
-                  </button>
-                  <button id="markRepliedBtn" class="btn btn-sm btn-secondary">
-                    ✅ Đánh dấu đã trả lời
-                  </button>
-                  <a id="openMetaInboxBtn" href="#" target="_blank" class="btn btn-sm btn-primary" title="Mở trực tiếp cuộc trò chuyện này trên Facebook Meta Business Suite">
-                    <span>🌐</span> Mở Meta Suite ↗
-                  </a>
+                <!-- Tier 2: Status Badges, 24h Window & Workflow Actions -->
+                <div class="chat-header-tier-bottom">
+                  <div class="chat-header-meta-badges">
+                    <span id="activeChatPageBadge" class="page-badge-prominent">Fanpage</span>
+                    <span id="activeChatStatusBadge" class="status-indicator">🔴 Chưa trả lời</span>
+                    <span id="activeChatSeenBadge" class="seen-indicator" style="display: none;">👁️ Đã xem</span>
+                    <span id="chat24hWindowBadge" class="badge-24h-window badge-24h-active" title="Cửa sổ phản hồi theo chính sách Meta Messenger Platform">🟢 Trong 24h</span>
+                  </div>
+                  <div class="chat-header-secondary-actions">
+                    <button id="markRepliedBtn" class="btn btn-xs btn-secondary" title="Đánh dấu đã trả lời tin nhắn này">
+                      <span>✅</span> <span class="btn-text">Đã trả lời</span>
+                    </button>
+                    <button id="markUnseenBtn" class="btn btn-xs btn-secondary" title="Đánh dấu chưa xem để xử lý sau">
+                      <span>👁️</span> <span class="btn-text">Chưa xem</span>
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              <!-- 24h Policy Warning & Direct Meta Link Banner (Slim Strip directly below Header) -->
+              <div id="chat24hWarningBanner" class="chat-24h-warning-strip" style="display: none;">
+                <div class="warning-strip-left">
+                  <span class="warning-strip-icon">⚠️</span>
+                  <span id="chat24hWarningText" class="warning-strip-text">Ngoài 24h: Tự động dùng Thẻ CSKH (Còn 2d 18h)</span>
+                </div>
+                <a id="chat24hOpenMetaBtn" href="#" target="_blank" class="warning-strip-btn" title="Mở trực tiếp trên Meta Business Suite">
+                  <span>🌐</span> Mở Meta Suite ↗
+                </a>
               </div>
 
               <div id="chatMessagesTimeline" class="chat-messages-timeline">
@@ -279,17 +303,6 @@
                 <input type="file" id="chatImageFileInput" accept="image/*" style="display: none;">
                 <input type="file" id="chatDocFileInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt" style="display: none;">
 
-                <!-- 24h Policy Warning & Direct Meta Link Banner -->
-                <div id="chat24hWarningBanner" class="chat-24h-warning-banner" style="display: none;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 16px;">⚠️</span>
-                    <span id="chat24hWarningText">Khách hàng đã quá 24h không nhắn tin. Hệ thống sẽ tự động dùng Thẻ CSKH (HUMAN_AGENT).</span>
-                  </div>
-                  <a id="chat24hOpenMetaBtn" href="#" target="_blank" class="btn btn-xxs btn-primary" style="margin-left: auto; text-decoration: none; white-space: nowrap;">
-                    <span>🌐</span> Mở Meta Suite
-                  </a>
-                </div>
-
                 <div class="meta-texting-container">
                   <!-- Staged Attachment Tray (Preview before sending) -->
                   <div id="attachmentStagingTray" class="attachment-staging-tray" style="display: none;">
@@ -303,33 +316,33 @@
                   <div class="texting-toolbar">
                     <div class="texting-tools-left">
                       <button type="button" id="toggleQrBarBtn" class="texting-tool-btn" title="Bật / Ẩn danh sách mẫu câu nhanh">
-                        <span>⚡ Mẫu nhanh</span>
+                        <span>⚡</span> <span class="tool-label">Mẫu câu</span>
                       </button>
                       <button type="button" id="triggerImageUploadBtn" class="texting-tool-btn" title="Đính kèm ảnh gửi khách">
-                        <span>🖼️ Gửi ảnh</span>
+                        <span>🖼️</span> <span class="tool-label">Ảnh</span>
                       </button>
                       <button type="button" id="triggerFileUploadBtn" class="texting-tool-btn" title="Đính kèm tài liệu, bảng giá, file PDF">
-                        <span>📎 Đính kèm tệp</span>
+                        <span>📎</span> <span class="tool-label">Tệp</span>
                       </button>
                       <button type="button" id="toggleEmojiPickerBtn" class="texting-tool-btn" title="Chèn biểu tượng cảm xúc">
-                        <span>😀 Icon</span>
+                        <span>😀</span> <span class="tool-label">Icon</span>
                       </button>
                     </div>
 
-                    <div class="texting-tools-right" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="texting-tools-right">
                       <!-- Message Tag Selector (Thẻ CSKH / Meta Policy) -->
                       <div class="message-tag-selector-wrap" title="Chọn Thẻ Tin Nhắn khi gửi ngoài cửa sổ 24 giờ của Meta">
-                        <span style="font-size: 11px; color: var(--text-muted); margin-right: 4px;">🏷️ Thẻ:</span>
+                        <span class="tag-selector-icon">🏷️</span>
                         <select id="chatMessageTagSelect" class="chat-message-tag-select">
-                          <option value="">⚡ Tự động (Khuyên dùng)</option>
-                          <option value="HUMAN_AGENT">👤 CSKH Người Thật 7 ngày (HUMAN_AGENT)</option>
-                          <option value="POST_PURCHASE_UPDATE">📦 Cập Nhật Đơn Hàng (POST_PURCHASE_UPDATE)</option>
-                          <option value="ACCOUNT_UPDATE">🔔 Cập Nhật Tài Khoản (ACCOUNT_UPDATE)</option>
-                          <option value="CONFIRMED_EVENT_UPDATE">📅 Cập Nhật Sự Kiện (CONFIRMED_EVENT_UPDATE)</option>
+                          <option value="">⚡ Tự động (Mặc định)</option>
+                          <option value="POST_PURCHASE_UPDATE">📦 Cập Nhật Đơn Hàng (POST_PURCHASE)</option>
+                          <option value="HUMAN_AGENT">👤 CSKH 7 ngày (Cần Meta duyệt App)</option>
+                          <option value="ACCOUNT_UPDATE">🔔 Cập Nhật Tài Khoản</option>
+                          <option value="CONFIRMED_EVENT_UPDATE">📅 Cập Nhật Sự Kiện</option>
                         </select>
                       </div>
-                      <button type="button" id="quickLikeBtn" class="texting-tool-btn" title="Gửi nhanh biểu tượng Thích (👍) cho khách">
-                        <span>👍 Like nhanh</span>
+                      <button type="button" id="quickLikeBtn" class="texting-tool-btn texting-tool-like" title="Gửi nhanh biểu tượng Thích (👍) cho khách">
+                        <span>👍</span> <span class="tool-label">Like</span>
                       </button>
                     </div>
                   </div>
@@ -348,16 +361,17 @@
                   <!-- Bottom Status & Actions Row -->
                   <div class="texting-bottom-row">
                     <div class="texting-meta-left">
-                      <span id="replyingAsPageIndicator" class="page-responding-indicator">
-                        🏢 Đang trả lời qua: <strong id="replyingPageNameText">Fanpage</strong>
+                      <span id="replyingAsPageIndicator" class="page-responding-indicator" title="Fanpage đang dùng để gửi tin">
+                        🏢 <span id="replyingPageNameText" class="truncate-page-name">Fanpage</span>
                       </span>
+                      <span class="meta-separator">•</span>
                       <span id="charCounter" class="char-counter">0 ký tự</span>
                     </div>
 
                     <div class="texting-meta-right">
-                      <span class="keyboard-hint"><kbd>Enter</kbd> gửi • <kbd>Shift+Enter</kbd> xuống dòng</span>
+                      <span class="keyboard-hint"><kbd>Enter</kbd> gửi • <kbd>Shift+Enter</kbd> dòng</span>
                       <button type="button" id="chatReplySubmitBtn" class="chat-send-btn">
-                        <span id="chatSendBtnText">Gửi</span> <span>📤</span>
+                        <span id="chatSendBtnText">Gửi</span> <span>🚀</span>
                       </button>
                     </div>
                   </div>
@@ -2107,26 +2121,33 @@
 
       <div class="modal-body" style="padding: 18px 22px; font-size: 13px; line-height: 1.6; color: #cbd5e1;">
         <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
-          <strong style="color: #f87171; display: block; margin-bottom: 4px;">⛔ Meta Chặn Gửi Tin Nhắn Thông Thường (Error 10)</strong>
-          <span id="metaPolicyModalErrorDetail">Khách hàng đã quá 24 giờ không tương tác. Facebook không cho phép gửi tin nhắn phản hồi tự do qua API.</span>
+          <span id="metaPolicyModalErrorDetail">Khách hàng đã quá 24 giờ không tương tác. Facebook không cho phép gửi tin nhắn tự do qua API nếu chưa được duyệt thẻ tương ứng.</span>
         </div>
 
-        <h4 style="margin: 14px 0 6px 0; color: #f1f5f9; font-size: 13.5px;">💡 Các giải pháp để tiếp tục hỗ trợ khách hàng:</h4>
+        <h4 style="margin: 14px 0 8px 0; color: #f1f5f9; font-size: 13.5px;">💡 Các giải pháp để tiếp tục hỗ trợ khách hàng:</h4>
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
-            <strong style="color: #38bdf8;">Cách 1 (Khuyên dùng): Mở trực tiếp trên Meta Business Suite</strong>
-            <p style="margin: 4px 0 8px 0; font-size: 12px; color: var(--text-muted);">Facebook không chặn người thật nhắn tin trực tiếp trên ứng dụng Facebook hoặc web Meta Business Suite.</p>
-            <a id="btnModalGoMetaSuite" href="#" target="_blank" class="btn btn-xs btn-primary" style="font-weight: 700; gap: 6px; text-decoration: none;">
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; padding: 12px 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <strong style="color: #38bdf8; font-size: 13.5px;">Cách 1 (Khuyên dùng 100%): Mở Meta Business Suite</strong>
+              <span style="font-size: 10px; background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-weight: 700;">MIỄN PHÍ • KHÔNG BỊ CHẶN</span>
+            </div>
+            <p style="margin: 0 0 10px 0; font-size: 12px; color: #94a3b8;">Facebook cho phép trả lời khách hàng trực tiếp trên Meta Business Suite mà không cần phê duyệt App Review, không sợ vi phạm chính sách 24h và không bị giới hạn thẻ.</p>
+            <a id="btnModalGoMetaSuite" href="#" target="_blank" class="btn btn-sm btn-primary" style="font-weight: 700; gap: 6px; text-decoration: none; padding: 6px 14px; font-size: 12.5px;">
               <span>🌐</span> Mở Ngay Cuộc Trò Chuyện Này Trên Meta Suite ↗
             </a>
           </div>
 
-          <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
-            <strong style="color: #34d399;">Cách 2: Gửi kèm Thẻ CSKH Người Thật (HUMAN_AGENT)</strong>
-            <p style="margin: 4px 0 8px 0; font-size: 12px; color: var(--text-muted);">Nếu khách đã nhắn tin trong vòng <strong>7 ngày qua</strong>, bạn có thể chọn Thẻ <code>HUMAN_AGENT</code> trên khung soạn thảo để gửi tiếp.</p>
+          <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
+            <strong style="color: #34d399; font-size: 13px;">Cách 2: Gửi kèm Thẻ Cập Nhật Đơn Hàng (POST_PURCHASE_UPDATE)</strong>
+            <p style="margin: 4px 0 8px 0; font-size: 12px; color: #94a3b8;">Nếu tin nhắn này là thông báo xác nhận đơn hàng, cập nhật vận đơn hoặc hóa đơn mua sắm, bạn có thể gửi bằng thẻ này.</p>
             <button type="button" id="btnModalRetryWithHumanAgent" class="btn btn-xs btn-secondary" style="font-weight: 600; gap: 6px;">
-              <span>👤</span> Chọn Thẻ CSKH (HUMAN_AGENT) &amp; Thử Lại
+              <span>📦</span> Chọn Thẻ Đơn Hàng &amp; Thử Lại
             </button>
+          </div>
+
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #fde68a;">
+            <strong>ℹ️ Lưu ý về Thẻ CSKH (HUMAN_AGENT):</strong>
+            <p style="margin: 3px 0 0 0; color: #cbd5e1; font-size: 11px; line-height: 1.5;">Thẻ <code>HUMAN_AGENT</code> (CSKH 7 ngày) yêu cầu App Facebook phải được Meta phê duyệt qua quy trình <strong>App Review</strong> (Kiểm duyệt ứng dụng). Nếu App của bạn là App cá nhân / tự tạo chưa qua duyệt, Meta sẽ từ chối với lỗi Error 100. Hãy sử dụng Cách 1 (Meta Suite) để nhắn tin bình thường.</p>
           </div>
         </div>
       </div>
@@ -2147,6 +2168,6 @@
 
   <!-- YouTube Iframe API -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="app.js?v=20260919_3"></script>
+  <script src="app.js?v=20260919_5"></script>
 </body>
 </html>

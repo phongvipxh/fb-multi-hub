@@ -2460,8 +2460,33 @@ const testServer = app.listen(0, async () => {
     assert.strictEqual(expiredSendData.ok, false);
     assert.strictEqual(expiredSendData.errorCode, 10);
     assert.strictEqual(expiredSendData.errorType, 'OUTSIDE_24H_WINDOW');
-    assert(expiredSendData.metaInboxUrl.includes('page_expired_7d_test'), 'metaInboxUrl phải trỏ đúng Fanpage');
     console.log('  ✓ API chẩn đoán mã lỗi 10 chuẩn xác, phản hồi cấu trúc OUTSIDE_24H_WINDOW kèm link Meta Business Suite');
+
+    // 27.8 Kiểm tra xử lý lỗi Error 100 khi App chưa được Meta phê duyệt Thẻ HUMAN_AGENT
+    db.saveOrUpdatePage({
+      page_id: 'page_unapproved_tag_test',
+      name: 'Fanpage Test Unapproved HUMAN_AGENT',
+      access_token: 'MOCK_ERROR_100_HUMAN_AGENT_UNAPPROVED',
+      avatar_url: '',
+      is_active: 1
+    });
+
+    const unapprovedSendRes = await fetch(`${baseUrl}/api/conversations/page_unapproved_tag_test/cust_unapp_01/send-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: 'Tin nhắn gửi qua thẻ HUMAN_AGENT khi app chưa được duyệt',
+        tag: 'HUMAN_AGENT'
+      })
+    });
+    assert.strictEqual(unapprovedSendRes.status, 400);
+    const unapprovedSendData = await unapprovedSendRes.json();
+    assert.strictEqual(unapprovedSendData.ok, false);
+    assert.strictEqual(unapprovedSendData.errorCode, 100);
+    assert.strictEqual(unapprovedSendData.errorType, 'HUMAN_AGENT_NOT_APPROVED');
+    assert(unapprovedSendData.metaInboxUrl.includes('page_unapproved_tag_test'), 'metaInboxUrl phải trỏ đúng Fanpage');
+    assert(unapprovedSendData.instructions.includes('Meta Business Suite'), 'Hướng dẫn phải gợi ý giải pháp mở Meta Suite');
+    console.log('  ✓ API chẩn đoán mã lỗi 100 (Unapproved HUMAN_AGENT) chuẩn xác, trả về HUMAN_AGENT_NOT_APPROVED kèm link Meta Business Suite');
 
     console.log('\n=============================================================');
     console.log('🎉 TẤT CẢ 27 BÀI TEST HỆ THỐNG, 24-HOUR POLICY & MESSAGE TAGS ĐỀU ĐẠT (EXIT 0)!');

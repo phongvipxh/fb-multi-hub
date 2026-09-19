@@ -1286,10 +1286,27 @@ app.post('/api/conversations/:pageId/:senderId/send-message', async (req, res) =
   } catch (err) {
     console.error('[Send Message] Error:', err.message);
 
+    const isHumanAgentUnapproved = err.isHumanAgentUnapproved || (err.code === 100 && (err.message && (err.message.includes('HUMAN_AGENT') || err.message.includes('chưa được phê duyệt trước') || err.message.includes('without prior approval') || err.message.includes('prior approval'))));
     const isOutside24h = err.isOutside24h || err.code === 10 || (err.message && (err.message.includes('[10]') || err.message.includes('khoảng thời gian cho phép') || err.message.includes('outside of allowed window')));
-    if (isOutside24h) {
+
+    if (isHumanAgentUnapproved || isOutside24h) {
       const conv = getConversation(req.params.pageId, req.params.senderId);
       const metaInboxUrl = `https://business.facebook.com/latest/inbox/all?asset_id=${req.params.pageId}`;
+
+      if (isHumanAgentUnapproved) {
+        return res.status(400).json({
+          ok: false,
+          errorCode: 100,
+          errorType: 'HUMAN_AGENT_NOT_APPROVED',
+          error: 'Meta từ chối Thẻ HUMAN_AGENT: Facebook App chưa được Meta xét duyệt (App Review) quyền này. Vui lòng mở Meta Business Suite để chat trực tiếp với khách hoàn toàn miễn phí.',
+          detailedError: err.message,
+          lastCustomerMessageTime: conv?.last_customer_message_time || 0,
+          metaInboxUrl,
+          suggestedAction: 'open_meta_business_suite',
+          instructions: 'Facebook quy định thẻ HUMAN_AGENT chỉ hoạt động khi Facebook App đã được Meta duyệt qua quy trình App Review. Giải pháp tốt nhất: Bấm [Mở Meta Business Suite] để chat trực tiếp với khách mà không bị giới hạn thẻ hay chính sách 24h.'
+        });
+      }
+
       return res.status(400).json({
         ok: false,
         errorCode: 10,
@@ -1299,7 +1316,7 @@ app.post('/api/conversations/:pageId/:senderId/send-message', async (req, res) =
         lastCustomerMessageTime: conv?.last_customer_message_time || 0,
         metaInboxUrl,
         suggestedAction: 'open_meta_business_suite',
-        instructions: 'Chính sách Meta chỉ cho phép phản hồi trong 24 giờ. Nếu trong 7 ngày, hệ thống sẽ gửi kèm Thẻ CSKH (HUMAN_AGENT). Nếu khách đã quá 7 ngày không nhắn tin, Meta chặn 100% qua API; bạn hãy bấm nút [Mở Meta Business Suite] để chat trực tiếp trên Facebook.'
+        instructions: 'Chính sách Meta chỉ cho phép phản hồi trong 24 giờ. Bạn hãy bấm nút [Mở Meta Business Suite] để chat trực tiếp trên Facebook không bị chặn.'
       });
     }
 
