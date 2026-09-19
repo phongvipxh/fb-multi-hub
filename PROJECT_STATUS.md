@@ -125,20 +125,29 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Tự phục hồi tệp âm thanh (Self-Healing File Check): `getHostProfile()` trong `src/database/db.js` tự động kiểm tra sự tồn tại của tệp tùy chỉnh trên ổ đĩa. Nếu tệp không tồn tại, tự động reset `web_sound_type = 'loud_chime'`, triệt tiêu 100% lỗi HTTP 404 và `NotSupportedError`.
   - Bộ phát chuông thông báo Web Audio chuyên dụng `playNewMessageChime()`: Sử dụng bộ dao động sóng kép (Dual-tone Oscillator: E6 1318.5Hz -> B6 1975.5Hz) tạo tiếng chuông ngân vang ("Ting") trong trẻo, zero-network dependency (không phụ thuộc vào mạng hay tệp tĩnh bên ngoài).
   - Mở khóa AudioContext toàn diện (Global User Gesture Unlock): Bắt sự kiện tương tác đầu tiên của người dùng (`click`, `pointerdown`, `keydown`, `touchstart`) và các nút thao tác nhanh (`[⚡ Test Tin]`, `[🔊 Loa Web]`) để đảm bảo `AudioContext` luôn ở trạng thái `running` theo đúng chính sách Autoplay Policy của trình duyệt.
+- Historical Message Backfill Engine (Cơ Chế Tự Động Tải & Đồng Bộ Toàn Bộ Lịch Sử Tin Nhắn):
+  - Chuẩn Omnichannel CRM (tương tự Pancake.vn, Harasocial, Fchat.vn, Zendesk).
+  - Tự động kích hoạt khi thêm Fanpage mới (`POST /api/pages`, `POST /api/pages/bulk-import`) hoặc khi bật lại quản lý (`is_active = 1`).
+  - Tự động tạm dừng (Auto-Pause) khi Fanpage bị tắt quản lý (`is_active = 0`) và tiếp tục (Resume) khi được bật lại.
+  - Cơ chế Tải Phân Trang (Paging Backfill): Duyệt theo con trỏ `paging.cursors.after` của Meta Graph API (`/v19.0/{page_id}/conversations?fields=...`).
+  - Silent Ingestion (Bảo vệ chống báo động sai): Toàn bộ tin nhắn lịch sử nạp vào DB ở trạng thái `is_seen = 1`, triệt tiêu 100% âm thanh chuông báo thức Web Audio, còi báo động, cuộc gọi VoIP (Twilio/CallMeBot), thông báo ntfy.sh và bot webhook (Telegram/Discord).
+  - Bảo vệ chống ghi đè dữ liệu (Data Integrity Guard in `saveMessage`): Sử dụng điều kiện `WHEN excluded.last_message_time >= conversations.last_message_time` ngăn chặn tin nhắn lịch sử trong quá khứ làm sai lệch đoạn trích và trạng thái phản hồi của tin nhắn hiện tại.
+  - Pacing & Rate Limit Resilience: Nghỉ 250ms giữa các batch; tự động bắt Error 17 / 429 và backoff 15 giây; bắt Error 190 (hết hạn token) để dừng êm dịu và ghi chú lỗi.
+  - Đồng bộ tiến độ theo thời gian thực (SSE `backfill_progress`) với thanh tiến trình gradient shimmer `#backfillProgressBanner` trên Inbox và nút `[📥 Tải Tin Cũ]` trên Smart Table.
 - Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
-  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.08 MB).
+  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe`.
   - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh.
 
 ## 4. Repository & Deployment
 - GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub`
 - Current Branch: `main`
-- Verification: 27/27 Test Suites Passed (Exit Code 0)
-- Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe` (48.08 MB)
+- Verification: 28/28 Test Suites Passed (Exit Code 0)
+- Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe`
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
-- 27 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, Account-Grouped Fanpages with Toggle-All operations, Fanpage Synchronization (Sync Pages / Sync All), and Meta 24-Hour Policy, Message Tags, Auto-Fallback & Error 100 HUMAN_AGENT Unapproved handling.
-- Last Status: 100% Pass — Mechanical Exit Code 0 (27/27 Passed).
+- 28 Test Suites covering SQLite DB, Shifts, Meta API, Media, Seen Sync, Discord Alert, Safety Alarms, Multi-Agent Sync, Echo Webhooks, Twilio VoIP, ntfy.sh Free Ringtone, Unseen Badge, Meta Clock Sync, Token Vault & Long-Lived Token Exchange, Facebook OAuth 2.0 Multi-Account, VPN Multi-Region Resilience, Mini CRM & Customer Tags, Proactive Tunnel, Custom Web Alarm Audio / YouTube Links, Selective Fanpage Management & Inactive Alarm Locking, Account-Grouped Fanpages with Toggle-All operations, Fanpage Synchronization (Sync Pages / Sync All), Meta 24-Hour Policy, Message Tags, Auto-Fallback & Error 100 HUMAN_AGENT Unapproved handling, and Automated Historical Message Backfill Engine with Silent Ingestion.
+- Last Status: 100% Pass — Mechanical Exit Code 0 (28/28 Passed).
 
 
 

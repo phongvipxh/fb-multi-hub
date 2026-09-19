@@ -739,6 +739,82 @@ html, body {
   height: 34px !important;
 }
 
+/* Historical Message Backfill Live Progress Banner */
+.backfill-progress-banner {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.backfill-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.backfill-progress-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #93c5fd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backfill-spinner {
+  display: inline-block;
+  animation: spin 1.5s linear infinite;
+  font-size: 12px;
+}
+
+.backfill-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.btn-backfill-action, .btn-backfill-dismiss {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-backfill-action:hover, .btn-backfill-dismiss:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.backfill-progress-bar-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.backfill-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #38bdf8);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
 .sidebar-filter-tier-1 {
   display: flex;
   gap: 3px;

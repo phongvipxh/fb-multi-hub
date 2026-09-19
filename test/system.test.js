@@ -2488,8 +2488,143 @@ const testServer = app.listen(0, async () => {
     assert(unapprovedSendData.instructions.includes('Meta Business Suite'), 'Hướng dẫn phải gợi ý giải pháp mở Meta Suite');
     console.log('  ✓ API chẩn đoán mã lỗi 100 (Unapproved HUMAN_AGENT) chuẩn xác, trả về HUMAN_AGENT_NOT_APPROVED kèm link Meta Business Suite');
 
+    // [28] Kiểm tra Cơ Chế Tự Động Tải & Đồng Bộ Toàn Bộ Lịch Sử Tin Nhắn (Historical Backfill Engine)...
+    console.log('\n[28] Kiểm tra Cơ Chế Tự Động Tải & Đồng Bộ Toàn Bộ Lịch Sử Tin Nhắn (Historical Backfill Engine)...');
+
+    const bfPageId = 'page_backfill_test_01';
+    const bfCustId = 'cust_bf_01';
+
+    db.saveOrUpdatePage({
+      page_id: bfPageId,
+      name: 'Fanpage Thử Nghiệm Backfill',
+      access_token: 'MOCK_BACKFILL_TOKEN',
+      avatar_url: '',
+      is_active: 1
+    });
+
+    // 28.1 Kiểm tra saveHistoricalBatch lưu trữ lô tin nhắn lịch sử chính xác
+    const mockConversationsBatch = [
+      {
+        id: 't_mock_conv_01',
+        updated_time: new Date(Date.now() - 86400000).toISOString(),
+        unread_count: 0,
+        senders: {
+          data: [
+            { id: bfCustId, name: 'Khách Hàng Lịch Sử 01' },
+            { id: bfPageId, name: 'Fanpage Thử Nghiệm Backfill' }
+          ]
+        },
+        messages: {
+          data: [
+            {
+              id: 'mid_hist_01',
+              message: 'Tin nhắn cũ từ 2 ngày trước',
+              from: { id: bfCustId, name: 'Khách Hàng Lịch Sử 01' },
+              created_time: new Date(Date.now() - 172800000).toISOString(),
+              attachments: { data: [] }
+            },
+            {
+              id: 'mid_hist_02',
+              message: 'Shop đã trả lời từ hôm qua',
+              from: { id: bfPageId, name: 'Fanpage Thử Nghiệm Backfill' },
+              created_time: new Date(Date.now() - 86400000).toISOString(),
+              attachments: { data: [] }
+            }
+          ]
+        }
+      }
+    ];
+
+    const batchRes = db.saveHistoricalBatch(bfPageId, mockConversationsBatch);
+    assert.strictEqual(batchRes.insertedConversationsCount, 1, 'Phải tạo mới 1 cuộc hội thoại');
+    assert.strictEqual(batchRes.insertedMessagesCount, 2, 'Phải nạp thành công 2 tin nhắn');
+    console.log('  ✓ saveHistoricalBatch lưu trữ lô hội thoại và tin nhắn lịch sử thành công trong 1 transaction');
+
+    // 28.2 Kiểm tra tin nhắn trong hội thoại được sắp xếp từ cũ đến mới (timestamp ASC)
+    const histMsgs = db.getConversationMessages(bfPageId, bfCustId);
+    assert.strictEqual(histMsgs.length, 2);
+    assert.strictEqual(histMsgs[0].mid, 'mid_hist_01', 'Tin nhắn cũ hơn phải ở vị trí đầu tiên');
+    assert.strictEqual(histMsgs[1].mid, 'mid_hist_02', 'Tin nhắn mới hơn phải ở vị trí tiếp theo');
+    console.log('  ✓ Tin nhắn lịch sử được lưu trữ và sắp xếp theo đúng trình tự thời gian (ASC)');
+
+    // 28.3 Kiểm tra nạp tin nhắn cũ hơn không làm sai lệch last_message_text và last_message_time của tin mới
+    const recentTime = Date.now();
+    db.saveMessage({
+      mid: 'mid_recent_today',
+      page_id: bfPageId,
+      sender_id: bfCustId,
+      sender_name: 'Khách Hàng Lịch Sử 01',
+      text: 'Tin nhắn mới nhất vừa gửi hôm nay!',
+      attachments: [],
+      timestamp: recentTime,
+      is_echo: 0
+    });
+
+    let convCheck = db.getConversation(bfPageId, bfCustId);
+    assert.strictEqual(convCheck.last_message_text, 'Tin nhắn mới nhất vừa gửi hôm nay!');
+    assert.strictEqual(convCheck.last_message_time, recentTime);
+
+    // Bây giờ nạp 1 tin nhắn rất cũ từ 1 năm trước
+    const veryOldTime = recentTime - (365 * 24 * 60 * 60 * 1000);
+    db.saveMessage({
+      mid: 'mid_very_old_one_year_ago',
+      page_id: bfPageId,
+      sender_id: bfCustId,
+      sender_name: 'Khách Hàng Lịch Sử 01',
+      text: 'Tin nhắn từ 1 năm trước trong quá khứ',
+      attachments: [],
+      timestamp: veryOldTime,
+      is_echo: 0
+    });
+
+    convCheck = db.getConversation(bfPageId, bfCustId);
+    assert.strictEqual(convCheck.last_message_text, 'Tin nhắn mới nhất vừa gửi hôm nay!', 'last_message_text KHÔNG được bị ghi đè bởi tin nhắn cũ 1 năm trước');
+    assert.strictEqual(convCheck.last_message_time, recentTime, 'last_message_time KHÔNG được bị lùi về quá khứ');
+    console.log('  ✓ Bảo toàn tuyệt đối last_message_text và last_message_time khi nạp tin nhắn cũ trong quá khứ');
+
+    // 28.4 Kiểm tra các API quản lý Backfill: status, pause, resume
+    const bfStatusRes = await fetch(`${baseUrl}/api/pages/${bfPageId}/backfill/status`);
+    assert.strictEqual(bfStatusRes.status, 200);
+    const bfStatusData = await bfStatusRes.json();
+    assert.strictEqual(bfStatusData.ok, true);
+    assert.ok(bfStatusData.status);
+    console.log('  ✓ API GET /api/pages/:id/backfill/status phản hồi trạng thái và tiến độ chuẩn xác');
+
+    const bfPauseRes = await fetch(`${baseUrl}/api/pages/${bfPageId}/backfill/pause`, { method: 'POST' });
+    assert.strictEqual(bfPauseRes.status, 200);
+    const bfPauseData = await bfPauseRes.json();
+    assert.strictEqual(bfPauseData.ok, true);
+    const pageAfterPause = db.getPageBackfillInfo(bfPageId);
+    assert.strictEqual(pageAfterPause.backfill_status, 'PAUSED');
+    console.log('  ✓ API POST /api/pages/:id/backfill/pause tạm dừng tiến trình backfill thành công');
+
+    const bfResumeRes = await fetch(`${baseUrl}/api/pages/${bfPageId}/backfill/resume`, { method: 'POST' });
+    assert.strictEqual(bfResumeRes.status, 200);
+    const bfResumeData = await bfResumeRes.json();
+    assert.strictEqual(bfResumeData.ok, true);
+    console.log('  ✓ API POST /api/pages/:id/backfill/resume tiếp tục tiến trình backfill thành công');
+
+    // 28.5 Kiểm tra tự động tạm dừng khi tắt Fanpage (is_active = 0)
+    const bfToggleOffRes = await fetch(`${baseUrl}/api/pages/${pageAfterPause.page_id}/toggle`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: 0 })
+    });
+    assert.strictEqual(bfToggleOffRes.status, 200);
+    const pageAfterToggleOff = db.getPageBackfillInfo(bfPageId);
+    assert.strictEqual(pageAfterToggleOff.backfill_status, 'PAUSED');
+    console.log('  ✓ Cơ chế Auto-Pause tự động tạm dừng tải tin cũ khi Fanpage bị tắt quản lý (is_active = 0)');
+
+    // 28.6 Kiểm tra API POST /api/pages/backfill-all
+    const backfillAllRes = await fetch(`${baseUrl}/api/pages/backfill-all`, { method: 'POST' });
+    assert.strictEqual(backfillAllRes.status, 200);
+    const backfillAllData = await backfillAllRes.json();
+    assert.strictEqual(backfillAllData.ok, true);
+    assert.ok(typeof backfillAllData.count === 'number');
+    console.log('  ✓ API POST /api/pages/backfill-all kích hoạt đồng bộ toàn bộ các Fanpage đang bật thành công');
+
     console.log('\n=============================================================');
-    console.log('🎉 TẤT CẢ 27 BÀI TEST HỆ THỐNG, 24-HOUR POLICY & MESSAGE TAGS ĐỀU ĐẠT (EXIT 0)!');
+    console.log('🎉 TẤT CẢ 28 BÀI TEST HỆ THỐNG, 24-HOUR POLICY & HISTORICAL BACKFILL ĐỀU ĐẠT (EXIT 0)!');
     console.log('=============================================================');
 
     testServer.close();

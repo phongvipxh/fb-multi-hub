@@ -1573,12 +1573,107 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    sseSource.addEventListener('backfill_progress', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        updateBackfillBanner(data);
+      } catch (err) {}
+    });
+
+    sseSource.addEventListener('conversations_updated', (e) => {
+      try {
+        loadConversations();
+      } catch (err) {}
+    });
+
     sseSource.onerror = () => {
       console.warn('[SSE] Mất kết nối, tự động kết nối lại sau 3s...');
       sseSource.close();
       setTimeout(initSSE, 3000);
     };
   }
+
+  // -------------------------------------------------------------
+  // Historical Message Backfill UI Controller
+  // -------------------------------------------------------------
+  let currentBackfillData = null;
+
+  function updateBackfillBanner(data) {
+    currentBackfillData = data;
+    const banner = document.getElementById('backfillProgressBanner');
+    const textEl = document.getElementById('backfillProgressText');
+    const actionBtn = document.getElementById('backfillActionBtn');
+    const barEl = document.getElementById('backfillProgressBar');
+    if (!banner || !textEl) return;
+
+    if (data.status === 'BACKFILLING') {
+      banner.style.display = 'flex';
+      textEl.textContent = `Đang tải tin cũ: ${data.page_name} (${data.conversations_count || 0} hội thoại, ${data.messages_count || 0} tin)...`;
+      if (actionBtn) {
+        actionBtn.style.display = '';
+        actionBtn.textContent = '⏸️';
+        actionBtn.title = 'Tạm dừng đồng bộ';
+      }
+      if (barEl) barEl.style.width = '100%';
+    } else if (data.status === 'RATE_LIMITED') {
+      banner.style.display = 'flex';
+      textEl.textContent = `⏳ ${data.message || 'Chờ giãn cách Meta Rate Limit 15s...'}`;
+      if (actionBtn) {
+        actionBtn.style.display = '';
+        actionBtn.textContent = '⏸️';
+        actionBtn.title = 'Tạm dừng đồng bộ';
+      }
+    } else if (data.status === 'PAUSED') {
+      banner.style.display = 'flex';
+      textEl.textContent = `⏸️ Đã tạm dừng tải tin cũ: ${data.page_name} (${data.conversations_count || 0} hội thoại)`;
+      if (actionBtn) {
+        actionBtn.style.display = '';
+        actionBtn.textContent = '▶️';
+        actionBtn.title = 'Tiếp tục tải';
+      }
+    } else if (data.status === 'COMPLETED') {
+      banner.style.display = 'flex';
+      textEl.textContent = `✅ Đã xong lịch sử: ${data.page_name} (${data.conversations_count || 0} hội thoại, ${data.messages_count || 0} tin)!`;
+      if (actionBtn) actionBtn.style.display = 'none';
+      setTimeout(() => {
+        banner.style.display = 'none';
+        if (actionBtn) actionBtn.style.display = '';
+      }, 4500);
+      loadConversations();
+      loadPages();
+    } else if (data.status === 'FAILED') {
+      banner.style.display = 'flex';
+      textEl.textContent = `⚠️ Lỗi tải tin cũ: ${data.page_name}`;
+      if (actionBtn) {
+        actionBtn.style.display = '';
+        actionBtn.textContent = '🔄';
+        actionBtn.title = 'Thử lại';
+      }
+    }
+  }
+
+  document.getElementById('backfillActionBtn')?.addEventListener('click', async () => {
+    if (!currentBackfillData || !currentBackfillData.page_id) return;
+    const pageId = currentBackfillData.page_id;
+    const actionBtn = document.getElementById('backfillActionBtn');
+
+    if (actionBtn && actionBtn.textContent === '⏸️') {
+      try {
+        await fetch(`/api/pages/${pageId}/backfill/pause`, { method: 'POST' });
+        showToast('Đã gửi lệnh tạm dừng tải tin cũ.', 'info');
+      } catch (e) {}
+    } else if (actionBtn && (actionBtn.textContent === '▶️' || actionBtn.textContent === '🔄')) {
+      try {
+        await fetch(`/api/pages/${pageId}/backfill/resume`, { method: 'POST' });
+        showToast('Đang tiếp tục tải tin nhắn cũ...', 'success');
+      } catch (e) {}
+    }
+  });
+
+  document.getElementById('backfillDismissBtn')?.addEventListener('click', () => {
+    const banner = document.getElementById('backfillProgressBanner');
+    if (banner) banner.style.display = 'none';
+  });
 
   // -------------------------------------------------------------
   // 6. Conversations & 2-Column Chat Split View
@@ -3416,7 +3511,14 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </td>
         <td style="padding: 12px 16px; font-size: 12px; color: var(--text-secondary);">
-          ${p.shift_count ? `⏰ ${p.shift_count} ca trực` : '🔄 Cả ngày (24/7)'}
+          <div>${p.shift_count ? `⏰ ${p.shift_count} ca trực` : '🔄 Cả ngày (24/7)'}</div>
+          <div style="font-size: 11px; margin-top: 3px;">
+            ${p.backfill_status === 'COMPLETED' ? `<span style="color: #10b981;">✅ Đã nạp (${p.backfill_conversations_count || 0} hội thoại)</span>` :
+              p.backfill_status === 'BACKFILLING' ? `<span style="color: #3b82f6;">🔄 Đang tải (${p.backfill_conversations_count || 0})...</span>` :
+              p.backfill_status === 'PAUSED' ? `<span style="color: #f59e0b;">⏸️ Tạm dừng (${p.backfill_conversations_count || 0})</span>` :
+              p.backfill_status === 'FAILED' ? `<span style="color: #ef4444;" title="${escapeHtml(p.backfill_error || '')}">⚠️ Lỗi tải tin</span>` :
+              `<span style="color: var(--text-muted);">⚪ Chưa nạp tin cũ</span>`}
+          </div>
         </td>
         <td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
           <div style="display: inline-flex; gap: 6px; align-items: center;">
@@ -3425,6 +3527,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ▶️ Bật Lại
               </button>
             ` : ''}
+            <button type="button" class="btn btn-xxs btn-secondary btn-backfill-page" data-page-id="${p.page_id}" data-page-name="${escapeHtml(p.name)}" title="Tải toàn bộ tin nhắn lịch sử từ trước đến nay cho Fanpage này">
+              <span>📥</span> Tải Tin Cũ
+            </button>
             <button type="button" class="btn btn-xxs btn-secondary btn-inspect-token" data-page-id="${p.page_id}" title="Soi chi tiết Token">
               <span>🔍</span> Soi
             </button>
@@ -4067,6 +4172,35 @@ document.addEventListener('DOMContentLoaded', () => {
     targetRoot.querySelectorAll('.btn-inspect-token').forEach(btn => {
       btn.addEventListener('click', () => {
         openTokenInspectModal(btn.dataset.pageId);
+      });
+    });
+
+    targetRoot.querySelectorAll('.btn-backfill-page').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const pageId = btn.dataset.pageId;
+        const pageName = btn.dataset.pageName || pageId;
+        btn.disabled = true;
+        btn.textContent = '⏳ Đang kích hoạt...';
+        try {
+          const res = await fetch(`/api/pages/${pageId}/backfill/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reset: false })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            showToast(`Đã kích hoạt tải toàn bộ tin cũ cho "${pageName}"!`, 'success');
+          } else {
+            showToast(`Lỗi: ${data.error || data.message}`, 'error');
+          }
+        } catch (err) {
+          showToast(`Lỗi kết nối: ${err.message}`, 'error');
+        } finally {
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<span>📥</span> Tải Tin Cũ';
+          }, 1500);
+        }
       });
     });
 

@@ -115,6 +115,15 @@ const {
   testDiscordWebhook
 } = require('./services/discordService');
 
+const {
+  setBroadcaster: setBackfillBroadcaster,
+  startPageBackfill,
+  pausePageBackfill,
+  resumePageBackfill,
+  getPageBackfillStatus,
+  initBackfillQueue
+} = require('./services/backfillService');
+
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
@@ -132,6 +141,9 @@ function broadcastSSE(event, data) {
     }
   }
 }
+
+// Wire up backfill broadcaster
+setBackfillBroadcaster(broadcastSSE);
 
 // 25-second keepalive ping to prevent proxy & Cloudflare Tunnel dropouts
 setInterval(() => {
@@ -1690,6 +1702,9 @@ app.post('/api/pages', async (req, res) => {
       subscribed_at: subscribedAt
     });
 
+    // Automatically trigger historical message backfill for the newly added page
+    startPageBackfill(pageDetails.pageId).catch(e => console.warn('[Backfill] Auto-start error:', e.message));
+
     res.json({
       ok: true,
       message: `Đã kết nối thành công Fanpage "${pageDetails.name}"!`,
@@ -1848,6 +1863,9 @@ app.post('/api/pages/bulk-import', async (req, res) => {
         token_source_id: p.token_source_id || effectiveTokenSourceId || 0,
         is_permanent: p.is_permanent ? 1 : 0
       });
+
+      // Automatically trigger historical message backfill for the newly imported page
+      startPageBackfill(p.page_id).catch(e => console.warn('[Backfill] Bulk-import auto-start error:', e.message));
 
       imported.push({
         page_id: p.page_id,
@@ -2718,8 +2736,21 @@ app.post('/api/pages/:id/subscribe', async (req, res) => {
 app.patch('/api/pages/:id/toggle', (req, res) => {
   try {
     const { is_active } = req.body || {};
-    togglePageActive(req.params.id, is_active);
-    const updated = db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+    const existing = db.prepare('SELECT * FROM pages WHERE id = ? OR page_id = ?').get(req.params.id, req.params.id);
+    if (!existing) return res.status(404).json({ ok: false, error: 'Không tìm thấy Fanpage!' });
+
+    togglePageActive(existing.id, is_active);
+    const updated = db.prepare('SELECT * FROM pages WHERE id = ?').get(existing.id);
+
+    // Sync backfill state: start/resume if active, pause if paused
+    if (updated && updated.page_id) {
+      if (updated.is_active === 1) {
+        startPageBackfill(updated.page_id).catch(e => console.warn('[Backfill] Resume error on toggle:', e.message));
+      } else {
+        pausePageBackfill(updated.page_id);
+      }
+    }
+
     const statusText = updated && updated.is_active === 1 ? 'ĐANG QUẢN LÝ (Nhận tin & Báo động)' : 'TẠM DỪNG (Không kêu chuông)';
     res.json({
       ok: true,
@@ -2737,6 +2768,16 @@ app.post('/api/token-sources/:id/manage-pages', (req, res) => {
     const sourceId = Number(req.params.id);
     const { active_page_ids = [] } = req.body || {};
     const updatedPages = setTokenSourcePagesActive(sourceId, active_page_ids);
+
+    // Sync backfill for all updated pages
+    for (const p of updatedPages) {
+      if (p.is_active === 1) {
+        startPageBackfill(p.page_id).catch(e => console.warn('[Backfill] Resume error:', e.message));
+      } else {
+        pausePageBackfill(p.page_id);
+      }
+    }
+
     res.json({
       ok: true,
       message: `Đã cập nhật danh sách Fanpage quản lý: ${active_page_ids.length} trang đang bật!`,
@@ -2762,6 +2803,68 @@ app.delete('/api/pages/:id', (req, res) => {
   try {
     deletePage(req.params.id);
     res.json({ ok: true, message: 'Đã xóa trang khỏi hệ thống!' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// Historical Message Backfill Endpoints
+// -------------------------------------------------------------
+app.get('/api/pages/:id/backfill/status', (req, res) => {
+  try {
+    const page = getPageByPageId(req.params.id) || db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+    if (!page) return res.status(404).json({ ok: false, error: 'Không tìm thấy Fanpage!' });
+    const status = getPageBackfillStatus(page.page_id);
+    res.json({ ok: true, status });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/pages/:id/backfill/start', async (req, res) => {
+  try {
+    const page = getPageByPageId(req.params.id) || db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+    if (!page) return res.status(404).json({ ok: false, error: 'Không tìm thấy Fanpage!' });
+    const { reset = false } = req.body || {};
+    const result = await startPageBackfill(page.page_id, { reset });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/pages/:id/backfill/pause', (req, res) => {
+  try {
+    const page = getPageByPageId(req.params.id) || db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+    if (!page) return res.status(404).json({ ok: false, error: 'Không tìm thấy Fanpage!' });
+    const result = pausePageBackfill(page.page_id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/pages/:id/backfill/resume', async (req, res) => {
+  try {
+    const page = getPageByPageId(req.params.id) || db.prepare('SELECT * FROM pages WHERE id = ?').get(req.params.id);
+    if (!page) return res.status(404).json({ ok: false, error: 'Không tìm thấy Fanpage!' });
+    const result = await resumePageBackfill(page.page_id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/pages/backfill-all', async (req, res) => {
+  try {
+    const activePages = getAllPages().filter(p => p.is_active === 1 && p.access_token);
+    let count = 0;
+    for (const page of activePages) {
+      startPageBackfill(page.page_id).catch(e => console.warn(`[Backfill All] Page ${page.name}:`, e.message));
+      count++;
+    }
+    res.json({ ok: true, message: `Đã kích hoạt đồng bộ lịch sử tin nhắn cho ${count} Fanpage đang bật!`, count });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -3386,6 +3489,10 @@ if (require.main === module) {
     // Start background safety alarm & inactivity checker every 10 seconds
     console.log(`🛡️ Kích hoạt hệ thống Báo Động An Toàn & Giám sát Treo Máy...`);
     setInterval(checkSafetyAlarmsAndInactivity, 10000);
+
+    // Initialize historical message backfill queue for active pages
+    console.log(`📥 Khởi tạo tiến trình Tải Tin Nhắn Cũ (Historical Backfill Engine)...`);
+    initBackfillQueue();
 
     console.log(`====================================================`);
   });

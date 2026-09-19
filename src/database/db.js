@@ -165,6 +165,24 @@ if (!pageColumns.includes('token_source_id')) {
 if (!pageColumns.includes('is_permanent')) {
   db.exec('ALTER TABLE pages ADD COLUMN is_permanent INTEGER DEFAULT 0');
 }
+if (!pageColumns.includes('backfill_status')) {
+  db.exec("ALTER TABLE pages ADD COLUMN backfill_status TEXT DEFAULT 'NOT_STARTED'");
+}
+if (!pageColumns.includes('backfill_cursor')) {
+  db.exec("ALTER TABLE pages ADD COLUMN backfill_cursor TEXT DEFAULT ''");
+}
+if (!pageColumns.includes('backfill_conversations_count')) {
+  db.exec('ALTER TABLE pages ADD COLUMN backfill_conversations_count INTEGER DEFAULT 0');
+}
+if (!pageColumns.includes('backfill_messages_count')) {
+  db.exec('ALTER TABLE pages ADD COLUMN backfill_messages_count INTEGER DEFAULT 0');
+}
+if (!pageColumns.includes('backfill_last_synced_at')) {
+  db.exec('ALTER TABLE pages ADD COLUMN backfill_last_synced_at INTEGER DEFAULT 0');
+}
+if (!pageColumns.includes('backfill_error')) {
+  db.exec("ALTER TABLE pages ADD COLUMN backfill_error TEXT DEFAULT ''");
+}
 
 // Migration helper: add user_id to alarm_logs if missing
 const alarmLogColumns = db.prepare('PRAGMA table_info(alarm_logs)').all().map(c => c.name);
@@ -1022,7 +1040,10 @@ const saveMessage = ({
           THEN excluded.sender_name 
         ELSE conversations.sender_name 
       END,
-      last_message_text = excluded.last_message_text,
+      last_message_text = CASE 
+        WHEN excluded.last_message_time >= conversations.last_message_time THEN excluded.last_message_text
+        ELSE conversations.last_message_text
+      END,
       last_message_time = CASE 
         WHEN excluded.last_message_time >= conversations.last_message_time THEN excluded.last_message_time 
         ELSE conversations.last_message_time 
@@ -1032,10 +1053,25 @@ const saveMessage = ({
           THEN excluded.last_customer_message_time
         ELSE COALESCE(conversations.last_customer_message_time, 0)
       END,
-      is_replied = excluded.is_replied,
-      is_seen = CASE WHEN ? = 1 THEN conversations.is_seen ELSE 0 END,
-      safety_alarm_triggered = CASE WHEN ? = 1 THEN conversations.safety_alarm_triggered ELSE 0 END,
-      unread_count = CASE WHEN excluded.is_replied = 1 THEN 0 ELSE conversations.unread_count + 1 END,
+      is_replied = CASE 
+        WHEN excluded.last_message_time >= conversations.last_message_time THEN excluded.is_replied
+        ELSE conversations.is_replied
+      END,
+      is_seen = CASE 
+        WHEN excluded.last_message_time < conversations.last_message_time THEN conversations.is_seen
+        WHEN ? = 1 THEN conversations.is_seen 
+        ELSE 0 
+      END,
+      safety_alarm_triggered = CASE 
+        WHEN excluded.last_message_time < conversations.last_message_time THEN conversations.safety_alarm_triggered
+        WHEN ? = 1 THEN conversations.safety_alarm_triggered 
+        ELSE 0 
+      END,
+      unread_count = CASE 
+        WHEN excluded.last_message_time < conversations.last_message_time THEN conversations.unread_count
+        WHEN excluded.is_replied = 1 THEN 0 
+        ELSE conversations.unread_count + 1 
+      END,
       updated_at = datetime('now', 'localtime')
   `);
   convStmt.run(
@@ -1054,6 +1090,213 @@ const saveMessage = ({
     isEchoVal, // CASE is_seen
     isEchoVal  // CASE safety_alarm_triggered
   );
+};
+
+/**
+ * Saves a batch of historical conversations and messages atomically within a single SQLite transaction.
+ * Designed for high-throughput initial sync / deep backfill without triggering audible alarms.
+ */
+const saveHistoricalBatch = db.transaction((pageId, conversationsData = []) => {
+  let insertedMessagesCount = 0;
+  let insertedConversationsCount = 0;
+
+  const insertMsgStmt = db.prepare(`
+    INSERT OR IGNORE INTO messages (mid, page_id, sender_id, sender_name, text, attachments, timestamp, is_echo, is_seen)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const convUpsertStmt = db.prepare(`
+    INSERT INTO conversations (
+      page_id, sender_id, sender_name, last_message_text, last_message_time,
+      is_replied, is_seen, safety_alarm_triggered, unread_count, updated_at,
+      last_customer_message_time
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), ?)
+    ON CONFLICT(page_id, sender_id) DO UPDATE SET
+      sender_name = CASE 
+        WHEN conversations.sender_name IS NULL OR conversations.sender_name = '' OR conversations.sender_name = 'Khách hàng' 
+          THEN excluded.sender_name 
+        ELSE conversations.sender_name 
+      END,
+      last_message_text = CASE 
+        WHEN excluded.last_message_time >= conversations.last_message_time THEN excluded.last_message_text
+        ELSE conversations.last_message_text
+      END,
+      last_message_time = CASE 
+        WHEN excluded.last_message_time >= conversations.last_message_time THEN excluded.last_message_time 
+        ELSE conversations.last_message_time 
+      END,
+      last_customer_message_time = CASE
+        WHEN excluded.last_customer_message_time >= COALESCE(conversations.last_customer_message_time, 0)
+          THEN excluded.last_customer_message_time
+        ELSE COALESCE(conversations.last_customer_message_time, 0)
+      END,
+      is_replied = CASE 
+        WHEN excluded.last_message_time >= conversations.last_message_time THEN excluded.is_replied
+        ELSE conversations.is_replied
+      END,
+      is_seen = CASE 
+        WHEN excluded.last_message_time < conversations.last_message_time THEN conversations.is_seen
+        ELSE excluded.is_seen
+      END,
+      unread_count = CASE 
+        WHEN excluded.last_message_time < conversations.last_message_time THEN conversations.unread_count
+        ELSE excluded.unread_count
+      END,
+      updated_at = datetime('now', 'localtime')
+  `);
+
+  for (const conv of conversationsData) {
+    if (!conv || !conv.id) continue;
+
+    // Identify customer vs page
+    const customer = conv.senders?.data?.find(s => String(s.id) !== String(pageId)) || conv.senders?.data?.[0];
+    if (!customer || !customer.id || String(customer.id) === String(pageId)) continue;
+
+    const customerId = String(customer.id);
+    const customerName = customer.name || 'Khách hàng';
+
+    const rawMsgs = conv.messages?.data || [];
+    if (!Array.isArray(rawMsgs) || rawMsgs.length === 0) continue;
+
+    // Sort messages chronological (oldest to newest)
+    const sortedMsgs = [...rawMsgs].sort((a, b) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
+
+    let latestMsg = null;
+    let latestCustomerMsgTime = 0;
+
+    for (const m of sortedMsgs) {
+      if (!m.id) continue;
+      const isEcho = m.from?.id === String(pageId) ? 1 : 0;
+      const mTime = new Date(m.created_time).getTime();
+      const mText = m.message || '';
+
+      if (!isEcho && mTime > latestCustomerMsgTime) {
+        latestCustomerMsgTime = mTime;
+      }
+
+      // Format attachments
+      const rawAtts = m.attachments?.data || [];
+      const attachments = rawAtts.map(att => {
+        let url = att.image_data?.url || att.video_data?.url || att.file_url || att.payload?.url || att.url || '';
+        let type = 'file';
+        const mime = (att.mime_type || '').toLowerCase();
+        if (mime.startsWith('image') || att.image_data) type = 'image';
+        else if (mime.startsWith('video') || att.video_data) type = 'video';
+        else if (mime.startsWith('audio')) type = 'audio';
+        return {
+          id: att.id,
+          type,
+          url,
+          name: att.name || '',
+          mime_type: att.mime_type || '',
+          size: att.size || null
+        };
+      }).filter(a => Boolean(a.url));
+
+      const res = insertMsgStmt.run(
+        m.id,
+        String(pageId),
+        customerId,
+        isEcho ? 'Fanpage' : (m.from?.name || customerName),
+        mText,
+        JSON.stringify(attachments),
+        mTime,
+        isEcho,
+        1 // Historical messages are considered seen/read
+      );
+
+      if (res.changes > 0) {
+        insertedMessagesCount++;
+      }
+
+      latestMsg = {
+        mTime,
+        mText,
+        isEcho,
+        attachments
+      };
+    }
+
+    if (latestMsg) {
+      let previewText = latestMsg.mText;
+      if (!previewText || !previewText.trim()) {
+        if (latestMsg.attachments.length > 0) {
+          const firstAtt = latestMsg.attachments[0];
+          previewText = `[${firstAtt.type === 'image' ? 'Hình ảnh' : firstAtt.type === 'video' ? 'Video' : 'Đính kèm'}]`;
+        } else {
+          previewText = '[Tin nhắn]';
+        }
+      }
+
+      const metaUnread = Number(conv.unread_count) || 0;
+      const isSeen = metaUnread === 0 ? 1 : 0;
+
+      const convRes = convUpsertStmt.run(
+        String(pageId),
+        customerId,
+        customerName,
+        previewText,
+        latestMsg.mTime,
+        latestMsg.isEcho,
+        isSeen,
+        0, // safety_alarm_triggered
+        metaUnread,
+        latestCustomerMsgTime || (latestMsg.isEcho ? 0 : latestMsg.mTime)
+      );
+
+      if (convRes.changes > 0) {
+        insertedConversationsCount++;
+      }
+    }
+  }
+
+  return {
+    insertedMessagesCount,
+    insertedConversationsCount
+  };
+});
+
+const updatePageBackfill = (pageId, fields = {}) => {
+  const allowed = [
+    'backfill_status',
+    'backfill_cursor',
+    'backfill_conversations_count',
+    'backfill_messages_count',
+    'backfill_last_synced_at',
+    'backfill_error'
+  ];
+  const updates = [];
+  const params = [];
+  for (const [key, val] of Object.entries(fields)) {
+    if (allowed.includes(key)) {
+      updates.push(`${key} = ?`);
+      params.push(val);
+    }
+  }
+  if (updates.length === 0) return;
+  params.push(String(pageId));
+  db.prepare(`UPDATE pages SET ${updates.join(', ')} WHERE page_id = ?`).run(...params);
+};
+
+const getPageBackfillInfo = (pageId) => {
+  return db.prepare(`
+    SELECT page_id, name, is_active, backfill_status, backfill_cursor,
+           backfill_conversations_count, backfill_messages_count,
+           backfill_last_synced_at, backfill_error
+    FROM pages WHERE page_id = ?
+  `).get(String(pageId));
+};
+
+const getActivePagesNeedingBackfill = () => {
+  return db.prepare(`
+    SELECT page_id, name, access_token, is_active, backfill_status, backfill_cursor,
+           backfill_conversations_count, backfill_messages_count
+    FROM pages
+    WHERE is_active = 1 AND access_token IS NOT NULL AND access_token != ''
+      AND backfill_status IN ('NOT_STARTED', 'BACKFILLING', 'PAUSED')
+    ORDER BY id ASC
+  `).all();
 };
 
 const markConversationSeen = (pageId, senderId) => {
@@ -1720,5 +1963,9 @@ module.exports = {
   addCustomerNote,
   deleteCustomerNote,
   getCustomerCrm,
-  updateCustomerCrm
+  updateCustomerCrm,
+  saveHistoricalBatch,
+  updatePageBackfill,
+  getPageBackfillInfo,
+  getActivePagesNeedingBackfill
 };

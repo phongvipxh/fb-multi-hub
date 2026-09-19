@@ -178,6 +178,23 @@
                 </div>
               </div>
 
+              <!-- Historical Backfill Live Progress Banner -->
+              <div id="backfillProgressBanner" class="backfill-progress-banner" style="display: none;">
+                <div class="backfill-progress-header">
+                  <div class="backfill-progress-title">
+                    <span class="backfill-spinner">🔄</span>
+                    <span id="backfillProgressText">Đang tải tin nhắn cũ...</span>
+                  </div>
+                  <div class="backfill-actions">
+                    <button id="backfillActionBtn" class="btn-backfill-action" title="Tạm dừng / Tiếp tục">⏸️</button>
+                    <button id="backfillDismissBtn" class="btn-backfill-dismiss" title="Ẩn thông báo">✕</button>
+                  </div>
+                </div>
+                <div class="backfill-progress-bar-track">
+                  <div id="backfillProgressBar" class="backfill-progress-bar-fill" style="width: 100%;"></div>
+                </div>
+              </div>
+
               <div id="conversationsList" class="conversations-list">
                 <div class="empty-state-sidebar" id="emptyConvState">
                   <p>Đang tải danh sách cuộc trò chuyện...</p>
@@ -2168,6 +2185,6 @@
 
   <!-- YouTube Iframe API -->
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="app.js?v=20260919_7"></script>
+  <script src="app.js?v=20260920_1"></script>
 </body>
 </html>
