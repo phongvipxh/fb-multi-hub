@@ -121,15 +121,19 @@ Cong cu quan ly tap trung nhieu Fanpage Facebook phuc vu tu dong hoa cham soc kh
   - Thuật toán gom cụm tin nhắn (Message Bubble Clustering): Các tin nhắn liên tiếp từ cùng một phía trong vòng 5 phút được gom vào cụm liền mạch, chỉ hiển thị tiêu đề người gửi ở tin đầu tiên, giúp tiết kiệm hơn 50% diện tích chiều dọc và mang lại giao diện tinh tế chuẩn Messenger/iMessage.
   - Tự động chèn thanh ngăn cách ngày tháng (`📅 Hôm nay`, `📅 DD/MM/YYYY`) khi sang ngày mới.
   - Tinh gọn khung soạn thảo: Toolbar và bottom row luôn nằm trọn trên 1 hàng duy nhất trên mọi độ phân giải.
+- Khắc phục dứt điểm lỗi Không Có Âm Thanh Thông Báo Khi Có Tin Nhắn Mới Đến:
+  - Tự phục hồi tệp âm thanh (Self-Healing File Check): `getHostProfile()` trong `src/database/db.js` tự động kiểm tra sự tồn tại của tệp tùy chỉnh trên ổ đĩa. Nếu tệp không tồn tại, tự động reset `web_sound_type = 'loud_chime'`, triệt tiêu 100% lỗi HTTP 404 và `NotSupportedError`.
+  - Bộ phát chuông thông báo Web Audio chuyên dụng `playNewMessageChime()`: Sử dụng bộ dao động sóng kép (Dual-tone Oscillator: E6 1318.5Hz -> B6 1975.5Hz) tạo tiếng chuông ngân vang ("Ting") trong trẻo, zero-network dependency (không phụ thuộc vào mạng hay tệp tĩnh bên ngoài).
+  - Mở khóa AudioContext toàn diện (Global User Gesture Unlock): Bắt sự kiện tương tác đầu tiên của người dùng (`click`, `pointerdown`, `keydown`, `touchstart`) và các nút thao tác nhanh (`[⚡ Test Tin]`, `[🔊 Loa Web]`) để đảm bảo `AudioContext` luôn ở trạng thái `running` theo đúng chính sách Autoplay Policy của trình duyệt.
 - Single-File Standalone Portable Packaging (Đóng gói 1 file chạy ngay):
-  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.07 MB).
+  - File duy nhất: `dist/FB-Multi-Hub-Standalone.exe` (48.08 MB).
   - Tích hợp sẵn 100% môi trường: Node.js Portable x64 binary, Cloudflare Tunnel binary, SQLite native modules và node_modules hoàn chỉnh.
 
 ## 4. Repository & Deployment
 - GitHub Remote: `https://github.com/phongvipxh/fb-multi-hub`
 - Current Branch: `main`
 - Verification: 27/27 Test Suites Passed (Exit Code 0)
-- Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe` (48.07 MB)
+- Latest Standalone Build: `dist/FB-Multi-Hub-Standalone.exe` (48.08 MB)
 
 ## 5. Test Suite Telemetry
 - Automated test script: `npm test` (`node test/system.test.js`)
