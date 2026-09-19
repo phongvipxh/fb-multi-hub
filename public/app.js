@@ -1750,8 +1750,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const remMins = Math.floor((remainMs % (1000 * 60 * 60)) / (1000 * 60));
       if (badge) {
         badge.className = 'badge-24h-window badge-24h-active';
-        badge.innerHTML = `🟢 Trong 24h (Còn ${remHours}h ${remMins}m)`;
-        badge.title = 'Khách hàng có tương tác trong 24 giờ qua. Bạn được phép gửi tin nhắn phản hồi tự do.';
+        badge.innerHTML = '🟢 Trong 24h';
+        badge.title = `Trong 24h (Còn ${remHours}h ${remMins}m). Bạn được phép gửi tin nhắn phản hồi tự do.`;
       }
       if (banner) banner.style.display = 'none';
       if (tagSelect && !tagSelect.dataset.userManuallySelected) {
@@ -1763,8 +1763,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const remHours = Math.floor((remainMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       if (badge) {
         badge.className = 'badge-24h-window badge-24h-warning';
-        badge.innerHTML = `⚠️ Quá 24h (Còn ${remDays}d ${remHours}h)`;
-        badge.title = 'Đã quá 24h kể từ tin nhắn cuối của khách. Nếu app chưa duyệt thẻ CSKH, hãy bấm Mở Meta Suite để trả lời trực tiếp miễn phí.';
+        badge.innerHTML = '⚠️ Quá 24h';
+        badge.title = `Đã quá 24h (Còn ${remDays}d ${remHours}h). Nếu app chưa duyệt thẻ CSKH, hãy bấm Mở Meta Suite để trả lời trực tiếp miễn phí.`;
       }
       if (banner) {
         banner.style.display = 'flex';
@@ -1772,7 +1772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         banner.style.borderColor = 'rgba(245, 158, 11, 0.3)';
         banner.style.color = '#fde68a';
         if (warningText) {
-          warningText.innerHTML = `⚠️ <strong>Ngoài 24h:</strong> Mở Meta Suite để gửi tin trực tiếp (tự copy tin), hoặc chọn Thẻ phù hợp.`;
+          warningText.innerHTML = `⚠️ <strong>Ngoài 24h (Còn ${remDays}d ${remHours}h):</strong> Mở Meta Suite để gửi tin trực tiếp (tự copy tin), hoặc chọn Thẻ CSKH nếu app đã được duyệt.`;
         }
       }
       // Do not auto-assign HUMAN_AGENT because self-hosted apps without App Review will get Error 100
@@ -1782,7 +1782,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       if (badge) {
         badge.className = 'badge-24h-window badge-24h-expired';
-        badge.innerHTML = '🛑 Quá 7 ngày (Dùng Meta Suite)';
+        badge.innerHTML = '🛑 Quá 7 ngày';
         badge.title = 'Đã quá 7 ngày kể từ tin nhắn cuối của khách. Meta chặn 100% qua API; hãy bấm "Mở Meta Suite" để nhắn trực tiếp trên Facebook.';
       }
       if (banner) {
