@@ -734,9 +734,20 @@ const getHostProfile = () => {
       role: 'admin',
       color_tag: '#3b82f6',
       web_sound_enabled: 'true',
-      web_sound_volume: 80
+      web_sound_volume: 80,
+      web_sound_type: 'loud_chime'
     });
     host = db.prepare('SELECT * FROM users ORDER BY id ASC LIMIT 1').get();
+  } else if (host.web_sound_type === 'custom_file' && host.custom_sound_url) {
+    try {
+      const publicPath = path.join(__dirname, '../../public', host.custom_sound_url.replace(/^\//, ''));
+      if (!fs.existsSync(publicPath)) {
+        console.warn(`[HostProfile] Custom sound file ${host.custom_sound_url} not found on disk. Resetting to loud_chime.`);
+        db.prepare("UPDATE users SET web_sound_type = 'loud_chime', custom_sound_url = '' WHERE id = ?").run(host.id);
+        host.web_sound_type = 'loud_chime';
+        host.custom_sound_url = '';
+      }
+    } catch (e) {}
   }
   return host;
 };

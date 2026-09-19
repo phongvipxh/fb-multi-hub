@@ -116,6 +116,59 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    playNewMessageChime(volume = 1.0) {
+      try {
+        this.init();
+        if (!this.audioCtx) return;
+        const effectiveVol = Math.max(0.1, volume);
+
+        const playNow = () => {
+          try {
+            if (!this.audioCtx || !this.masterGain || !this.compressor) return;
+            this.masterGain.gain.setValueAtTime(effectiveVol * 1.5, this.audioCtx.currentTime);
+            const t0 = this.audioCtx.currentTime;
+
+            // Note 1: E6 (1318.5 Hz) - bright crystal attack
+            const osc1 = this.audioCtx.createOscillator();
+            const gain1 = this.audioCtx.createGain();
+            osc1.type = 'triangle';
+            osc1.frequency.setValueAtTime(1318.5, t0);
+            gain1.gain.setValueAtTime(0.001, t0);
+            gain1.gain.linearRampToValueAtTime(0.85, t0 + 0.008);
+            gain1.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+            osc1.connect(gain1);
+            gain1.connect(this.compressor);
+            osc1.start(t0);
+            osc1.stop(t0 + 0.35);
+
+            // Note 2: B6 (1975.5 Hz) - harmonic sparkle
+            const osc2 = this.audioCtx.createOscillator();
+            const gain2 = this.audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(1975.5, t0 + 0.12);
+            gain2.gain.setValueAtTime(0.001, t0 + 0.12);
+            gain2.gain.linearRampToValueAtTime(0.95, t0 + 0.128);
+            gain2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.85);
+            osc2.connect(gain2);
+            gain2.connect(this.compressor);
+            osc2.start(t0 + 0.12);
+            osc2.stop(t0 + 0.85);
+            console.log(`[WebAudio] 🔔 Đã phát chuông thông báo tin nhắn mới (Volume: ${Math.round(effectiveVol * 100)}%)`);
+          } catch (e) {
+            console.warn('[WebAudio] playNow error:', e);
+          }
+        };
+
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().then(playNow).catch(playNow);
+        } else {
+          playNow();
+        }
+      } catch (err) {
+        console.warn('[WebAudio] Play message chime error:', err);
+      }
+    }
+
     playSingleChime(volume = 1.0, soundType = 'loud_chime') {
       try {
         this.init();
@@ -130,8 +183,14 @@ document.addEventListener('DOMContentLoaded', () => {
             this.customAudio.loop = false;
             this.customAudio.currentTime = 0;
             this.customAudio.play().catch(e => {
-              console.warn('[CustomAudio] Play error:', e);
-              if (this.audioCtx) this._synthLoudChime(this.audioCtx.currentTime);
+              console.warn('[CustomAudio] Play error, fallback to synth:', e);
+              if (this.audioCtx) {
+                if (this.audioCtx.state === 'suspended') {
+                  this.audioCtx.resume().then(() => this._synthLoudChime(this.audioCtx.currentTime)).catch(() => {});
+                } else {
+                  this._synthLoudChime(this.audioCtx.currentTime);
+                }
+              }
             });
             return;
           }
@@ -155,25 +214,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!this.audioCtx) return;
 
-        // Apply master gain with boost capability (up to 150%)
-        this.masterGain.gain.setValueAtTime(effectiveVol * 1.5, this.audioCtx.currentTime);
+        const triggerSynth = () => {
+          if (!this.audioCtx || !this.masterGain) return;
+          this.masterGain.gain.setValueAtTime(effectiveVol * 1.5, this.audioCtx.currentTime);
+          const now = this.audioCtx.currentTime;
 
-        const now = this.audioCtx.currentTime;
+          switch (soundType) {
+            case 'phone_ring':
+              this._synthPhoneRing(now);
+              break;
+            case 'digital_alarm':
+              this._synthDigitalAlarm(now);
+              break;
+            case 'siren':
+              this._synthEmergencySiren(now);
+              break;
+            case 'loud_chime':
+            default:
+              this._synthLoudChime(now);
+              break;
+          }
+        };
 
-        switch (soundType) {
-          case 'phone_ring':
-            this._synthPhoneRing(now);
-            break;
-          case 'digital_alarm':
-            this._synthDigitalAlarm(now);
-            break;
-          case 'siren':
-            this._synthEmergencySiren(now);
-            break;
-          case 'loud_chime':
-          default:
-            this._synthLoudChime(now);
-            break;
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().then(triggerSynth).catch(triggerSynth);
+        } else {
+          triggerSynth();
         }
       } catch (err) {
         console.warn('[WebAudio] Play chime error:', err);
@@ -464,6 +530,26 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const alarmAudioEngine = new WebAudioAlarmEngine();
+
+  // Global user gesture unlock for Web Audio Context across modern browsers (Chrome, Edge, Firefox, Safari)
+  const unlockAudioOnUserGesture = () => {
+    try {
+      alarmAudioEngine.init();
+      if (alarmAudioEngine.audioCtx && alarmAudioEngine.audioCtx.state === 'suspended') {
+        alarmAudioEngine.audioCtx.resume().then(() => {
+          console.log('[WebAudio] AudioContext unlocked successfully via user gesture.');
+        }).catch(err => {
+          console.warn('[WebAudio] AudioContext resume on gesture error:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('[WebAudio] Gesture unlock error:', err);
+    }
+  };
+
+  ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(evt => {
+    window.addEventListener(evt, unlockAudioOnUserGesture, { capture: true, passive: true });
+  });
 
   // Desktop Web Notification
   function requestNotificationPermission() {
@@ -1110,8 +1196,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Quick Web Sound Toggle
   document.getElementById('quickWebSoundBtn')?.addEventListener('click', async () => {
+    // Unlock Web Audio context immediately on click
+    alarmAudioEngine.init();
+    if (alarmAudioEngine.audioCtx && alarmAudioEngine.audioCtx.state === 'suspended') {
+      alarmAudioEngine.audioCtx.resume().catch(() => {});
+    }
+
     if (!hostProfile) return;
-    const newState = hostProfile.web_sound_enabled === 'true' ? 'false' : 'true';
+    const isCurrentlyOn = hostProfile.web_sound_enabled === 'true' || hostProfile.web_sound_enabled === true;
+    const newState = isCurrentlyOn ? 'false' : 'true';
     try {
       const res = await fetch('/api/host-profile', {
         method: 'POST',
@@ -1125,10 +1218,10 @@ document.addEventListener('DOMContentLoaded', () => {
         hostProfile = data.host;
         updateQuickControlsUI(hostProfile);
         if (newState === 'true') {
-          alarmAudioEngine.playSingleChime(getEffectiveVolume(), getEffectiveSoundType());
-          showToast('Đã BẬT chuông loa Web Audio', 'success');
+          alarmAudioEngine.playNewMessageChime(getEffectiveVolume());
+          showToast('Đã BẬT chuông loa Web Audio 🔊', 'success');
         } else {
-          showToast('Đã TẮT chuông loa Web Audio', 'info');
+          showToast('Đã TẮT chuông loa Web Audio 🔇', 'info');
         }
       }
     } catch (err) {
@@ -1156,16 +1249,20 @@ document.addEventListener('DOMContentLoaded', () => {
         msg.text || '[Tệp đính kèm]'
       );
 
-      // Web Audio sound trigger
-      if (hostProfile && hostProfile.web_sound_enabled === 'true') {
-        if (hostProfile.alarm_enabled === 'true') {
+      // Web Audio sound trigger (Always plays when sound is enabled)
+      const isSoundOn = !hostProfile || hostProfile.web_sound_enabled === 'true' || hostProfile.web_sound_enabled === true || hostProfile.web_sound_enabled === 1 || hostProfile.web_sound_enabled === '1';
+
+      if (isSoundOn) {
+        if (hostProfile && (hostProfile.alarm_enabled === 'true' || hostProfile.alarm_enabled === true)) {
+          // Night / Sleep Mode: Continuous loud emergency alarm to wake up staff
           alarmAudioEngine.showUnifiedAlarmBar(
             `🚨 BÁO THỨC: CÓ TIN NHẮN MỚI TỪ KHÁCH HÀNG!`,
             `Tin nhắn từ ${msg.sender_name} (${msg.page_name}). Loa máy tính đang đổ chuông để đánh thức bạn trực ca.`
           );
           alarmAudioEngine.startContinuousAlarm(getEffectiveVolume(), getEffectiveSoundType());
         } else {
-          alarmAudioEngine.playSingleChime(getEffectiveVolume(), getEffectiveSoundType());
+          // Daytime / Normal shift: Crisp, crystal dual-bell message notification chime
+          alarmAudioEngine.playNewMessageChime(getEffectiveVolume());
         }
       }
 
@@ -6801,6 +6898,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('triggerTestMessageBtn')?.addEventListener('click', async () => {
     const btn = document.getElementById('triggerTestMessageBtn');
     btn.disabled = true;
+
+    // Web Audio unlock immediately on user interaction
+    try {
+      alarmAudioEngine.init();
+      if (alarmAudioEngine.audioCtx && alarmAudioEngine.audioCtx.state === 'suspended') {
+        alarmAudioEngine.audioCtx.resume().catch(() => {});
+      }
+    } catch (e) {}
 
     try {
       const res = await fetch('/api/test/simulate-message', {
