@@ -31,8 +31,11 @@ bin/*.tar.gz
 bin/node/
 bin/node_temp/
 !bin/.gitkeep
-dist/
+dist/*
+!dist/FB-Multi-Hub-Standalone.exe
+!dist/.gitkeep
 *.exe
+!dist/FB-Multi-Hub-Standalone.exe
 temp_payload.zip
 _runtime/
 
