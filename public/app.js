@@ -1678,17 +1678,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function openMetaSuiteWithAutoCopy(metaUrl) {
+    const textarea = document.getElementById('chatReplyInput');
+    const textToCopy = (textarea && textarea.value) ? textarea.value.trim() : '';
+    if (textToCopy && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast('📋 Đã copy tin nhắn vào Clipboard! Chỉ cần bấm Ctrl+V để gửi trên Meta Suite.', 'success');
+      }).catch(() => {});
+    }
+    window.open(metaUrl, '_blank', 'noopener,noreferrer');
+  }
+
   function update24hPolicyUI(lastCustomerTime, pageId, senderId) {
     const badge = document.getElementById('chat24hWindowBadge');
     const banner = document.getElementById('chat24hWarningBanner');
     const warningText = document.getElementById('chat24hWarningText');
     const openMetaBannerBtn = document.getElementById('chat24hOpenMetaBtn');
+    const openMetaHeaderBtn = document.getElementById('openMetaInboxBtn');
     const tagSelect = document.getElementById('chatMessageTagSelect');
     const metaUrl = `https://business.facebook.com/latest/inbox/all?asset_id=${pageId}`;
 
-    if (openMetaBannerBtn) openMetaBannerBtn.href = metaUrl;
+    if (openMetaBannerBtn) {
+      openMetaBannerBtn.href = metaUrl;
+      openMetaBannerBtn.onclick = (e) => {
+        e.preventDefault();
+        openMetaSuiteWithAutoCopy(metaUrl);
+      };
+    }
+    if (openMetaHeaderBtn) {
+      openMetaHeaderBtn.href = metaUrl;
+      openMetaHeaderBtn.onclick = (e) => {
+        e.preventDefault();
+        openMetaSuiteWithAutoCopy(metaUrl);
+      };
+    }
     const modalGoMeta = document.getElementById('btnModalGoMetaSuite');
-    if (modalGoMeta) modalGoMeta.href = metaUrl;
+    if (modalGoMeta) {
+      modalGoMeta.href = metaUrl;
+      modalGoMeta.onclick = (e) => {
+        e.preventDefault();
+        closeModal('metaPolicyInfoModal');
+        openMetaSuiteWithAutoCopy(metaUrl);
+      };
+    }
 
     if (badge && !badge.dataset.listenerAdded) {
       badge.dataset.listenerAdded = 'true';
@@ -1740,7 +1772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         banner.style.borderColor = 'rgba(245, 158, 11, 0.3)';
         banner.style.color = '#fde68a';
         if (warningText) {
-          warningText.innerHTML = `⚠️ <strong>Quá 24 giờ:</strong> Hãy bấm nút <strong>[Mở Meta Suite ↗]</strong> để nhắn tin trực tiếp miễn phí (không lo bị chặn), hoặc chọn Thẻ phù hợp.`;
+          warningText.innerHTML = `⚠️ <strong>Ngoài 24h:</strong> Mở Meta Suite để gửi tin trực tiếp (tự copy tin), hoặc chọn Thẻ phù hợp.`;
         }
       }
       // Do not auto-assign HUMAN_AGENT because self-hosted apps without App Review will get Error 100
@@ -2860,6 +2892,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const isError10 = data.errorCode === 10 || data.errorType === 'OUTSIDE_24H_WINDOW' || (data.error && (data.error.includes('[10]') || data.error.includes('khoảng thời gian cho phép') || data.error.includes('outside of allowed window')));
 
         if (isHumanAgentUnapproved || isError10) {
+          // Automatically copy typed message into clipboard so nothing is lost!
+          if (textToSend && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(textToSend).catch(() => {});
+          }
+
           const modalDetail = document.getElementById('metaPolicyModalErrorDetail');
           const modalGoMeta = document.getElementById('btnModalGoMetaSuite');
           const metaUrl = data.metaInboxUrl || `https://business.facebook.com/latest/inbox/all?asset_id=${activeConversation.page_id}`;
@@ -2868,11 +2905,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isHumanAgentUnapproved) {
               modalDetail.innerHTML = `<span style="color: #fbbf24; font-weight: 700;">⚠️ Meta từ chối Thẻ CSKH (Error 100):</span><br>` +
                 (data.detailedError || data.error || 'Facebook App chưa được Meta phê duyệt quyền HUMAN_AGENT (yêu cầu App Review).') +
-                `<br><br><span style="color: #93c5fd;">👉 Hãy bấm nút <strong>[Mở Ngay Meta Suite ↗]</strong> để trả lời khách trực tiếp trên Facebook hoàn toàn miễn phí và không bị chặn.</span>`;
+                `<br><br><span style="color: #34d399; font-weight: 600;">📋 Đã tự động sao chép tin nhắn của bạn vào Clipboard!</span><br>` +
+                `<span style="color: #93c5fd;">👉 Hãy bấm nút <strong>[Mở Ngay Meta Suite ↗]</strong> rồi nhấn <strong>Ctrl+V</strong> để gửi ngay cho khách.</span>`;
             } else {
               modalDetail.innerHTML = `<span style="color: #f87171; font-weight: 700;">⛔ Meta Chặn Gửi Tin Ngoài 24 Giờ (Error 10):</span><br>` +
                 (data.detailedError || data.error || 'Khách hàng đã quá 24 giờ không nhắn tin. Meta chặn gửi tin nhắn thông thường theo chính sách 24-Hour Policy.') +
-                `<br><br><span style="color: #93c5fd;">👉 Hãy bấm nút <strong>[Mở Ngay Meta Suite ↗]</strong> để tiếp tục hỗ trợ khách.</span>`;
+                `<br><br><span style="color: #34d399; font-weight: 600;">📋 Đã tự động sao chép tin nhắn của bạn vào Clipboard!</span><br>` +
+                `<span style="color: #93c5fd;">👉 Hãy bấm nút <strong>[Mở Ngay Meta Suite ↗]</strong> rồi nhấn <strong>Ctrl+V</strong> để gửi cho khách.</span>`;
             }
           }
           if (modalGoMeta) modalGoMeta.href = metaUrl;
@@ -2891,9 +2930,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
           openModal('metaPolicyInfoModal');
           if (isHumanAgentUnapproved) {
-            showToast('⚠️ App chưa duyệt Thẻ CSKH (Error 100). Hãy mở Meta Suite để gửi!', 'warning');
+            showToast('📋 Đã copy tin! Mở Meta Suite và ấn Ctrl+V để gửi', 'warning');
           } else {
-            showToast('⚠️ Meta chặn gửi tin: Ngoài cửa sổ 24 giờ cho phép!', 'error');
+            showToast('📋 Đã copy tin! Mở Meta Suite và ấn Ctrl+V để gửi', 'warning');
           }
         } else {
           showToast('Lỗi khi gửi tin: ' + data.error, 'error');

@@ -2102,6 +2102,37 @@ html, body {
   cursor: not-allowed;
 }
 
+/* Responsive adjustments for Composer & Header */
+@media (max-width: 1400px) {
+  .has-crm .texting-tool-btn .tool-label {
+    display: none;
+  }
+  .has-crm .texting-tool-btn {
+    padding: 4px 6px;
+  }
+  .has-crm .keyboard-hint {
+    display: none;
+  }
+  .has-crm .chat-message-tag-select {
+    max-width: 120px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .texting-tool-btn .tool-label {
+    display: none;
+  }
+  .texting-tool-btn {
+    padding: 4px 6px;
+  }
+  .keyboard-hint {
+    display: none;
+  }
+  .chat-message-tag-select {
+    max-width: 120px;
+  }
+}
+
 /* Floating Emoji Picker Popover */
 .emoji-picker-popover {
   position: absolute;
